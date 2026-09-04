@@ -3,21 +3,24 @@ import { notFound } from "next/navigation";
 import { CheckCircle, Clock, User, BriefcaseMedical, MapPin } from "lucide-react";
 import { CheckinButton } from "./CheckinButton";
 
-export default async function CheckinPage({ params }: { params: { reference: string } }) {
+import type { Customer, Treatment, Branch } from "@/lib/supabase/types";
+
+export default async function CheckinPage({ params }: { params: Promise<{ reference: string }> }) {
+  const { reference } = await params;
   const supabase = await createClient();
   const { data: appointment } = await supabase
     .from("appointments")
     .select("*, customers(*), treatments(*), branches(*)")
-    .eq("reference_number", params.reference)
+    .eq("reference_number", reference)
     .single();
 
   if (!appointment) {
     notFound();
   }
 
-  const customer = appointment.customers as any;
-  const treatment = appointment.treatments as any;
-  const branch = appointment.branches as any;
+  const customer = appointment.customers as unknown as Customer;
+  const treatment = appointment.treatments as unknown as Treatment;
+  const branch = appointment.branches as unknown as Branch;
 
   return (
     <div className="mx-auto max-w-lg mt-8">

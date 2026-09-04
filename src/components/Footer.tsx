@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Droplet } from "./Droplet";
 import { Mail, MapPin, Phone } from "lucide-react";
 
 export function Footer() {

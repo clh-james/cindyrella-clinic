@@ -9,7 +9,6 @@ import {
   Star,
   ChevronDown,
 } from "lucide-react";
-import { Droplet } from "@/components/Droplet";
 
 const trust = [
   { icon: ShieldCheck, label: "Licensed nurses on every visit" },

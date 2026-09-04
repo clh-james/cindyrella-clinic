@@ -7,7 +7,6 @@ import { sendEmail, bookingConfirmationEmail } from "@/lib/email";
 import { createCheckoutSession } from "@/lib/paymongo";
 import { insertCalendarEvent } from "@/lib/googleCalendar";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
-import { sendMessengerMessage } from "@/lib/messenger";
 
 export type BookingInput = {
   treatmentId: string;

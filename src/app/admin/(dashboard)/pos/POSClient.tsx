@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Treatment, InventoryItem, Branch } from "@/lib/supabase/types";
-import { ShoppingCart, Plus, Minus, CreditCard, Banknote, ScanLine, Loader2 } from "lucide-react";
+import { ShoppingCart, Minus, CreditCard, Banknote, ScanLine, Loader2 } from "lucide-react";
 import { processPOSWalkin, processPOSRetail } from "./actions";
 
 export function POSClient({ 

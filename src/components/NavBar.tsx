@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { Droplet } from "./Droplet";
 import { Menu, X } from "lucide-react";
 
 const links = [

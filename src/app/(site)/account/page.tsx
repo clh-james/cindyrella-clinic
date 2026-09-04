@@ -98,7 +98,7 @@ export default async function AccountPage() {
             
             {(appointments ?? []).length === 0 && (
               <p className="text-sm text-ink-soft py-4 text-center">
-                You haven't booked any sessions yet.
+                You haven&apos;t booked any sessions yet.
               </p>
             )}
           </ul>
