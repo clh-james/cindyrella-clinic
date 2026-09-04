@@ -10,6 +10,10 @@ bundled treatment/branch list and confirms locally. To make bookings real:
    - `0003_staff_admin_rls.sql` — lets admins manage the staff list from the dashboard
    - `0004_payment_external_ref.sql` — links a payment to its PayMongo checkout session
    - `0005_booking_management_functions.sql` — powers slot-availability checks and the customer self-service manage-booking page
+   - `0006_customer_loyalty.sql` — customer loyalty points system
+   - `0007_promo_codes.sql` — dynamic discount and promo code rules
+   - `0008_inventory.sql` — inventory master list and automated stock deduction
+   - `0009_pos_sales.sql` — Point of Sale (POS) retail tracking
 3. Copy `.env.example` to `.env.local` and fill in your project's URL, anon
    key, and **service role key** (all three under Project Settings → API —
    the service role key is required for the "add staff" feature below and

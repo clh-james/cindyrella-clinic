@@ -81,7 +81,7 @@ export default function Home() {
           </dl>
         </div>
 
-        <div className="relative">
+        <div className="relative h-fit self-center">
           <div className="aspect-video w-full overflow-hidden rounded-[2rem] relative bg-pale">
             <Image 
               src="/storefront.jpg" 
