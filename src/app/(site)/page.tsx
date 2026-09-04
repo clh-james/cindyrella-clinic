@@ -82,10 +82,14 @@ export default function Home() {
         </div>
 
         <div className="relative">
-          <div className="aspect-[4/5] w-full overflow-hidden rounded-[2rem] bg-gradient-to-br from-royal to-royal-deep">
-            <div className="flex h-full w-full items-center justify-center">
-              <Droplet className="h-40 w-32 text-white/15" />
-            </div>
+          <div className="aspect-video w-full overflow-hidden rounded-[2rem] relative bg-pale">
+            <Image 
+              src="/storefront.jpg" 
+              alt="Cindyrella Drip Wellness Aesthetics Storefront"
+              fill
+              className="object-cover"
+              priority
+            />
           </div>
           <div className="absolute -bottom-6 left-6 right-6 flex items-center justify-between rounded-2xl border border-line bg-paper px-6 py-4 shadow-[0_20px_40px_-15px_rgba(11,26,51,0.25)] sm:left-8 sm:right-auto sm:w-64">
             <div>
