@@ -2,10 +2,15 @@
 
 insert into branches (name, address, phone)
 values
-  ('Makati', 'Makati City, Metro Manila', '(0917) 000 0001'),
-  ('Bonifacio Global City', 'Taguig City, Metro Manila', '(0917) 000 0002'),
-  ('Quezon City', 'Quezon City, Metro Manila', '(0917) 000 0003'),
-  ('Alabang', 'Muntinlupa City, Metro Manila', '(0917) 000 0004')
+  ('Davao', 'Davao', ''),
+  ('Parañaque', 'Parañaque', ''),
+  ('Quezon City', 'Quezon City', ''),
+  ('Makati', 'Makati', ''),
+  ('Alaminos Pangasinan', 'Alaminos Pangasinan', ''),
+  ('Burgos Pangasinan', 'Burgos Pangasinan', ''),
+  ('Dagupan', 'Dagupan', ''),
+  ('San Pedro Laguna', 'San Pedro Laguna', ''),
+  ('Biñan Laguna', 'Biñan Laguna', '')
 on conflict do nothing;
 
 insert into branch_settings (branch_id, max_bookings_per_slot)
