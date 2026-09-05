@@ -35,10 +35,26 @@ export function Footer() {
             <ul className="mt-4 space-y-3 text-sm text-ink-soft">
               <li>Daily: 10:00 AM – 10:00 PM</li>
             </ul>
-            <div className="mt-4 flex gap-4 text-sm">
-              <a href="https://www.facebook.com/share/1Hzz25f2eV/" target="_blank" rel="noopener noreferrer" className="text-ink-soft hover:text-royal">Facebook</a>
-              <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" className="text-ink-soft hover:text-royal">Instagram</a>
-              <a href="https://www.tiktok.com/@cindyrellabyaryana" target="_blank" rel="noopener noreferrer" className="text-ink-soft hover:text-royal">TikTok</a>
+            <div className="mt-4 flex gap-5 text-sm">
+              <a href="https://www.facebook.com/share/1Hzz25f2eV/" target="_blank" rel="noopener noreferrer" className="text-ink-soft hover:text-royal" aria-label="Facebook">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+                </svg>
+              </a>
+              <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" className="text-ink-soft hover:text-royal" aria-label="Instagram">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                  <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+                </svg>
+              </a>
+              <a href="https://www.tiktok.com/@cindyrellabyaryana" target="_blank" rel="noopener noreferrer" className="text-ink-soft hover:text-royal" aria-label="TikTok">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-music-4">
+                  <path d="M9 18V5l12-2v13" />
+                  <circle cx="6" cy="18" r="3" />
+                  <circle cx="18" cy="16" r="3" />
+                </svg>
+              </a>
             </div>
           </div>
 
