@@ -9,7 +9,7 @@ export function Footer() {
         <div className="grid gap-12 md:grid-cols-[1.3fr_1fr_1fr_1.2fr]">
           <div>
             <div className="flex items-center gap-2.5">
-              <Image src="/logo.png" alt="Cindyrella Logo" width={64} height={64} className="rounded-full" />
+              <Image src="/logo.png" alt="Cindyrella Logo" width={128} height={128} className="rounded-full" />
             </div>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-soft">
               Licensed nurse-administered IV drip therapy for hydration,
