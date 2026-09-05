@@ -123,20 +123,22 @@ export function GalleryManager() {
         <div className="mt-6">
           <input 
             type="file" 
+            id="gallery-file-upload"
             accept="image/*" 
             className="sr-only" 
             ref={fileInputRef}
             onChange={handleFileUpload}
             disabled={isUploading}
           />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="inline-flex items-center gap-2 rounded-full bg-royal px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-royal-deep disabled:opacity-70"
+          <label 
+            htmlFor="gallery-file-upload"
+            className={`inline-flex items-center gap-2 rounded-full bg-royal px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-royal-deep cursor-pointer ${
+              isUploading ? "opacity-70 pointer-events-none" : ""
+            }`}
           >
             {isUploading && <Loader2 size={16} className="animate-spin" />}
             {isUploading ? "Uploading..." : "Select files"}
-          </button>
+          </label>
         </div>
       </div>
 
