@@ -124,7 +124,7 @@ export function GalleryManager() {
           <input 
             type="file" 
             accept="image/*" 
-            className="hidden" 
+            className="sr-only" 
             ref={fileInputRef}
             onChange={handleFileUpload}
             disabled={isUploading}
