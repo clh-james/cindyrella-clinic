@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Droplet } from "@/components/Droplet";
+import Image from "next/image";
 import { signOut } from "@/app/admin/actions";
 import { LayoutDashboard, CalendarClock, Settings, Users, BriefcaseMedical, Contact, Image as ImageIcon, Tag, Package } from "lucide-react";
 
@@ -33,8 +33,7 @@ export function AdminShell({
     <div className="grid min-h-screen md:grid-cols-[220px_1fr]">
       <aside className="border-b border-line bg-pale px-6 py-6 md:border-b-0 md:border-r">
         <Link href="/admin" className="flex items-center gap-2.5">
-          <Droplet className="h-6 w-5 text-royal" />
-          <span className="font-serif text-base font-semibold text-ink">Cindyrella</span>
+          <Image src="/logo.png" alt="Cindyrella Logo" width={40} height={40} className="rounded-full" />
         </Link>
 
         <nav className="mt-8 flex gap-1 md:flex-col">
