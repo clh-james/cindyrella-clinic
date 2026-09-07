@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { UploadCloud, Trash2, Image as ImageIcon, Loader2 } from "lucide-react";
+import { UploadCloud, Trash2, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface GalleryImage {
@@ -21,6 +21,7 @@ export function GalleryManager() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchImages();
   }, []);
@@ -46,7 +47,7 @@ export function GalleryManager() {
       }).sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
       
       setImages(filesWithUrls);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error fetching images:", err);
       setError("Failed to load images. Please ensure the gallery storage bucket is configured.");
     } finally {
@@ -77,7 +78,7 @@ export function GalleryManager() {
       
       // Refresh the image list
       await fetchImages();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error uploading image:", err);
       setError("Failed to upload image. Please check your permissions.");
     } finally {
@@ -97,7 +98,7 @@ export function GalleryManager() {
       
       // Refresh the list
       await fetchImages();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error deleting image:", err);
       setError("Failed to delete image.");
     }
