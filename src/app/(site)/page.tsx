@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
+import { TikTokEmbed } from "@/components/TikTokEmbed";
 import {
   ShieldCheck,
   Clock,
@@ -205,6 +206,33 @@ export default async function Home() {
               Treatment rooms are designed for rest, not a waiting-room
               rush — book a time that fits your day.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* TikTok Video */}
+      <section className="mx-auto max-w-6xl px-6 py-20">
+        <div className="flex flex-col md:flex-row items-center gap-12">
+          <div className="flex-1">
+            <h2 className="font-serif text-3xl font-semibold text-ink sm:text-4xl">
+              See us in action
+            </h2>
+            <p className="mt-4 text-lg leading-relaxed text-ink-soft">
+              Get a glimpse inside our clinic and see real treatments, real results, and what makes the Cindyrella experience so special.
+            </p>
+            <div className="mt-8">
+              <Link
+                href="https://www.tiktok.com/@cindyrellabyaryana"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-line px-6 py-3 text-sm font-medium text-ink transition-colors hover:border-royal hover:text-royal"
+              >
+                Follow us on TikTok
+              </Link>
+            </div>
+          </div>
+          <div className="w-full md:w-[360px] lg:w-[400px] shrink-0">
+            <TikTokEmbed author="cindyrellabyaryana" videoId="7507188332435361042" />
           </div>
         </div>
       </section>
