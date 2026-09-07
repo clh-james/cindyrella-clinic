@@ -21,9 +21,9 @@ export function GalleryManager() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchImages() {

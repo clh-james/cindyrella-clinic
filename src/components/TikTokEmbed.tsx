@@ -13,6 +13,7 @@ export function TikTokEmbed({ videoId, author }: TikTokEmbedProps) {
   // especially if navigating via Next.js client-side routing
   useEffect(() => {
     // Check if the script has already loaded and attached to window
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const win = window as any;
     if (win.tiktokEmbed && win.tiktokEmbed.load) {
       win.tiktokEmbed.load();
