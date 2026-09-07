@@ -52,11 +52,11 @@ export default async function Home() {
       {/* Hero */}
       <section className="mx-auto grid max-w-6xl gap-10 px-6 pb-16 pt-14 md:grid-cols-[1.05fr_0.95fr] md:gap-8 md:pb-24 md:pt-20">
         <div className="flex flex-col justify-center">
-          <div className="flex items-center gap-2 text-sm text-royal">
-            <Image src="/logo.png" alt="Cindyrella Logo" width={24} height={24} className="rounded-full" />
+          <div className="flex items-center gap-3 text-base font-medium text-royal">
+            <Image src="/logo.png" alt="Cindyrella Logo" width={40} height={40} />
             <span>Cindyrella Medical Group</span>
           </div>
-          <h1 className="mt-5 font-serif text-5xl font-semibold leading-[1.05] text-ink sm:text-6xl">
+          <h1 className="mt-6 font-serif text-5xl font-semibold leading-[1.05] text-ink sm:text-6xl">
             Unlocking ultimate confidence,
             <br />
             inside and out
