@@ -6,9 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 
 interface GalleryImage {
   name: string;
-  id: string;
-  updated_at: string;
-  created_at: string;
+  id: string | null;
+  updated_at: string | null;
+  created_at: string | null;
   url: string;
 }
 
@@ -43,7 +43,7 @@ export function GalleryManager() {
           ...file,
           url: urlData.publicUrl
         };
-      }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      }).sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
       
       setImages(filesWithUrls);
     } catch (err: any) {
@@ -156,7 +156,7 @@ export function GalleryManager() {
         ) : (
           <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {images.map((image) => (
-              <div key={image.id} className="group relative aspect-square overflow-hidden rounded-xl border border-line bg-pale">
+              <div key={image.id || image.name} className="group relative aspect-square overflow-hidden rounded-xl border border-line bg-pale">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
                   src={image.url} 

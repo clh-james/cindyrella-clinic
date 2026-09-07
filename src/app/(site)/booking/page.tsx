@@ -1,5 +1,4 @@
 import { BookingWizard } from "@/components/BookingWizard";
-import { treatments as staticTreatments } from "@/lib/treatments";
 import type { Branch, Treatment as DbTreatment } from "@/lib/supabase/types";
 
 export const metadata = {
@@ -13,24 +12,6 @@ const staticBranches: Branch[] = [
   { id: "alabang", name: "Alabang", address: null, phone: null, is_active: true },
 ];
 
-function toDbShape(): DbTreatment[] {
-  return staticTreatments.map((t, i) => ({
-    id: t.slug,
-    slug: t.slug,
-    name: t.name,
-    badge: t.badge ?? null,
-    session_price: t.session,
-    five_plus_one_price: t.fivePlusOne,
-    ten_plus_two_price: t.tenPlusTwo,
-    primary_desc: t.primary,
-    secondary_desc: t.secondary,
-    best_for: t.bestFor,
-    duration_minutes: parseInt(t.duration) || 30,
-    is_active: true,
-    sort_order: i,
-  }));
-}
-
 async function loadData(): Promise<{
   treatments: DbTreatment[];
   branches: Branch[];
@@ -41,7 +22,7 @@ async function loadData(): Promise<{
     !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!hasSupabaseEnv) {
-    return { treatments: toDbShape(), branches: staticBranches, live: false };
+    return { treatments: [], branches: staticBranches, live: false };
   }
 
   try {
@@ -59,12 +40,12 @@ async function loadData(): Promise<{
       ]);
 
     if (tErr || bErr || !treatments?.length || !branches?.length) {
-      return { treatments: toDbShape(), branches: staticBranches, live: false };
+      return { treatments: treatments || [], branches: branches || staticBranches, live: false };
     }
 
     return { treatments, branches, live: true };
   } catch {
-    return { treatments: toDbShape(), branches: staticBranches, live: false };
+    return { treatments: [], branches: staticBranches, live: false };
   }
 }
 

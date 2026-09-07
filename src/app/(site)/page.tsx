@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { treatments, peso } from "@/lib/treatments";
+import { createClient } from "@/lib/supabase/server";
 import {
   ShieldCheck,
   Clock,
@@ -35,7 +35,18 @@ const faqs = [
   },
 ];
 
-export default function Home() {
+const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
+
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: treatments } = await supabase
+    .from("treatments")
+    .select("*")
+    .eq("is_active", true)
+    .eq("category", "IV Drips")
+    .order("sort_order", { ascending: true })
+    .limit(6);
+
   return (
     <main>
       {/* Hero */}
@@ -126,7 +137,7 @@ export default function Home() {
           </div>
 
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {treatments.slice(0, 6).map((t) => (
+            {(treatments || []).map((t) => (
               <Link
                 href="/treatments"
                 key={t.slug}
@@ -144,14 +155,14 @@ export default function Home() {
                     )}
                   </div>
                   <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-                    {t.primary}
+                    {t.primary_desc}
                   </p>
                 </div>
                 <div className="mt-6 flex items-center justify-between border-t border-line pt-4">
                   <span className="text-lg font-semibold text-ink">
-                    {peso(t.session)}
+                    {peso(t.session_price)}
                   </span>
-                  <span className="text-xs text-ink-soft">{t.duration}</span>
+                  <span className="text-xs text-ink-soft">{t.duration_minutes ? `${t.duration_minutes} min` : ''}</span>
                 </div>
               </Link>
             ))}

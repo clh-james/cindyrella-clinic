@@ -21,6 +21,7 @@ export default async function ServicesPage() {
           <thead>
             <tr className="bg-pale text-left text-ink">
               <th className="px-5 py-3 font-medium">Service Name</th>
+              <th className="px-5 py-3 font-medium">Category</th>
               <th className="px-5 py-3 font-medium">Duration</th>
               <th className="px-5 py-3 font-medium">Session Price</th>
               <th className="px-5 py-3 font-medium">5 + 1 Price</th>
@@ -32,10 +33,11 @@ export default async function ServicesPage() {
             {(treatments ?? []).map((t) => (
               <tr key={t.id} className="border-b border-line last:border-0 hover:bg-pale/50">
                 <td className="px-5 py-3 font-medium text-ink">{t.name}</td>
-                <td className="px-5 py-3 text-ink-soft">{t.duration_minutes} min</td>
+                <td className="px-5 py-3 text-ink-soft">{t.category}</td>
+                <td className="px-5 py-3 text-ink-soft">{t.duration_minutes ? `${t.duration_minutes} min` : '-'}</td>
                 <td className="px-5 py-3 text-ink-soft">{peso(t.session_price)}</td>
-                <td className="px-5 py-3 text-ink-soft">{peso(t.five_plus_one_price)}</td>
-                <td className="px-5 py-3 text-ink-soft">{peso(t.ten_plus_two_price)}</td>
+                <td className="px-5 py-3 text-ink-soft">{t.five_plus_one_price ? peso(t.five_plus_one_price) : '-'}</td>
+                <td className="px-5 py-3 text-ink-soft">{t.ten_plus_two_price ? peso(t.ten_plus_two_price) : '-'}</td>
                 <td className="px-5 py-3 text-ink-soft">
                   <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                     {t.is_active ? 'Active' : 'Inactive'}
