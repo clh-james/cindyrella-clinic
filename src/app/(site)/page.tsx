@@ -146,26 +146,38 @@ export default async function Home() {
                 key={t.slug}
                 className="group flex flex-col justify-between rounded-2xl border border-line bg-paper p-6 transition-colors hover:border-royal"
               >
-                <div>
+                <div className="flex flex-col gap-6">
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="font-serif text-xl font-semibold text-ink">
                       {t.name}
                     </h3>
                     {t.badge && (
-                      <span className="whitespace-nowrap rounded-full bg-gold-soft px-2.5 py-1 text-[11px] font-medium text-gold">
+                      <span className="whitespace-nowrap rounded-full bg-gold-soft px-2.5 py-1 text-[11px] font-semibold text-gold uppercase tracking-wider">
                         {t.badge}
                       </span>
                     )}
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-                    {t.primary_desc}
-                  </p>
+                  
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-bold text-ink">
+                      {peso(t.session_price)}
+                    </span>
+                  </div>
+
+                  <ul className="space-y-3 mt-2">
+                    {(t.best_for ? t.best_for.split(',') : (t.primary_desc ? [t.primary_desc] : [])).slice(0, 3).map((feature: string, i: number) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <Check size={18} className="mt-0.5 shrink-0 text-gold" />
+                        <span className="text-sm text-ink-soft leading-snug">{feature.trim()}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <div className="mt-6 flex items-center justify-between border-t border-line pt-4">
-                  <span className="text-lg font-semibold text-ink">
-                    {peso(t.session_price)}
-                  </span>
-                  <span className="text-xs text-ink-soft">{t.duration_minutes ? `${t.duration_minutes} min` : ''}</span>
+                
+                <div className="mt-8 pt-6 border-t border-line">
+                  <div className="w-full rounded-full bg-royal px-6 py-3.5 text-center text-sm font-medium text-white transition-colors group-hover:bg-royal-deep">
+                    Book Now
+                  </div>
                 </div>
               </Link>
             ))}
