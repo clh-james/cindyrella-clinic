@@ -285,6 +285,7 @@ export default async function Home() {
               rush — book a time that fits your day.
             </p>
           </div>
+        </div>
         </FadeIn>
       </section>
 
