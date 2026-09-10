@@ -185,6 +185,55 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Packages Section */}
+      <section className="mx-auto max-w-4xl px-6 py-20">
+        <div className="text-center mb-12">
+          <h2 className="font-serif text-3xl font-semibold text-ink sm:text-4xl">
+            Package Pricing
+          </h2>
+          <p className="mt-4 text-lg text-ink-soft">
+            Commit to your wellness journey and enjoy significant savings with our treatment packages.
+          </p>
+        </div>
+
+        <div className="overflow-hidden rounded-3xl border border-line bg-white shadow-sm">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-pale border-b border-line">
+                <th className="py-4 px-6 font-semibold text-ink">Package</th>
+                <th className="py-4 px-6 font-semibold text-ink text-right">Price</th>
+                <th className="py-4 px-6 font-semibold text-ink text-right hidden sm:table-cell">Value</th>
+                <th className="py-4 px-6 font-semibold text-royal text-right">Savings</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              <tr className="hover:bg-pale/50 transition-colors">
+                <td className="py-5 px-6 font-medium text-ink">1 Session</td>
+                <td className="py-5 px-6 font-medium text-ink text-right">₱2,999</td>
+                <td className="py-5 px-6 text-ink-soft text-right hidden sm:table-cell">-</td>
+                <td className="py-5 px-6 text-ink-soft text-right">-</td>
+              </tr>
+              <tr className="hover:bg-pale/50 transition-colors">
+                <td className="py-5 px-6 font-semibold text-ink flex items-center">
+                  5 + 1 <span className="text-[10px] font-bold uppercase tracking-wider text-royal bg-royal/10 px-2 py-1 rounded-full ml-3">1 Free</span>
+                </td>
+                <td className="py-5 px-6 font-semibold text-ink text-right">₱14,995</td>
+                <td className="py-5 px-6 text-ink-soft text-right line-through hidden sm:table-cell">₱17,994</td>
+                <td className="py-5 px-6 font-semibold text-royal text-right">Save ₱2,999</td>
+              </tr>
+              <tr className="hover:bg-pale/50 transition-colors bg-royal/5">
+                <td className="py-5 px-6 font-bold text-ink flex items-center">
+                  10 + 2 <span className="text-[10px] font-bold uppercase tracking-wider text-gold bg-gold/10 px-2 py-1 rounded-full ml-3">2 Free</span>
+                </td>
+                <td className="py-5 px-6 font-bold text-ink text-right">₱29,990</td>
+                <td className="py-5 px-6 text-ink-soft text-right line-through hidden sm:table-cell">₱35,988</td>
+                <td className="py-5 px-6 font-bold text-royal text-right">Save ₱5,998</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       {/* Why choose */}
       <section id="about" className="mx-auto max-w-6xl px-6 py-20">
         <h2 className="font-serif text-3xl font-semibold text-ink sm:text-4xl">
