@@ -73,7 +73,7 @@ export function Slideshow() {
       </AnimatePresence>
 
       {/* Audio Controls */}
-      <div className="absolute bottom-4 left-4 z-10">
+      <div className="absolute top-4 left-4 z-10">
         <button
           onClick={toggleMute}
           className="bg-black/20 hover:bg-black/40 text-white rounded-full p-3 backdrop-blur-sm transition-colors"
