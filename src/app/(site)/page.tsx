@@ -9,7 +9,6 @@ import { FloatingElement } from "@/components/FloatingElement";
 import { RippleButton } from "@/components/RippleButton";
 import {
   ShieldCheck,
-  Clock,
   Sparkles,
   Syringe,
   Star,

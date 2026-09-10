@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import Link from "next/link";
 
 type Message = {
@@ -42,7 +42,7 @@ const RESPONSES: Record<string, React.ReactNode> = {
   ),
   "Book appointments": (
     <>
-      You can easily secure your session on our <Link href="/booking" className="text-royal underline">Booking page</Link>. We can't wait to see you!
+      You can easily secure your session on our <Link href="/booking" className="text-royal underline">Booking page</Link>. We can&apos;t wait to see you!
     </>
   ),
 };

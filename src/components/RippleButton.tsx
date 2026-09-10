@@ -55,14 +55,14 @@ export function RippleButton({ href, onClick, children, className = "" }: Ripple
 
   if (href) {
     return (
-      <Link href={href} onClick={handleClick as any} className={baseClass}>
+      <Link href={href} onClick={handleClick as React.MouseEventHandler<HTMLAnchorElement>} className={baseClass}>
         {content}
       </Link>
     );
   }
 
   return (
-    <button onClick={handleClick as any} className={baseClass}>
+    <button onClick={handleClick as React.MouseEventHandler<HTMLButtonElement>} className={baseClass}>
       {content}
     </button>
   );
