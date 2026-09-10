@@ -150,9 +150,9 @@ export default async function Home() {
             </Link>
           </div>
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 flex overflow-x-auto snap-x snap-mandatory gap-5 pb-8 -mx-6 px-6 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:overflow-visible sm:pb-0 scrollbar-hide">
             {(treatments || []).map((t, index) => (
-              <FadeIn key={t.slug} delay={index * 0.1}>
+              <FadeIn key={t.slug} delay={index * 0.1} className="shrink-0 w-[85vw] snap-center sm:w-auto">
               <Link
                 href="/treatments"
                 className="group h-full flex flex-col justify-between rounded-3xl border border-line bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_40px_-10px_rgba(30,58,138,0.15)] hover:border-royal"

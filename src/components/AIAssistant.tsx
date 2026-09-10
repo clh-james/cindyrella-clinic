@@ -102,7 +102,7 @@ export function AIAssistant() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-royal text-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:bg-royal-deep transition-colors md:bottom-8 md:right-8"
+            className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-royal text-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:bg-royal-deep transition-colors"
           >
             <MessageCircle size={28} />
           </motion.button>
@@ -117,7 +117,7 @@ export function AIAssistant() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-6 right-6 z-50 flex h-[500px] max-h-[85vh] w-[350px] max-w-[calc(100vw-48px)] flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-[0_20px_40px_-15px_rgba(11,26,51,0.25)] md:bottom-8 md:right-8"
+            className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-50 flex h-[500px] max-h-[75vh] w-[350px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-[0_20px_40px_-15px_rgba(11,26,51,0.25)]"
           >
             {/* Header */}
             <div className="flex items-center justify-between bg-royal px-4 py-3 text-white">
@@ -184,7 +184,7 @@ export function AIAssistant() {
                     key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
                     disabled={isTyping}
-                    className="rounded-full border border-line bg-pale px-3 py-1.5 text-xs text-ink transition-colors hover:border-royal hover:text-royal disabled:opacity-50 text-left"
+                    className="rounded-full border border-line bg-pale px-4 py-2 text-sm text-ink transition-colors hover:border-royal hover:text-royal disabled:opacity-50 text-left min-h-[40px] flex items-center"
                   >
                     {suggestion}
                   </button>
