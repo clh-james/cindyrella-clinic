@@ -3,6 +3,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { TikTokEmbed } from "@/components/TikTokEmbed";
 import { Slideshow } from "@/components/Slideshow";
+import { AnimatedStats } from "@/components/AnimatedStats";
 import {
   ShieldCheck,
   Clock,
@@ -10,12 +11,16 @@ import {
   Syringe,
   Star,
   ChevronDown,
+  Check,
 } from "lucide-react";
 
 const trust = [
-  { icon: ShieldCheck, label: "Licensed nurses on every visit" },
-  { icon: Sparkles, label: "FDA-approved formulations" },
-  { icon: Clock, label: "Same-week appointments" },
+  "Licensed Medical Professionals",
+  "FDA-Approved IV Formulations",
+  "Sterile Equipment",
+  "5000+ Successful Treatments",
+  "4.9★ Customer Rating",
+  "Doctor Supervised",
 ];
 
 const faqs = [
@@ -83,14 +88,14 @@ export default async function Home() {
             </Link>
           </div>
 
-          <dl className="mt-12 grid max-w-md grid-cols-3 gap-6 border-t border-line pt-6">
-            {trust.map(({ icon: Icon, label }) => (
-              <div key={label} className="flex flex-col gap-2">
-                <Icon size={18} className="text-royal" />
-                <dt className="text-xs leading-snug text-ink-soft">{label}</dt>
-              </div>
+          <ul className="mt-12 grid max-w-md grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 border-t border-line pt-6">
+            {trust.map((label) => (
+              <li key={label} className="flex items-start gap-2">
+                <Check size={16} className="text-royal shrink-0 mt-0.5" />
+                <span className="text-xs font-medium text-ink-soft leading-snug">{label}</span>
+              </li>
             ))}
-          </dl>
+          </ul>
         </div>
 
         <div className="relative h-fit self-center">
@@ -110,6 +115,8 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      <AnimatedStats />
 
       {/* Treatments preview */}
       <section className="border-t border-line bg-pale py-20">
