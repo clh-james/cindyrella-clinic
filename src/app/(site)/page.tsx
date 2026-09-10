@@ -94,7 +94,7 @@ export default async function Home() {
         </div>
 
         <div className="relative h-fit self-center">
-          <div className="aspect-video w-full overflow-hidden rounded-[2rem] relative bg-pale">
+          <div className="aspect-[3/4] w-full overflow-hidden rounded-[2rem] relative bg-pale">
             <Slideshow />
           </div>
           <div className="absolute -bottom-6 left-6 right-6 flex items-center justify-between rounded-2xl border border-line bg-paper px-6 py-4 shadow-[0_20px_40px_-15px_rgba(11,26,51,0.25)] sm:left-8 sm:right-auto sm:w-64">
