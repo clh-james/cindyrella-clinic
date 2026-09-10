@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Star } from "lucide-react";
+import { useInView } from "framer-motion";
 
-function useCounter(end: number, duration: number = 2000) {
+function useCounter(end: number, inView: boolean, duration: number = 2000) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
+    if (!inView) return;
+    
     let startTime: number | null = null;
     const animate = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
@@ -22,19 +25,22 @@ function useCounter(end: number, duration: number = 2000) {
     };
     
     requestAnimationFrame(animate);
-  }, [end, duration]);
+  }, [end, duration, inView]);
 
   return count;
 }
 
 export function AnimatedStats() {
-  const sessions = useCounter(5000);
-  const rating = useCounter(49); 
-  const treatments = useCounter(7);
-  const satisfaction = useCounter(98);
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-10%" });
+  
+  const sessions = useCounter(5000, inView);
+  const rating = useCounter(49, inView); 
+  const treatments = useCounter(7, inView);
+  const satisfaction = useCounter(98, inView);
 
   return (
-    <section className="mx-auto max-w-6xl px-6 pb-20">
+    <section ref={ref} className="mx-auto max-w-6xl px-6 pb-20">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-10 border-y border-line">
         <div className="flex flex-col items-center text-center">
           <span className="text-4xl font-serif font-bold text-royal">{sessions}+</span>

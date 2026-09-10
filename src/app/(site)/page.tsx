@@ -4,6 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { TikTokEmbed } from "@/components/TikTokEmbed";
 import { Slideshow } from "@/components/Slideshow";
 import { AnimatedStats } from "@/components/AnimatedStats";
+import { FadeIn } from "@/components/FadeIn";
+import { FloatingElement } from "@/components/FloatingElement";
+import { RippleButton } from "@/components/RippleButton";
 import {
   ShieldCheck,
   Clock,
@@ -57,8 +60,12 @@ export default async function Home() {
   return (
     <main>
       {/* Hero */}
-      <section className="mx-auto grid max-w-6xl gap-10 px-6 pb-16 pt-14 md:grid-cols-[1.05fr_0.95fr] md:gap-8 md:pb-24 md:pt-20">
-        <div className="flex flex-col justify-center">
+      <section className="relative mx-auto grid max-w-6xl gap-10 px-6 pb-16 pt-14 md:grid-cols-[1.05fr_0.95fr] md:gap-8 md:pb-24 md:pt-20">
+        <FloatingElement className="absolute top-10 left-10 text-royal/10 pointer-events-none hidden md:block">
+          <Sparkles size={120} />
+        </FloatingElement>
+        
+        <FadeIn direction="left" className="flex flex-col justify-center relative z-10">
           <div className="flex items-center gap-3 text-base font-medium text-royal">
             <Image src="/logo.png" alt="Cindyrella Logo" width={40} height={40} />
             <span>Cindyrella Medical Group</span>
@@ -74,18 +81,18 @@ export default async function Home() {
             feels like a spa.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
-            <Link
+            <RippleButton
               href="/booking"
               className="rounded-full bg-royal px-7 py-3.5 text-sm font-medium text-white transition-colors hover:bg-royal-deep"
             >
               Book now
-            </Link>
-            <Link
+            </RippleButton>
+            <RippleButton
               href="/treatments"
               className="rounded-full border border-line px-7 py-3.5 text-sm font-medium text-ink transition-colors hover:border-royal hover:text-royal"
             >
               View treatments
-            </Link>
+            </RippleButton>
           </div>
 
           <ul className="mt-12 grid max-w-md grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 border-t border-line pt-6">
@@ -96,9 +103,9 @@ export default async function Home() {
               </li>
             ))}
           </ul>
-        </div>
+        </FadeIn>
 
-        <div className="relative h-fit self-center">
+        <FadeIn direction="right" className="relative h-fit self-center z-10">
           <div className="aspect-[3/4] w-full overflow-hidden rounded-[2rem] relative bg-pale">
             <Slideshow />
           </div>
@@ -113,14 +120,18 @@ export default async function Home() {
               ))}
             </div>
           </div>
-        </div>
+        </FadeIn>
       </section>
 
       <AnimatedStats />
 
       {/* Treatments preview */}
-      <section className="border-t border-line bg-pale py-20">
-        <div className="mx-auto max-w-6xl px-6">
+      <section className="relative border-t border-line bg-pale py-20 overflow-hidden">
+        <FloatingElement delay={1} className="absolute right-0 top-1/4 text-royal/5 pointer-events-none hidden lg:block -mr-10">
+          <Syringe size={200} />
+        </FloatingElement>
+
+        <FadeIn className="mx-auto max-w-6xl px-6 relative z-10">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
               <h2 className="font-serif text-3xl font-semibold text-ink sm:text-4xl">
@@ -140,11 +151,11 @@ export default async function Home() {
           </div>
 
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {(treatments || []).map((t) => (
+            {(treatments || []).map((t, index) => (
+              <FadeIn key={t.slug} delay={index * 0.1}>
               <Link
                 href="/treatments"
-                key={t.slug}
-                className="group flex flex-col justify-between rounded-2xl border border-line bg-paper p-6 transition-colors hover:border-royal"
+                className="group h-full flex flex-col justify-between rounded-3xl border border-line bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_40px_-10px_rgba(30,58,138,0.15)] hover:border-royal"
               >
                 <div className="flex flex-col gap-6">
                   <div className="flex items-start justify-between gap-3">
@@ -180,13 +191,15 @@ export default async function Home() {
                   </div>
                 </div>
               </Link>
+              </FadeIn>
             ))}
           </div>
-        </div>
+        </FadeIn>
       </section>
 
       {/* Packages Section */}
       <section className="mx-auto max-w-4xl px-6 py-20">
+        <FadeIn>
         <div className="text-center mb-12">
           <h2 className="font-serif text-3xl font-semibold text-ink sm:text-4xl">
             Package Pricing
@@ -232,10 +245,12 @@ export default async function Home() {
             </tbody>
           </table>
         </div>
+        </FadeIn>
       </section>
 
       {/* Why choose */}
       <section id="about" className="mx-auto max-w-6xl px-6 py-20">
+        <FadeIn>
         <h2 className="font-serif text-3xl font-semibold text-ink sm:text-4xl">
           Why clients choose Cindyrella
         </h2>
@@ -270,12 +285,12 @@ export default async function Home() {
               rush — book a time that fits your day.
             </p>
           </div>
-        </div>
+        </FadeIn>
       </section>
 
       {/* TikTok Video */}
       <section className="mx-auto max-w-6xl px-6 py-20">
-        <div className="flex flex-col md:flex-row items-center gap-12">
+        <FadeIn className="flex flex-col md:flex-row items-center gap-12">
           <div className="flex-1">
             <h2 className="font-serif text-3xl font-semibold text-ink sm:text-4xl">
               See us in action
@@ -297,12 +312,12 @@ export default async function Home() {
           <div className="w-full md:w-[360px] lg:w-[400px] shrink-0">
             <TikTokEmbed author="cindyrellabyaryana" videoId="7507188332435361042" />
           </div>
-        </div>
+        </FadeIn>
       </section>
 
       {/* FAQ */}
       <section id="faq" className="border-t border-line bg-pale py-20">
-        <div className="mx-auto max-w-3xl px-6">
+        <FadeIn className="mx-auto max-w-3xl px-6">
           <h2 className="font-serif text-3xl font-semibold text-ink sm:text-4xl">
             Frequently asked
           </h2>
@@ -322,12 +337,12 @@ export default async function Home() {
               </details>
             ))}
           </div>
-        </div>
+        </FadeIn>
       </section>
 
       {/* CTA */}
       <section className="mx-auto max-w-6xl px-6 py-20">
-        <div className="flex flex-col items-start justify-between gap-6 rounded-[2rem] bg-royal px-8 py-12 sm:px-12 md:flex-row md:items-center">
+        <FadeIn className="flex flex-col items-start justify-between gap-6 rounded-[2rem] bg-royal px-8 py-12 sm:px-12 md:flex-row md:items-center">
           <div>
             <h2 className="font-serif text-3xl font-semibold text-white">
               Ready to feel it?
@@ -337,13 +352,13 @@ export default async function Home() {
               it from there.
             </p>
           </div>
-          <Link
+          <RippleButton
             href="/booking"
-            className="whitespace-nowrap rounded-full bg-white px-7 py-3.5 text-sm font-medium text-royal transition-transform hover:scale-[1.02]"
+            className="whitespace-nowrap rounded-full bg-white px-7 py-3.5 text-sm font-medium text-royal transition-transform hover:scale-[1.02] shadow-lg"
           >
             Book your session
-          </Link>
-        </div>
+          </RippleButton>
+        </FadeIn>
       </section>
     </main>
   );
