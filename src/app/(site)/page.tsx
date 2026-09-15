@@ -52,7 +52,7 @@ export default async function Home() {
     .from("treatments")
     .select("*")
     .eq("is_active", true)
-    .eq("category", "IV Drips")
+    .in("category", ["IV Drips", "IV Treatment"])
     .order("sort_order", { ascending: true })
     .limit(6);
 

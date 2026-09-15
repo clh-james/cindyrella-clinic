@@ -15,7 +15,21 @@ export default async function TreatmentsPage() {
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
 
-  const categories = ["IV Drips", "Nail Care", "Eyelash Extension", "PRP Treatment", "Facial & Warts", "Contouring & Whitening", "Queen's Intimate Treatment", "King's Treatment"];
+  const categories = [
+    "IV Treatment",
+    "IV Drips",
+    "IPL Hair Removal",
+    "Hair Waxing",
+    "Breast Augmentation",
+    "Butt Augmentation",
+    "Nail Care",
+    "Eyelash Extension",
+    "PRP Treatment",
+    "Facial & Warts",
+    "Contouring & Whitening",
+    "Queen's Intimate Treatment",
+    "King's Treatment"
+  ];
   
   const groupedTreatments = categories.map(cat => ({
     name: cat,
