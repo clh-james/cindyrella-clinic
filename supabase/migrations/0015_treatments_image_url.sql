@@ -9,3 +9,4 @@ UPDATE treatments SET image_url = '/images/drips/glow-boost.jpg' WHERE slug = 'i
 UPDATE treatments SET image_url = '/images/drips/radiance-plus.jpg' WHERE slug = 'iv-radiance-plus';
 UPDATE treatments SET image_url = '/images/drips/recovery-drip.jpg' WHERE slug = 'iv-recovery-drip';
 UPDATE treatments SET image_url = '/images/drips/clear-skin-boost.jpg' WHERE slug = 'iv-clear-skin';
+UPDATE treatments SET image_url = '/images/drips/active_glow.jpg' WHERE slug = 'iv-active-glow';
