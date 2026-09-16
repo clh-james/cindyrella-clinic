@@ -13,5 +13,5 @@ INSERT INTO treatments (slug, name, category, session_price, primary_desc, sort_
 ('penile-combo', 'Penile Combo Grit + Crown', 'King''s Treatment', 35000, 'Starts @ P35,000', 121),
 ('mens-p-shot', 'Mens P-Shot', 'King''s Treatment', 15000, '', 122),
 ('penecial', 'Penecial', 'King''s Treatment', 5000, '', 123),
-('genetal-warts-removal', 'Genetal Warts Removal', 'King''s Treatment', 5000, '', 124)
+('genital-warts-removal', 'Genital Warts Removal', 'King''s Treatment', 5000, '', 124)
     ON CONFLICT (slug) DO UPDATE SET session_price = EXCLUDED.session_price;
