@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { ServiceCard } from "@/components/ServiceCard";
 
 export const metadata = {
   title: "Treatments & Services — Cindyrella Medical Group",
@@ -68,48 +69,7 @@ export default async function TreatmentsPage() {
             
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {group.items.map((t) => (
-                <div key={t.id} className="flex flex-col rounded-2xl border border-line p-6 bg-white shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <h3 className="font-serif text-xl font-medium text-ink">
-                      {t.name}
-                    </h3>
-                    {t.badge && (
-                      <span className="whitespace-nowrap rounded-full bg-gold-soft px-2.5 py-1 text-[11px] font-medium text-gold">
-                        {t.badge}
-                      </span>
-                    )}
-                  </div>
-                  
-                  {t.primary_desc && (
-                    <p className="text-sm text-ink-soft mb-6 flex-grow">{t.primary_desc}</p>
-                  )}
-                  
-                  <div className="mt-auto border-t border-line pt-4 flex flex-col gap-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-ink-soft">Session</span>
-                      <span className="text-lg font-semibold text-ink">{peso(t.session_price)}</span>
-                    </div>
-                    {t.five_plus_one_price != null && t.five_plus_one_price > 0 && (
-                      <div className="flex justify-between items-center text-sm mt-1">
-                        <span className="text-ink-soft">5 + 1 Package</span>
-                        <span className="font-medium text-ink">{peso(t.five_plus_one_price)}</span>
-                      </div>
-                    )}
-                    {t.ten_plus_two_price != null && t.ten_plus_two_price > 0 && (
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-ink-soft">10 + 2 Package</span>
-                        <span className="font-medium text-ink">{peso(t.ten_plus_two_price)}</span>
-                      </div>
-                    )}
-                    
-                    <Link
-                      href="/booking"
-                      className="mt-5 w-full rounded-full bg-royal/10 text-royal px-4 py-2.5 text-center text-sm font-medium transition-colors hover:bg-royal hover:text-white"
-                    >
-                      Book Appointment
-                    </Link>
-                  </div>
-                </div>
+                <ServiceCard key={t.id} service={t as any} />
               ))}
             </div>
           </section>
