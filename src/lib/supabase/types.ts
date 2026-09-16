@@ -12,6 +12,7 @@ export type Treatment = {
   name: string;
   category: string;
   badge: string | null;
+  image_url: string | null;
   session_price: number;
   five_plus_one_price: number | null;
   ten_plus_two_price: number | null;

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { ServiceCard } from "@/components/ServiceCard";
 import { createClient } from "@/lib/supabase/server";
 import { TikTokEmbed } from "@/components/TikTokEmbed";
 import { Slideshow } from "@/components/Slideshow";
@@ -152,44 +153,7 @@ export default async function Home() {
           <div className="mt-10 flex overflow-x-auto snap-x snap-mandatory gap-5 pb-8 -mx-6 px-6 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:overflow-visible sm:pb-0 scrollbar-hide">
             {(treatments || []).map((t, index) => (
               <FadeIn key={t.slug} delay={index * 0.1} className="shrink-0 w-[85vw] snap-center sm:w-auto">
-              <Link
-                href="/treatments"
-                className="group h-full flex flex-col justify-between rounded-3xl border border-line bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_40px_-10px_rgba(30,58,138,0.15)] hover:border-royal"
-              >
-                <div className="flex flex-col gap-6">
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="font-serif text-xl font-semibold text-ink">
-                      {t.name}
-                    </h3>
-                    {t.badge && (
-                      <span className="whitespace-nowrap rounded-full bg-gold-soft px-2.5 py-1 text-[11px] font-semibold text-gold uppercase tracking-wider">
-                        {t.badge}
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-bold text-ink">
-                      {peso(t.session_price)}
-                    </span>
-                  </div>
-
-                  <ul className="space-y-3 mt-2">
-                    {(t.best_for ? t.best_for.split(',') : (t.primary_desc ? [t.primary_desc] : [])).slice(0, 3).map((feature: string, i: number) => (
-                      <li key={i} className="flex items-start gap-3">
-                        <Check size={18} className="mt-0.5 shrink-0 text-gold" />
-                        <span className="text-sm text-ink-soft leading-snug">{feature.trim()}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div className="mt-8 pt-6 border-t border-line">
-                  <div className="w-full rounded-full bg-royal px-6 py-3.5 text-center text-sm font-medium text-white transition-colors group-hover:bg-royal-deep">
-                    Book Now
-                  </div>
-                </div>
-              </Link>
+                <ServiceCard service={t as any} />
               </FadeIn>
             ))}
           </div>
