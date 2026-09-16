@@ -26,6 +26,7 @@ export default async function TreatmentsPage() {
     "PRP Treatment",
     "Facial & Warts",
     "Contouring & Whitening",
+    "Piercings",
     "Queen's Intimate Treatment",
     "King's Treatment"
   ];
