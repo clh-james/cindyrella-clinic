@@ -47,8 +47,6 @@ const faqs = [
   },
 ];
 
-const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
-
 export default async function Home() {
   const supabase = await createClient();
   const { data: treatments } = await supabase
@@ -276,7 +274,7 @@ export default async function Home() {
             </div>
           </div>
           <div className="w-full md:w-[360px] lg:w-[400px] shrink-0">
-            <TikTokEmbed author="cindyrellabyaryana" videoId="7507188332435361042" />
+            <TikTokEmbed videoId="7507188332435361042" />
           </div>
         </FadeIn>
       </section>
