@@ -18,7 +18,6 @@ export default async function TreatmentsPage() {
 
   const categories = [
     "IV Treatment",
-    "IV Drips",
     "IPL Hair Removal",
     "Hair Waxing",
     "Breast Augmentation",

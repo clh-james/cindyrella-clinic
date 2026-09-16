@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+export const revalidate = 60;
 import { ServiceCard } from "@/components/ServiceCard";
 import { createClient } from "@/lib/supabase/server";
 import { TikTokEmbed } from "@/components/TikTokEmbed";
@@ -53,7 +54,7 @@ export default async function Home() {
     .from("treatments")
     .select("*")
     .eq("is_active", true)
-    .in("category", ["IV Drips", "IV Treatment"])
+    .eq("category", "IV Treatment")
     .order("sort_order", { ascending: true })
     .limit(6);
 

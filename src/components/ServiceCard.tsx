@@ -11,10 +11,10 @@ export function ServiceCard({ service }: { service: Treatment }) {
   return (
     <Link
       href="/treatments"
-      className="group h-full flex flex-col rounded-3xl border border-line bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_40px_-10px_rgba(30,58,138,0.15)] hover:border-royal overflow-hidden"
+      className="group h-full flex flex-col rounded-2xl bg-[#18120F] shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] overflow-hidden"
     >
       {/* Image Area */}
-      <div className="relative aspect-video w-full overflow-hidden bg-pale">
+      <div className="relative aspect-video w-full overflow-hidden bg-[#18120F]">
         {service.image_url ? (
           <Image
             src={service.image_url}
@@ -24,46 +24,46 @@ export function ServiceCard({ service }: { service: Treatment }) {
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-ink-soft/30 font-medium">
+          <div className="absolute inset-0 flex items-center justify-center text-white/30 font-medium">
             <span className="text-sm">Image coming soon</span>
           </div>
         )}
         
-        {/* Subtle gradient overlay at the bottom of the image */}
-        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+        {/* Subtle gradient overlay at the bottom of the image to blend into the card */}
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#18120F] to-transparent pointer-events-none" />
       </div>
 
-      <div className="flex flex-col justify-between p-8 flex-1">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-serif text-xl font-semibold text-ink">
+      <div className="flex flex-col justify-between p-5 pt-1 flex-1 bg-[#18120F] z-10 relative">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-serif text-lg font-semibold text-white leading-tight">
               {service.name}
             </h3>
             {service.badge && (
-              <span className="whitespace-nowrap rounded-full bg-gold-soft px-2.5 py-1 text-[11px] font-semibold text-gold uppercase tracking-wider">
+              <span className="whitespace-nowrap rounded-full bg-[#d4af82] px-2.5 py-0.5 text-[10px] font-bold text-[#332211] uppercase tracking-wider shadow-sm mt-0.5">
                 {service.badge}
               </span>
             )}
           </div>
           
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold text-ink">
+            <span className="text-2xl font-bold text-[#d4af82]">
               {peso(service.session_price)}
             </span>
           </div>
 
-          <ul className="space-y-3 mt-2">
-            {(service.best_for ? service.best_for.split(',') : (service.primary_desc ? [service.primary_desc] : [])).slice(0, 3).map((feature: string, i: number) => (
-              <li key={i} className="flex items-start gap-3">
-                <Check size={18} className="mt-0.5 shrink-0 text-gold" />
-                <span className="text-sm text-ink-soft leading-snug">{feature.trim()}</span>
+          <ul className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2">
+            {(service.best_for ? service.best_for.split(',') : (service.primary_desc ? [service.primary_desc] : [])).slice(0, 4).map((feature: string, i: number) => (
+              <li key={i} className="flex items-center gap-1.5">
+                <Check size={14} className="shrink-0 text-[#d4af82]" />
+                <span className="text-xs text-white/90 leading-snug">{feature.trim()}</span>
               </li>
             ))}
           </ul>
         </div>
         
-        <div className="mt-8 pt-6 border-t border-line">
-          <div className="w-full rounded-full bg-royal px-6 py-3.5 text-center text-sm font-medium text-white transition-colors group-hover:bg-royal-deep">
+        <div className="mt-5">
+          <div className="w-full rounded-full bg-royal px-4 py-2.5 text-center text-sm font-medium text-white transition-colors group-hover:bg-royal-deep">
             Book Now
           </div>
         </div>
