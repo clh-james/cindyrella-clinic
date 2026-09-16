@@ -3,10 +3,9 @@
 
 interface TikTokEmbedProps {
   videoId: string;
-  author: string;
 }
 
-export function TikTokEmbed({ videoId, author }: TikTokEmbedProps) {
+export function TikTokEmbed({ videoId }: TikTokEmbedProps) {
 
   return (
     <div className="flex w-full justify-center overflow-hidden rounded-[2rem] bg-paper shadow-sm border border-line h-[700px]">

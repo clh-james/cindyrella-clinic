@@ -1,12 +1,11 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ServiceCard } from "@/components/ServiceCard";
+import { Treatment } from "@/lib/supabase/types";
 
 export const metadata = {
   title: "Treatments & Services — Cindyrella Medical Group",
+  description: "Explore our full range of services, from our signature IV drips and non-surgical aesthetic enhancements to nail care and facials.",
 };
-
-const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
 
 export default async function TreatmentsPage() {
   const supabase = await createClient();
@@ -68,7 +67,7 @@ export default async function TreatmentsPage() {
             
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {group.items.map((t) => (
-                <ServiceCard key={t.id} service={t as any} />
+                <ServiceCard key={t.id} service={t as Treatment} />
               ))}
             </div>
           </section>
