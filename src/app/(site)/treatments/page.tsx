@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { ServiceCard } from "@/components/ServiceCard";
-import { Treatment } from "@/lib/supabase/types";
+import TreatmentsClient from "./TreatmentsClient";
 
 export const metadata = {
   title: "Treatments & Services — Cindyrella Medical Group",
@@ -59,21 +58,7 @@ export default async function TreatmentsPage() {
         </p>
       </header>
 
-      <div className="mt-16 space-y-20">
-        {groupedTreatments.map((group) => (
-          <section key={group.name} id={group.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}>
-            <h2 className="font-serif text-3xl font-semibold text-ink border-b border-line pb-4 mb-8">
-              {group.name}
-            </h2>
-            
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {group.items.map((t) => (
-                <ServiceCard key={t.id} service={t as Treatment} />
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
+      <TreatmentsClient groupedTreatments={groupedTreatments} />
       
       <p className="mt-16 text-center text-xs text-ink-soft max-w-2xl mx-auto">
         Results vary from person to person. Factors such as lifestyle, skin condition, sun exposure, and adherence to a skincare routine may affect outcomes. Prices and packages are subject to change.
