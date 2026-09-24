@@ -73,7 +73,7 @@ export async function processPOSWalkin(input: {
       branch_id: input.branchId,
       appointment_date: date.toISOString().split('T')[0],
       appointment_time: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-      payment_method: input.paymentMethod as any,
+      payment_method: input.paymentMethod,
       amount_due: input.amountDue,
       status: "completed",
       payment_status: "paid"
