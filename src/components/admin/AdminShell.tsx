@@ -4,19 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { signOut } from "@/app/admin/actions";
-import { LayoutDashboard, CalendarClock, Settings, Users, BriefcaseMedical, Contact, Image as ImageIcon, Tag, Package, Calculator } from "lucide-react";
+import { LayoutDashboard, CalendarClock, Settings, Users, BriefcaseMedical, Contact, Image as ImageIcon, Tag, Package, Calculator, Shield } from "lucide-react";
+import { Can } from "@/components/rbac/Can";
 
 const links = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/pos", label: "POS", icon: Calculator },
-  { href: "/admin/appointments", label: "Appointments", icon: CalendarClock },
-  { href: "/admin/customers", label: "Customers", icon: Contact },
-  { href: "/admin/services", label: "Services", icon: BriefcaseMedical },
-  { href: "/admin/inventory", label: "Inventory", icon: Package },
-  { href: "/admin/promos", label: "Promos", icon: Tag },
-  { href: "/admin/gallery", label: "Gallery", icon: ImageIcon },
-  { href: "/admin/staff", label: "Staff", icon: Users },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/admin", label: "Overview", icon: LayoutDashboard, permission: "dashboard.view" },
+  { href: "/admin/pos", label: "POS", icon: Calculator, permission: "pos.view" },
+  { href: "/admin/appointments", label: "Appointments", icon: CalendarClock, permission: "appointments.view" },
+  { href: "/admin/customers", label: "Customers", icon: Contact, permission: "customers.view" },
+  { href: "/admin/services", label: "Services", icon: BriefcaseMedical, permission: "services.view" },
+  { href: "/admin/inventory", label: "Inventory", icon: Package, permission: "inventory.view" },
+  { href: "/admin/promos", label: "Promos", icon: Tag, permission: "promos.view" },
+  { href: "/admin/gallery", label: "Gallery", icon: ImageIcon, permission: "gallery.view" },
+  { href: "/admin/staff", label: "Staff", icon: Users, permission: "staff.view" },
+  { href: "/admin/roles", label: "Roles", icon: Shield, permission: "users.assign_role" },
+  { href: "/admin/settings", label: "Settings", icon: Settings, permission: "settings.view" },
 ];
 
 export function AdminShell({
@@ -38,19 +40,20 @@ export function AdminShell({
         </Link>
 
         <nav className="mt-8 flex gap-1 md:flex-col">
-          {links.map(({ href, label, icon: Icon }) => {
+          {links.map(({ href, label, icon: Icon, permission }) => {
             const active = pathname === href;
             return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  active ? "bg-royal text-white" : "text-ink-soft hover:bg-white hover:text-ink"
-                }`}
-              >
-                <Icon size={16} />
-                {label}
-              </Link>
+              <Can key={href} permission={permission}>
+                <Link
+                  href={href}
+                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                    active ? "bg-royal text-white" : "text-ink-soft hover:bg-white hover:text-ink"
+                  }`}
+                >
+                  <Icon size={16} />
+                  {label}
+                </Link>
+              </Can>
             );
           })}
         </nav>

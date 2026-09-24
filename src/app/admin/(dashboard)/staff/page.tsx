@@ -12,7 +12,7 @@ export default async function StaffPage() {
   const [{ data: staff }, { data: branches }] = await Promise.all([
     supabase
       .from("staff")
-      .select("id, full_name, role, is_active, branches(name)")
+      .select("id, full_name, is_active, branches(name), role:roles(name)")
       .order("full_name"),
     supabase.from("branches").select("*").order("name"),
   ]);
@@ -52,10 +52,12 @@ export default async function StaffPage() {
                   </p>
                   <p className="text-xs text-ink-soft">{branch?.name ?? "Unassigned branch"}</p>
                 </div>
-                {session.role === "admin" ? (
-                  <StaffRowControls staffId={s.id} role={s.role} isActive={s.is_active} />
+                {session.role === "super_admin" || session.role === "admin" ? (
+                  // @ts-ignore
+                  <StaffRowControls staffId={s.id} role={s.role?.name || "staff"} isActive={s.is_active} />
                 ) : (
-                  <span className="text-xs capitalize text-ink-soft">{s.role}</span>
+                  // @ts-ignore
+                  <span className="text-xs capitalize text-ink-soft">{s.role?.name || "staff"}</span>
                 )}
               </li>
             );

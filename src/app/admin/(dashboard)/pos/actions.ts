@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { hasServerPermission } from "@/lib/rbac";
 
 function generateReference() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -20,6 +21,11 @@ export async function processPOSWalkin(input: {
   paymentMethod: string;
   amountDue: number;
 }) {
+  const hasAccess = await hasServerPermission("pos.create_sale");
+  if (!hasAccess) {
+    return { error: "Forbidden: You do not have permission to create sales." };
+  }
+
   const supabase = await createClient();
 
   // 1. Create or find customer (simplified for MVP)
@@ -97,6 +103,11 @@ export async function processPOSRetail(input: {
   paymentMethod: string;
   amountDue: number;
 }) {
+  const hasAccess = await hasServerPermission("pos.create_sale");
+  if (!hasAccess) {
+    return { error: "Forbidden: You do not have permission to create sales." };
+  }
+
   const supabase = await createClient();
   const user = await supabase.auth.getUser();
 
