@@ -164,6 +164,7 @@ export default async function Home() {
       <section className="mx-auto max-w-6xl px-6 py-20 my-10">
         <FadeIn>
           <div className="relative w-full overflow-hidden rounded-[2rem] shadow-2xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
               src="/images/package_banner.jpg" 
               alt="Cindyrella Drip Exclusive Glow Packages Pricing" 

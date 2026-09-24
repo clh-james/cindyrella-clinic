@@ -5,7 +5,7 @@ import { requireStaff } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export async function addInventoryItem(formData: FormData) {
-  const staff = await requireStaff();
+  await requireStaff();
 
   const name = formData.get("name") as string;
   const category = formData.get("category") as string;
@@ -21,7 +21,7 @@ export async function addInventoryItem(formData: FormData) {
 
   const supabase = await createClient();
 
-  const { data: item, error } = await supabase
+  const { error } = await supabase
     .from("inventory_items")
     .insert({
       name,

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -446,7 +447,6 @@ export function POSClient({
                 >
                   <div className="h-28 bg-gradient-to-br from-pale to-white flex items-center justify-center relative overflow-hidden">
                     {t.image_url ? (
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={t.image_url} alt={t.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     ) : (
                       <BriefcaseMedical className="text-royal/20 group-hover:text-royal/40 transition-colors" size={48} />
@@ -480,7 +480,6 @@ export function POSClient({
                   >
                     <div className="h-28 bg-gradient-to-br from-pale to-white flex items-center justify-center relative overflow-hidden">
                       {i.image_url ? (
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={i.image_url} alt={i.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                       ) : (
                         <PackageIcon className={`${isOutOfStock ? 'text-ink-soft/20' : 'text-royal/20 group-hover:text-royal/40'} transition-colors`} size={48} />
