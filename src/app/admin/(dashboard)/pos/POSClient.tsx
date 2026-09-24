@@ -4,9 +4,9 @@ import { useState, useMemo, useEffect } from "react";
 import type { Treatment, InventoryItem, Branch } from "@/lib/supabase/types";
 import { 
   ShoppingCart, Minus, Plus, CreditCard, Banknote, ScanLine, 
-  Loader2, Search, X, CheckCircle2, UserPlus,
-  Trash2, AlertTriangle, Sparkles, Package as PackageIcon,
-  Clock, BriefcaseMedical, User, History, ReceiptText
+  Loader2, Search, X, CheckCircle2,
+  Trash2, AlertTriangle, Package as PackageIcon,
+  BriefcaseMedical, User, History, ReceiptText
 } from "lucide-react";
 import { processPOSWalkin, processPOSRetail, getRecentTransactions } from "./actions";
 
@@ -15,9 +15,9 @@ export function POSClient({
   inventory, 
   branches 
 }: { 
-  treatments: any[], 
-  inventory: any[], 
-  branches: any[] 
+  treatments: { id: string; name: string; category: string; session_price: number; image_url?: string }[], 
+  inventory: { id: string; name: string; category: string; retail_price?: number; current_stock: number; low_stock_threshold: number; image_url?: string }[], 
+  branches: { id: string; name: string }[] 
 }) {
   const [mode, setMode] = useState<"walkin" | "retail">("walkin");
   const [cart, setCart] = useState<{ id: string; name: string; price: number; quantity: number; maxStock?: number }[]>([]);
@@ -49,7 +49,7 @@ export function POSClient({
   // History State
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<{ reference_number: string; type: string; date: Date; method: string; amount: number }[]>([]);
 
   // Dynamic Categories based on mode
   const categories = useMemo(() => {
@@ -121,7 +121,7 @@ export function POSClient({
     setCart(prev => prev.map(item => {
       if (item.id === id) {
         const newQty = item.quantity + delta;
-        if (newQty <= 0) return null as any;
+        if (newQty <= 0) return null as unknown as { id: string; name: string; price: number; quantity: number; maxStock?: number };
         if (item.maxStock && newQty > item.maxStock) return item;
         return { ...item, quantity: newQty };
       }
@@ -148,7 +148,7 @@ export function POSClient({
   const handleOpenHistory = async () => {
     setShowHistoryModal(true);
     setHistoryLoading(true);
-    const { transactions, error } = await getRecentTransactions();
+    const { transactions } = await getRecentTransactions();
     if (transactions) {
       setTransactions(transactions);
     }
@@ -446,6 +446,7 @@ export function POSClient({
                 >
                   <div className="h-28 bg-gradient-to-br from-pale to-white flex items-center justify-center relative overflow-hidden">
                     {t.image_url ? (
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={t.image_url} alt={t.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     ) : (
                       <BriefcaseMedical className="text-royal/20 group-hover:text-royal/40 transition-colors" size={48} />
@@ -479,6 +480,7 @@ export function POSClient({
                   >
                     <div className="h-28 bg-gradient-to-br from-pale to-white flex items-center justify-center relative overflow-hidden">
                       {i.image_url ? (
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={i.image_url} alt={i.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                       ) : (
                         <PackageIcon className={`${isOutOfStock ? 'text-ink-soft/20' : 'text-royal/20 group-hover:text-royal/40'} transition-colors`} size={48} />
