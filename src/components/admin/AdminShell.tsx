@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { signOut } from "@/app/admin/actions";
-import { LayoutDashboard, CalendarClock, Settings, Users, BriefcaseMedical, Contact, Image as ImageIcon, Tag, Package } from "lucide-react";
+import { LayoutDashboard, CalendarClock, Settings, Users, BriefcaseMedical, Contact, Image as ImageIcon, Tag, Package, Calculator } from "lucide-react";
 
 const links = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/pos", label: "POS", icon: Calculator },
   { href: "/admin/appointments", label: "Appointments", icon: CalendarClock },
   { href: "/admin/customers", label: "Customers", icon: Contact },
   { href: "/admin/services", label: "Services", icon: BriefcaseMedical },
