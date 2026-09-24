@@ -1,20 +1,37 @@
 import Image from "next/image";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
   title: "Gallery — Cindyrella Medical Group",
 };
 
-// Placeholder images for the gallery until the owner uploads real ones
-const galleryImages = [
-  { src: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=800", alt: "Clinic Interior" },
-  { src: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=800", alt: "IV Drip Therapy" },
-  { src: "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&q=80&w=800", alt: "Medical Staff" },
-  { src: "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&q=80&w=800", alt: "Wellness Experience" },
-  { src: "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&q=80&w=800", alt: "Treatment Room" },
-  { src: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=800", alt: "Healthy Glow" },
-];
+export const revalidate = 60; // Revalidate every minute so new uploads appear relatively quickly
 
-export default function GalleryPage() {
+export default async function GalleryPage() {
+  const supabase = await createClient();
+  
+  // Fetch images from the "gallery" bucket
+  const { data: storageData, error } = await supabase.storage.from("gallery").list();
+  
+  let galleryImages: { src: string; alt: string }[] = [];
+  
+  if (!error && storageData) {
+    // Filter out any hidden files or empty folders like .emptyFolderPlaceholder
+    const validFiles = storageData.filter(file => file.name !== '.emptyFolderPlaceholder' && !file.name.startsWith('.'));
+    
+    // Sort by created_at descending
+    validFiles.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    
+    // Get public URLs
+    galleryImages = validFiles.map(file => {
+      const { data: urlData } = supabase.storage.from("gallery").getPublicUrl(file.name);
+      return {
+        src: urlData.publicUrl,
+        alt: file.name
+      };
+    });
+  }
+
   return (
     <main className="mx-auto max-w-6xl px-6 py-16">
       <header className="mb-12 max-w-2xl">
@@ -27,21 +44,25 @@ export default function GalleryPage() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {galleryImages.map((img, idx) => (
-          <div key={idx} className="group relative aspect-square overflow-hidden rounded-2xl bg-pale">
-            <Image 
-              src={img.src} 
-              alt={img.alt} 
-              fill 
-              className="object-cover transition-transform duration-500 group-hover:scale-105" 
-            />
-            <div className="absolute inset-0 bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex items-end p-6">
-              <span className="text-white font-medium text-lg">{img.alt}</span>
+      {galleryImages.length === 0 ? (
+        <div className="rounded-2xl border border-line p-12 text-center text-ink-soft bg-pale">
+          Check back soon for our updated gallery photos!
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {galleryImages.map((img, idx) => (
+            <div key={idx} className="group relative aspect-square overflow-hidden rounded-2xl bg-pale">
+              <Image 
+                src={img.src} 
+                alt={img.alt} 
+                fill 
+                className="object-cover transition-transform duration-500 group-hover:scale-105" 
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </main>
   );
 }
