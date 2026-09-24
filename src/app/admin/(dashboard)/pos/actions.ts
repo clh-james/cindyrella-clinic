@@ -23,21 +23,35 @@ export async function processPOSWalkin(input: {
   const supabase = await createClient();
 
   // 1. Create or find customer (simplified for MVP)
-  const { data: customer, error: customerError } = await supabase
+  let customer;
+  
+  const { data: existingCustomer } = await supabase
     .from("customers")
-    .upsert(
-      { 
-        first_name: input.customerName.split(' ')[0], 
-        last_name: input.customerName.split(' ').slice(1).join(' ') || '',
-        phone: input.customerPhone 
-      },
-      { onConflict: "phone" }
-    )
     .select("id")
-    .single();
+    .eq("phone", input.customerPhone)
+    .maybeSingle();
 
-  if (customerError || !customer) {
-    return { error: "Failed to save customer details." };
+  if (existingCustomer) {
+    customer = existingCustomer;
+  } else {
+    const { data: newCustomer, error: customerError } = await supabase
+      .from("customers")
+      .insert(
+        { 
+          first_name: input.customerName.split(' ')[0] || 'Walk-in', 
+          last_name: input.customerName.split(' ').slice(1).join(' ') || '',
+          phone: input.customerPhone,
+          email: `walkin-${Date.now()}@cindyrellaclinic.com`
+        }
+      )
+      .select("id")
+      .single();
+
+    if (customerError) {
+      console.error("Failed to save customer:", customerError);
+      return { error: "Failed to save customer details." };
+    }
+    customer = newCustomer;
   }
 
   // 2. Create Appointment as checked_in
@@ -53,9 +67,10 @@ export async function processPOSWalkin(input: {
       branch_id: input.branchId,
       appointment_date: date.toISOString().split('T')[0],
       appointment_time: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-      payment_method: input.paymentMethod,
+      payment_method: input.paymentMethod as any,
       amount_due: input.amountDue,
-      status: "checked_in"
+      status: "completed",
+      payment_status: "paid"
     })
     .select("id")
     .single();
