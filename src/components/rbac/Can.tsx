@@ -32,9 +32,9 @@ export function usePermissions() {
         .single();
 
       if (!error && data?.roles?.role_permissions) {
-        // @ts-ignore - Supabase type inference limitation for nested arrays
+        // @ts-expect-error - Supabase type inference limitation for nested arrays
         const keys = data.roles.role_permissions
-          .map((rp: any) => rp.permissions?.key)
+          .map((rp: { permissions?: { key: string } }) => rp.permissions?.key)
           .filter(Boolean);
         setPermissions(keys);
       }
