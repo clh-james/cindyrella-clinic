@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import type { Treatment, InventoryItem, Branch } from "@/lib/supabase/types";
+import type { } from "@/lib/supabase/types";
 import { 
   ShoppingCart, Minus, Plus, CreditCard, Banknote, ScanLine, 
   Loader2, Search, X, CheckCircle2,

@@ -31,6 +31,6 @@ export async function requireStaff(): Promise<StaffSession> {
 
   if (!staff || !staff.is_active) redirect("/admin/login");
 
-  // @ts-expect-error
+  // @ts-expect-error - Supabase type mismatch
   return { id: staff.id, fullName: staff.full_name, role: staff.roles?.name || "staff" };
 }

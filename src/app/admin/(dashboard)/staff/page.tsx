@@ -53,10 +53,10 @@ export default async function StaffPage() {
                   <p className="text-xs text-ink-soft">{branch?.name ?? "Unassigned branch"}</p>
                 </div>
                 {session.role === "super_admin" || session.role === "admin" ? (
-                  // @ts-expect-error
+                  // @ts-expect-error - Supabase type mismatch
                   <StaffRowControls staffId={s.id} role={s.roles?.name || "staff"} isActive={s.is_active} />
                 ) : (
-                  // @ts-expect-error
+                  // @ts-expect-error - Supabase type mismatch
                   <span className="text-xs capitalize text-ink-soft">{s.roles?.name || "staff"}</span>
                 )}
               </li>

@@ -31,9 +31,8 @@ export function usePermissions() {
         .eq('id', user.id)
         .single();
 
-      const rolesData = data?.roles as any;
+      const rolesData = data?.roles as unknown as { role_permissions: { permissions?: { key: string } }[] };
       if (!error && rolesData?.role_permissions) {
-        // @ts-expect-error - Supabase type inference limitation for nested arrays
         const keys = rolesData.role_permissions
           .map((rp: { permissions?: { key: string } }) => rp.permissions?.key)
           .filter(Boolean);
