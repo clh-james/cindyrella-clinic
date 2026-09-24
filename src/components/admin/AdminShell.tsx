@@ -66,7 +66,7 @@ export function AdminShell({
         </div>
       </aside>
 
-      <div className="bg-paper px-6 py-8 md:px-10 md:py-10">{children}</div>
+      <div className="bg-paper px-6 py-8 md:px-10 md:py-10 min-w-0 flex flex-col">{children}</div>
     </div>
   );
 }
