@@ -35,7 +35,7 @@ export function usePermissions() {
       if (!error && rolesData?.role_permissions) {
         const keys = rolesData.role_permissions
           .map((rp: { permissions?: { key: string } }) => rp.permissions?.key)
-          .filter(Boolean);
+          .filter(Boolean) as string[];
         setPermissions(keys);
       }
       setLoading(false);
