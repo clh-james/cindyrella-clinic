@@ -10,7 +10,7 @@ export default function UnauthorizedPage() {
       <h1 className="font-serif text-3xl font-bold text-ink md:text-4xl">403</h1>
       <h2 className="mt-2 text-xl font-semibold text-ink">Access Restricted</h2>
       <p className="mt-4 max-w-md text-ink-soft leading-relaxed">
-        You don't have permission to access this page. Please contact your administrator if you believe you need access.
+        You don&apos;t have permission to access this page. Please contact your administrator if you believe you need access.
       </p>
       <Link 
         href="/admin" 

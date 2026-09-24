@@ -5,6 +5,9 @@ import { Shield, Check } from "lucide-react";
 
 export const metadata = { title: "Roles & Permissions — Admin" };
 
+type Permission = { id: string, key: string, name: string, module: string };
+type Role = { id: string, name: string, description: string, role_permissions: { permission_id: string }[] };
+
 export default async function RolesPage() {
   await requireServerPermission("users.assign_role");
   const supabase = await createClient();
@@ -17,7 +20,7 @@ export default async function RolesPage() {
   if (!roles || !permissions) return <div>Failed to load roles.</div>;
 
   // Group permissions by module
-  const modules = permissions.reduce((acc: any, p: any) => {
+  const modules = (permissions as Permission[]).reduce((acc: Record<string, Permission[]>, p) => {
     if (!acc[p.module]) acc[p.module] = [];
     acc[p.module].push(p);
     return acc;
@@ -30,7 +33,7 @@ export default async function RolesPage() {
         <h1 className="font-serif text-2xl font-semibold text-ink">Role Management</h1>
       </div>
       <p className="mb-8 text-sm text-ink-soft max-w-2xl">
-        Define exactly what each role can see and do within the application. Changes here take effect on the user's next action.
+        Define exactly what each role can see and do within the application. Changes here take effect on the user&apos;s next action.
       </p>
 
       <div className="overflow-x-auto rounded-2xl border border-line bg-white shadow-sm">
@@ -46,21 +49,21 @@ export default async function RolesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {Object.entries(modules).map(([moduleName, perms]: any) => (
+            {Object.entries(modules).map(([moduleName, perms]) => (
               <React.Fragment key={moduleName}>
                 <tr className="bg-pale/30">
                   <td colSpan={roles.length + 1} className="px-6 py-2 font-mono text-xs font-bold uppercase tracking-wider text-royal">
                     {moduleName}
                   </td>
                 </tr>
-                {perms.map((p: any) => (
+                {perms.map((p) => (
                   <tr key={p.id} className="hover:bg-pale/50 transition-colors">
                     <td className="px-6 py-3">
                       <p className="font-medium text-ink">{p.name}</p>
                       <p className="text-xs text-ink-soft font-mono mt-0.5">{p.key}</p>
                     </td>
-                    {roles.map((r: any) => {
-                      const hasPerm = r.role_permissions.some((rp: any) => rp.permission_id === p.id);
+                    {roles.map((r) => {
+                      const hasPerm = (r as Role).role_permissions.some((rp) => rp.permission_id === p.id);
                       return (
                         <td key={r.id} className="px-4 py-3 text-center border-l border-line/50">
                           {r.name === 'super_admin' ? (

@@ -53,10 +53,10 @@ export default async function StaffPage() {
                   <p className="text-xs text-ink-soft">{branch?.name ?? "Unassigned branch"}</p>
                 </div>
                 {session.role === "super_admin" || session.role === "admin" ? (
-                  // @ts-ignore
+                  // @ts-expect-error
                   <StaffRowControls staffId={s.id} role={s.roles?.name || "staff"} isActive={s.is_active} />
                 ) : (
-                  // @ts-ignore
+                  // @ts-expect-error
                   <span className="text-xs capitalize text-ink-soft">{s.roles?.name || "staff"}</span>
                 )}
               </li>
