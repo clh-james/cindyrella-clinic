@@ -184,7 +184,7 @@ export function POSClient({
     } else {
       const changeAmount = paymentMethod === "cash" ? (Number(cashReceived) - total) : 0;
       setSuccessData({
-        referenceNumber: res.referenceNumber,
+        referenceNumber: res.referenceNumber || "",
         totalPaid: total,
         paymentMethod,
         change: changeAmount > 0 ? changeAmount : 0,
