@@ -25,12 +25,12 @@ export async function requireStaff(): Promise<StaffSession> {
 
   const { data: staff } = await supabase
     .from("staff")
-    .select("id, full_name, is_active, role:roles(name)")
+    .select("id, full_name, is_active, roles(name)")
     .eq("id", user.id)
     .maybeSingle();
 
   if (!staff || !staff.is_active) redirect("/admin/login");
 
   // @ts-ignore
-  return { id: staff.id, fullName: staff.full_name, role: staff.role?.name || "staff" };
+  return { id: staff.id, fullName: staff.full_name, role: staff.roles?.name || "staff" };
 }
