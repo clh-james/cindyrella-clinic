@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { Package, AlertTriangle } from "lucide-react";
+import { AddInventoryItem } from "./AddInventoryItem";
 
 export const metadata = { title: "Inventory — Admin" };
 
@@ -17,6 +18,7 @@ export default async function InventoryPage() {
           <h1 className="font-serif text-2xl font-semibold text-ink">Inventory</h1>
           <p className="mt-1 text-sm text-ink-soft">Manage clinic supplies and materials.</p>
         </div>
+        <AddInventoryItem />
       </div>
 
       <div className="mt-6 overflow-x-auto rounded-2xl border border-line bg-white shadow-sm">
