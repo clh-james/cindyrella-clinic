@@ -6,9 +6,9 @@ import {
   ShoppingCart, Minus, Plus, CreditCard, Banknote, ScanLine, 
   Loader2, Search, X, CheckCircle2, UserPlus,
   Trash2, AlertTriangle, Sparkles, Package as PackageIcon,
-  Clock, BriefcaseMedical, User
+  Clock, BriefcaseMedical, User, History, ReceiptText
 } from "lucide-react";
-import { processPOSWalkin, processPOSRetail } from "./actions";
+import { processPOSWalkin, processPOSRetail, getRecentTransactions } from "./actions";
 
 export function POSClient({ 
   treatments, 
@@ -45,6 +45,11 @@ export function POSClient({
     change: number;
     customerName: string;
   } | null>(null);
+
+  // History State
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [transactions, setTransactions] = useState<any[]>([]);
 
   // Dynamic Categories based on mode
   const categories = useMemo(() => {
@@ -138,6 +143,16 @@ export function POSClient({
     setCashReceived(total); // Default to exact amount
     setReferenceNumber("");
     setShowPaymentModal(true);
+  };
+
+  const handleOpenHistory = async () => {
+    setShowHistoryModal(true);
+    setHistoryLoading(true);
+    const { transactions, error } = await getRecentTransactions();
+    if (transactions) {
+      setTransactions(transactions);
+    }
+    setHistoryLoading(false);
   };
 
   const processPayment = async () => {
@@ -330,8 +345,16 @@ export function POSClient({
           </h1>
           <p className="text-xs text-ink-soft">Create and manage transactions</p>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="hidden md:flex flex-col items-end">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={handleOpenHistory}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-line rounded-lg text-sm font-medium text-ink-soft hover:text-royal hover:border-royal hover:bg-pale transition-colors shadow-sm"
+          >
+            <History size={16} />
+            <span className="hidden sm:inline">History</span>
+          </button>
+          
+          <div className="hidden md:flex flex-col items-end border-l border-line pl-4">
             <div className="text-sm font-medium text-ink-soft flex items-center gap-2">
               Branch: 
               <select 
@@ -658,6 +681,68 @@ export function POSClient({
       {renderPaymentModal()}
       {renderSuccessModal()}
 
+      {/* History Modal */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between p-6 border-b border-line shrink-0 bg-white">
+              <h2 className="font-serif text-xl font-semibold text-ink flex items-center gap-2">
+                <ReceiptText className="text-royal" size={24} />
+                Recent Transactions
+              </h2>
+              <button onClick={() => setShowHistoryModal(false)} className="p-2 -mr-2 text-ink-soft hover:text-ink hover:bg-pale rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto p-6 bg-[#f4f7f9] flex-1 min-h-[300px]">
+              {historyLoading ? (
+                <div className="flex flex-col items-center justify-center h-full text-ink-soft">
+                  <Loader2 className="animate-spin mb-4 text-royal" size={32} />
+                  <p className="text-sm">Loading transactions...</p>
+                </div>
+              ) : transactions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-ink-soft bg-white rounded-xl border border-line">
+                  <ReceiptText className="mx-auto mb-3 opacity-20" size={48} />
+                  <p className="text-sm">No recent transactions found.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {transactions.map(t => (
+                    <div key={t.reference_number} className="bg-white border border-line rounded-xl p-4 flex items-center justify-between shadow-sm">
+                      <div>
+                        <div className="flex items-center gap-3 mb-1.5">
+                          <span className="font-mono text-sm font-semibold text-ink bg-pale px-2 py-0.5 rounded border border-line">
+                            {t.reference_number}
+                          </span>
+                          <span className={`text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full border ${
+                            t.type === 'Retail Sale' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          }`}>
+                            {t.type}
+                          </span>
+                        </div>
+                        <div className="text-xs font-medium text-ink-soft flex items-center gap-2">
+                          <span>
+                            {t.date.toLocaleString('en-US', { 
+                              month: 'short', day: 'numeric', 
+                              hour: 'numeric', minute: '2-digit' 
+                            })}
+                          </span>
+                          <span className="w-1 h-1 rounded-full bg-line"></span>
+                          <span className="capitalize">{t.method.replace('_', ' ')}</span>
+                        </div>
+                      </div>
+                      <div className="font-mono font-bold text-lg text-ink bg-pale px-3 py-1 rounded-lg">
+                        ₱{t.amount.toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

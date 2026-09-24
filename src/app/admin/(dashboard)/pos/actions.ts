@@ -143,3 +143,49 @@ export async function processPOSRetail(input: {
   
   return { success: true, referenceNumber };
 }
+
+export async function getRecentTransactions() {
+  const supabase = await createClient();
+  
+  // Fetch retail sales
+  const { data: sales, error: salesError } = await supabase
+    .from("pos_sales")
+    .select("reference_number, total_amount, payment_method, created_at")
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  // Fetch walk-in appointments (completed + paid)
+  const { data: appointments, error: apptError } = await supabase
+    .from("appointments")
+    .select("reference_number, amount_due, payment_method, created_at")
+    .eq("status", "completed")
+    .eq("payment_status", "paid")
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (salesError || apptError) {
+    return { error: "Failed to fetch transactions." };
+  }
+
+  // Combine and sort
+  const combined = [
+    ...(sales || []).map(s => ({
+      reference_number: s.reference_number,
+      amount: s.total_amount,
+      method: s.payment_method,
+      type: "Retail Sale",
+      date: new Date(s.created_at)
+    })),
+    ...(appointments || []).map(a => ({
+      reference_number: a.reference_number,
+      amount: a.amount_due,
+      method: a.payment_method,
+      type: "Walk-in Treatment",
+      date: new Date(a.created_at)
+    }))
+  ];
+
+  combined.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  return { transactions: combined.slice(0, 30) };
+}
