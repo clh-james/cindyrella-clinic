@@ -1,7 +1,7 @@
-import React from "react";
 import { createClient } from "@/lib/supabase/server";
 import { requireServerPermission } from "@/lib/rbac";
-import { Shield, Check } from "lucide-react";
+import { Shield } from "lucide-react";
+import { RolePermissionsTable } from "./RolePermissionsTable";
 
 export const metadata = { title: "Roles & Permissions — Admin" };
 
@@ -19,13 +19,6 @@ export default async function RolesPage() {
 
   if (!roles || !permissions) return <div>Failed to load roles.</div>;
 
-  // Group permissions by module
-  const modules = (permissions as Permission[]).reduce((acc: Record<string, Permission[]>, p) => {
-    if (!acc[p.module]) acc[p.module] = [];
-    acc[p.module].push(p);
-    return acc;
-  }, {});
-
   return (
     <div className="max-w-6xl">
       <div className="mb-6 flex items-center gap-3">
@@ -36,56 +29,11 @@ export default async function RolesPage() {
         Define exactly what each role can see and do within the application. Changes here take effect on the user&apos;s next action.
       </p>
 
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-[#f4f7f9] text-ink-soft">
-            <tr>
-              <th className="px-6 py-4 font-semibold">Permission Module</th>
-              {roles.map(r => (
-                <th key={r.id} className="px-4 py-4 text-center font-semibold capitalize border-l border-line/50">
-                  {r.name.replace('_', ' ')}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {Object.entries(modules).map(([moduleName, perms]) => (
-              <React.Fragment key={moduleName}>
-                <tr className="bg-pale/30">
-                  <td colSpan={roles.length + 1} className="px-6 py-2 font-mono text-xs font-bold uppercase tracking-wider text-royal">
-                    {moduleName}
-                  </td>
-                </tr>
-                {perms.map((p) => (
-                  <tr key={p.id} className="hover:bg-pale/50 transition-colors">
-                    <td className="px-6 py-3">
-                      <p className="font-medium text-ink">{p.name}</p>
-                      <p className="text-xs text-ink-soft font-mono mt-0.5">{p.key}</p>
-                    </td>
-                    {roles.map((r) => {
-                      const hasPerm = (r as Role).role_permissions.some((rp) => rp.permission_id === p.id);
-                      return (
-                        <td key={r.id} className="px-4 py-3 text-center border-l border-line/50">
-                          {r.name === 'super_admin' ? (
-                            <Check size={18} className="mx-auto text-emerald-500 opacity-50" />
-                          ) : (
-                            <input 
-                              type="checkbox" 
-                              checked={hasPerm} 
-                              disabled
-                              className="h-4 w-4 rounded border-line text-royal focus:ring-royal/20 opacity-70"
-                            />
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <RolePermissionsTable 
+        roles={roles as Role[]} 
+        permissions={permissions as Permission[]} 
+      />
+
       <p className="mt-4 text-xs text-ink-soft flex items-center justify-center gap-2">
         <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 opacity-50"></span>
         Super Admin permissions are locked and immutable.
