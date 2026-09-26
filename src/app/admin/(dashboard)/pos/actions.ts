@@ -14,7 +14,7 @@ function generateReference() {
 }
 
 export async function processPOSWalkin(input: {
-  treatmentId: string;
+  items: { id: string; name: string; price: number; quantity: number }[];
   branchId: string;
   customerName: string;
   customerPhone: string;
@@ -64,19 +64,23 @@ export async function processPOSWalkin(input: {
   const referenceNumber = generateReference();
   const date = new Date();
   
+  // Save all items in notes as JSON string
+  const itemsJson = JSON.stringify(input.items);
+  
   const { data: appointment, error: appointmentError } = await supabase
     .from("appointments")
     .insert({
       reference_number: referenceNumber,
       customer_id: customer.id,
-      treatment_id: input.treatmentId,
+      treatment_id: input.items[0].id, // Primary treatment is first item
       branch_id: input.branchId,
       appointment_date: date.toISOString().split('T')[0],
       appointment_time: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
       payment_method: input.paymentMethod,
       amount_due: input.amountDue,
       status: "completed",
-      payment_status: "paid"
+      payment_status: "paid",
+      notes: itemsJson // Store full cart here
     })
     .select("id")
     .single();
@@ -85,12 +89,16 @@ export async function processPOSWalkin(input: {
     return { error: "Failed to create walk-in appointment." };
   }
 
-  // 3. Deduct inventory for treatment
+  // 3. Deduct inventory for all treatments
   const user = await supabase.auth.getUser();
-  await supabase.rpc('deduct_inventory_for_treatment', {
-    p_treatment_id: input.treatmentId,
-    p_user_id: user.data.user?.id
-  });
+  for (const item of input.items) {
+    for (let i = 0; i < item.quantity; i++) {
+      await supabase.rpc('deduct_inventory_for_treatment', {
+        p_treatment_id: item.id,
+        p_user_id: user.data.user?.id
+      });
+    }
+  }
 
   revalidatePath("/admin/appointments");
   revalidatePath("/admin/inventory");

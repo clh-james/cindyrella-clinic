@@ -92,9 +92,13 @@ export function POSClient({
 
   const addToCart = (item: { id: string; name: string; price: number; maxStock?: number }) => {
     if (mode === "walkin") {
-      // Walkin only supports one treatment per appointment in the DB schema.
-      // Replace the cart with the selected treatment.
-      setCart([{ ...item, quantity: 1 }]);
+      setCart(prev => {
+        const existing = prev.find(i => i.id === item.id);
+        if (existing) {
+          return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+        }
+        return [...prev, { ...item, quantity: 1 }];
+      });
       return;
     }
     
@@ -156,7 +160,7 @@ export function POSClient({
     let res;
     if (mode === "walkin") {
       res = await processPOSWalkin({
-        treatmentId: cart[0].id,
+        items: cart,
         branchId: selectedBranch,
         customerName: customerName || "Walk-in Customer",
         customerPhone: customerPhone || "N/A",
