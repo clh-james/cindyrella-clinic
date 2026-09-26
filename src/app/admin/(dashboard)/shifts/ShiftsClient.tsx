@@ -3,7 +3,7 @@
 
 import { useState, useTransition } from "react";
 import { openShift, closeShift } from "./actions";
-import { WalletCards, Play, Square, Banknote, AlertCircle } from "lucide-react";
+import { WalletCards, Play, Square, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
 const peso = (n: number | null | undefined) => n == null ? "-" : `₱${n.toLocaleString("en-PH")}`;

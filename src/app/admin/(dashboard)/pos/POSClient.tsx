@@ -676,7 +676,7 @@ export function POSClient({
               <div className="flex gap-2">
                 <select 
                   value={discountType} 
-                  onChange={e => setDiscountType(e.target.value as any)}
+                  onChange={e => setDiscountType(e.target.value as "none" | "percentage" | "fixed")}
                   className="px-2 py-2 border border-line rounded-lg text-sm bg-pale w-1/3 outline-none focus:border-royal"
                 >
                   <option value="none">None</option>

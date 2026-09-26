@@ -7,7 +7,7 @@ import { StaffRowControls } from "@/components/admin/StaffRowControls";
 export const metadata = { title: "Staff — Admin" };
 
 export default async function StaffPage() {
-  const session = await requireStaff();
+  await requireStaff();
   const supabase = await createClient();
 
   const [{ data: staff }, { data: branches }, { data: roles }] = await Promise.all([

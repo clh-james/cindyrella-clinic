@@ -40,7 +40,7 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
         if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].name) {
           parsedNotesItems = parsed;
         }
-      } catch (e) {
+      } catch {
         // Not a JSON array, ignore
       }
     }
@@ -128,6 +128,7 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
 
           {/* HEADER */}
           <div className="text-center mb-6">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="Cindyrella Logo" className="w-16 h-16 object-contain mx-auto mb-2 brightness-0" />
             <h1 className="text-xl font-bold mb-1 tracking-wider">CINDYRELLA DRIP</h1>
             <p className="text-[10px] uppercase tracking-[0.2em] font-semibold">Aesthetic & Wellness</p>
