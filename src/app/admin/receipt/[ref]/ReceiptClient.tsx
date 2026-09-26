@@ -38,6 +38,18 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
       price: basePrice,
       amount: basePrice
     });
+
+    // Handle corrupted transactions where multiple items were added to walkin cart 
+    // but only the first one was saved to the DB.
+    if (data.amount_due > basePrice) {
+      const difference = data.amount_due - basePrice;
+      items.push({
+        name: "Other Services (Bundle)",
+        qty: 1,
+        price: difference,
+        amount: difference
+      });
+    }
   } else {
     items = data.items?.map((i: any) => ({
       name: i.item?.name || "Product",

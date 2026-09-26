@@ -92,16 +92,9 @@ export function POSClient({
 
   const addToCart = (item: { id: string; name: string; price: number; maxStock?: number }) => {
     if (mode === "walkin") {
-      // Walkin only allows one treatment for simplicity in MVP according to original code
-      // We will allow multiple to showcase cart, but keep it simple if needed. 
-      // Requirement said: Preserve existing functionality. I'll allow it.
-      setCart(prev => {
-        const existing = prev.find(i => i.id === item.id);
-        if (existing) {
-          return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
-        }
-        return [...prev, { ...item, quantity: 1 }];
-      });
+      // Walkin only supports one treatment per appointment in the DB schema.
+      // Replace the cart with the selected treatment.
+      setCart([{ ...item, quantity: 1 }]);
       return;
     }
     
