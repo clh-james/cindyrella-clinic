@@ -21,12 +21,12 @@ export default async function StaffPage() {
     <div className="max-w-3xl">
       <h1 className="font-serif text-2xl font-semibold text-ink">Staff</h1>
       <p className="mt-1 text-sm text-ink-soft">
-        {session.role === "admin"
+        {session.role === "admin" || session.role === "super_admin"
           ? "Add clinic staff and manage their roles."
           : "Only admins can add staff or change roles."}
       </p>
 
-      {session.role === "admin" && (
+      {(session.role === "admin" || session.role === "super_admin") && (
         <section className="mt-6 rounded-2xl border border-line p-6">
           <h2 className="text-sm font-semibold text-ink">Add a staff member</h2>
           <p className="mt-1 text-xs text-ink-soft">
