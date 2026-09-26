@@ -31,24 +31,48 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
   // Build items array
   let items: any[] = [];
   if (type === "appointment") {
-    const basePrice = data.treatments?.session_price || data.amount_due;
-    items.push({
-      name: data.treatments?.name || "Service",
-      qty: 1,
-      price: basePrice,
-      amount: basePrice
-    });
+    // Check if multiple items were saved in notes as JSON
+    let parsedNotesItems = null;
+    if (data.notes) {
+      try {
+        const parsed = JSON.parse(data.notes);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].name) {
+          parsedNotesItems = parsed;
+        }
+      } catch (e) {
+        // Not a JSON array, ignore
+      }
+    }
 
-    // Handle corrupted transactions where multiple items were added to walkin cart 
-    // but only the first one was saved to the DB.
-    if (data.amount_due > basePrice) {
-      const difference = data.amount_due - basePrice;
+    if (parsedNotesItems) {
+      // Use the items saved in the notes payload
+      items = parsedNotesItems.map(i => ({
+        name: i.name,
+        qty: i.quantity,
+        price: i.price,
+        amount: i.price * i.quantity
+      }));
+    } else {
+      // Fallback for single item (legacy or simple appointment)
+      const basePrice = data.treatments?.session_price || data.amount_due;
       items.push({
-        name: "Other Services (Bundle)",
+        name: data.treatments?.name || "Service",
         qty: 1,
-        price: difference,
-        amount: difference
+        price: basePrice,
+        amount: basePrice
       });
+
+      // Handle corrupted older transactions where multiple items were added to walkin cart 
+      // but only the first one was saved to the DB without JSON notes.
+      if (data.amount_due > basePrice) {
+        const difference = data.amount_due - basePrice;
+        items.push({
+          name: "Other Services (Bundle)",
+          qty: 1,
+          price: difference,
+          amount: difference
+        });
+      }
     }
   } else {
     items = data.items?.map((i: any) => ({
