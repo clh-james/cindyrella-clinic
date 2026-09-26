@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { Tag } from "lucide-react";
+import { AddPromoCode } from "./AddPromoCode";
 
 export const metadata = { title: "Promo Codes — Admin" };
 
@@ -17,6 +18,7 @@ export default async function PromosPage() {
           <h1 className="font-serif text-xl sm:text-2xl font-semibold text-ink">Promo Codes</h1>
           <p className="mt-1 text-xs sm:text-sm text-ink-soft">View active promotions and track usage.</p>
         </div>
+        <AddPromoCode />
       </div>
 
       {/* MOBILE VIEW (CARDS) */}
