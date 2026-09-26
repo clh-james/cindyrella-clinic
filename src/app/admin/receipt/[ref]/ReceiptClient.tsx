@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Printer, Download, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
@@ -46,11 +46,11 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
     }));
   }
 
-  // Currently we don't track multiple payments or exact cash received in the db schema easily.
-  // We'll display what we can based on requirements.
-  
-  // Create a verification URL for the QR code
-  const verificationUrl = typeof window !== 'undefined' ? `${window.location.origin}/verify/${receiptNo}` : '';
+  // Prevent hydration mismatch by setting URL only on client mount
+  const [verificationUrl, setVerificationUrl] = useState('');
+  useEffect(() => {
+    setVerificationUrl(`${window.location.origin}/verify/${receiptNo}`);
+  }, [receiptNo]);
 
   return (
     <div className="min-h-screen bg-neutral-100 flex flex-col font-sans">
@@ -190,7 +190,11 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
 
           {/* QR CODE & VERIFICATION */}
           <div className="flex flex-col items-center justify-center my-6 space-y-2">
-            <QRCodeSVG value={verificationUrl} size={64} level="L" includeMargin={false} />
+            {verificationUrl ? (
+              <QRCodeSVG value={verificationUrl} size={64} level="L" includeMargin={false} />
+            ) : (
+              <div className="w-[64px] h-[64px] bg-neutral-200 animate-pulse" />
+            )}
             <span className="text-[9px] text-center max-w-[200px] mt-2">
               Scan to verify receipt authenticity
             </span>
