@@ -15,43 +15,53 @@ export default async function ReceiptPage({ params }: { params: Promise<{ ref: s
   const { ref } = await params;
 
   // 1. Try finding in appointments
-  const { data: appt } = await supabase
+  const { data: appt, error: apptError } = await supabase
     .from("appointments")
     .select(`
       *,
-      customers (id, first_name, last_name, phone, email),
-      branches (id, name, address, contact_number, email),
-      treatments (id, name, session_price, category),
-      staff:staff_id (id, full_name)
+      customers (*),
+      branches (*),
+      treatments (*)
     `)
     .eq("reference_number", ref)
     .maybeSingle();
+
+  if (apptError) {
+    console.error("Receipt appt error:", apptError);
+  }
 
   if (appt) {
     return <ReceiptClient type="appointment" data={appt} />;
   }
 
   // 2. Try finding in pos_sales
-  const { data: sale } = await supabase
+  const { data: sale, error: saleError } = await supabase
     .from("pos_sales")
     .select(`
       *,
-      customers (id, first_name, last_name, phone, email),
-      staff:created_by (id, full_name),
+      customers (*),
       items:pos_sale_items (
         quantity, price_per_unit, 
-        item:inventory_items (id, name, category)
+        item:inventory_items (*)
       )
     `)
     .eq("reference_number", ref)
     .maybeSingle();
 
+  if (saleError) {
+    console.error("Receipt sale error:", saleError);
+  }
+
   if (sale) {
-    // Need to fetch branch from somewhere? pos_sales doesn't have branch_id?
-    // Let's get the first branch as a fallback, or if we can get it from staff.
+    // Fetch branch and staff info separately to avoid foreign key issues
     const { data: branch } = await supabase.from("branches").select("*").limit(1).single();
+    let staffData = null;
+    if (sale.created_by) {
+      const { data: staffRecord } = await supabase.from("staff").select("*").eq("id", sale.created_by).maybeSingle();
+      staffData = staffRecord;
+    }
     
-    return <ReceiptClient type="retail" data={{ ...sale, branches: branch }} />;
+    return <ReceiptClient type="retail" data={{ ...sale, branches: branch, staff: staffData }} />;
   }
 
   return notFound();
