@@ -7,7 +7,7 @@ import {
   ShoppingCart, Minus, Plus, CreditCard, Banknote, ScanLine, 
   Loader2, Search, X, CheckCircle2,
   Trash2, AlertTriangle, Package as PackageIcon,
-  BriefcaseMedical, User, History, ReceiptText
+  BriefcaseMedical, User, History, ReceiptText, Printer
 } from "lucide-react";
 import { processPOSWalkin, processPOSRetail, getRecentTransactions } from "./actions";
 
@@ -240,7 +240,14 @@ export function POSClient({
               </div>
             )}
             
-            <div className="pt-4 grid gap-3">
+            <div className="pt-4 grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => window.open(`/admin/receipt/${successData.referenceNumber}`, '_blank')}
+                className="w-full py-3 rounded-xl border border-line bg-white text-ink font-medium hover:bg-pale transition-colors flex items-center justify-center gap-2"
+              >
+                <Printer size={18} />
+                Print Receipt
+              </button>
               <button 
                 onClick={resetPOS}
                 className="w-full py-3 rounded-xl bg-royal text-white font-medium hover:bg-royal-deep transition-colors"
@@ -765,8 +772,17 @@ export function POSClient({
                           <span className="capitalize">{t.method.replace('_', ' ')}</span>
                         </div>
                       </div>
-                      <div className="font-mono font-bold text-lg text-ink bg-pale px-3 py-1 rounded-lg">
-                        ₱{t.amount.toLocaleString()}
+                      <div className="flex items-center gap-4">
+                        <div className="font-mono font-bold text-lg text-ink bg-pale px-3 py-1 rounded-lg">
+                          ₱{t.amount.toLocaleString()}
+                        </div>
+                        <button
+                          onClick={() => window.open(`/admin/receipt/${t.reference_number}`, '_blank')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-line rounded-lg text-ink hover:text-royal hover:border-royal hover:bg-pale transition-colors"
+                        >
+                          <Printer size={14} />
+                          Print
+                        </button>
                       </div>
                     </div>
                   ))}
