@@ -12,7 +12,7 @@ import {
   Images, Megaphone, Bell, ScrollText, Building2, Settings,
   ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check
 } from "lucide-react";
-import { Can } from "@/components/rbac/Can";
+import { Can, usePermissions } from "@/components/rbac/Can";
 
 // Navigation definition
 const NAVIGATION_GROUPS = [
@@ -47,7 +47,7 @@ const NAVIGATION_GROUPS = [
       { name: "Cashier / Shifts", href: "#", icon: WalletCards, permission: "cashier.view", unimplemented: true },
       { name: "Approvals", href: "#", icon: ClipboardCheck, permission: "approvals.view", unimplemented: true },
       { name: "Expenses", href: "#", icon: Banknote, permission: "expenses.view", unimplemented: true },
-      { name: "Reports", href: "#", icon: BarChart3, permission: "reports.view", unimplemented: true },
+      { name: "Reports", href: "/admin/reports", icon: BarChart3, permission: "reports.view" },
     ]
   },
   {
@@ -68,7 +68,7 @@ const NAVIGATION_GROUPS = [
     name: "SYSTEM",
     items: [
       { name: "Notifications", href: "#", icon: Bell, permission: "notifications.view", unimplemented: true },
-      { name: "Audit Logs", href: "#", icon: ScrollText, permission: "audit_logs.view", unimplemented: true },
+      { name: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText, permission: "audit_logs.view" },
       { name: "Branches", href: "#", icon: Building2, permission: "branches.view", unimplemented: true },
       { name: "Settings", href: "/admin/settings", icon: Settings, permission: "settings.view" },
     ]
@@ -181,13 +181,34 @@ export function AdminShell({
 
   const selectedBranch = branches.find(b => b.id === selectedBranchId) || branches[0];
 
+  const { hasPermission, loading: permissionsLoading } = usePermissions();
+
   // Render navigation tree
   const renderNav = (isMobile = false) => {
     const collapsed = !isMobile && isDesktopCollapsed;
     
+    if (permissionsLoading) {
+      return (
+        <div className="flex-1 p-4 space-y-4">
+          <div className="h-4 w-24 bg-line/50 rounded animate-pulse" />
+          <div className="space-y-2">
+            <div className="h-10 w-full bg-line/30 rounded-xl animate-pulse" />
+            <div className="h-10 w-full bg-line/30 rounded-xl animate-pulse" />
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 space-y-6 scrollbar-hide">
         {NAVIGATION_GROUPS.map((group) => {
+          // Check if user has permission for at least one item in this group
+          const hasAnyPermissionInGroup = group.items.some(item => hasPermission(item.permission));
+          
+          if (!hasAnyPermissionInGroup) {
+            return null; // Hide the entire group if no permissions
+          }
+
           const isGroupCollapsed = collapsedGroups[group.name];
           
           return (
