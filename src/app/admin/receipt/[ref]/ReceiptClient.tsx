@@ -29,22 +29,26 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
   const paymentMethod = data.payment_method || "cash";
 
   // Build items array
-  let items = [];
+  let items: any[] = [];
   if (type === "appointment") {
+    const basePrice = data.treatments?.session_price || data.amount_due;
     items.push({
       name: data.treatments?.name || "Service",
       qty: 1,
-      price: data.amount_due,
-      amount: data.amount_due
+      price: basePrice,
+      amount: basePrice
     });
   } else {
-    items = data.items.map((i: any) => ({
+    items = data.items?.map((i: any) => ({
       name: i.item?.name || "Product",
       qty: i.quantity,
       price: i.price_per_unit,
       amount: i.quantity * i.price_per_unit
-    }));
+    })) || [];
   }
+
+  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+  const discount = Math.max(0, subtotal - totalAmount);
 
   // Prevent hydration mismatch by setting URL only on client mount
   const [verificationUrl, setVerificationUrl] = useState('');
@@ -54,7 +58,7 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
 
   return (
     <div className="min-h-screen bg-neutral-100 flex flex-col font-sans">
-      
+
       {/* SCREEN ONLY CONTROLS */}
       <div className="print:hidden bg-white border-b border-line p-4 shadow-sm flex items-center justify-between sticky top-0 z-50">
         <Link href="/admin/pos" className="flex items-center gap-2 text-ink-soft hover:text-royal transition-colors text-sm font-medium">
@@ -62,14 +66,14 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
           Back to POS
         </Link>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={handlePrint}
             className="flex items-center gap-2 bg-royal text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-royal-deep transition-colors shadow-sm"
           >
             <Printer size={16} />
             Print Receipt
           </button>
-          <button 
+          <button
             onClick={() => window.alert("PDF download requires a server-side PDF generator like Puppeteer or an API. Printing as PDF is supported via browser dialog.")}
             className="flex items-center gap-2 bg-white border border-line text-ink px-4 py-2 rounded-lg text-sm font-medium hover:bg-pale transition-colors"
           >
@@ -81,18 +85,21 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
 
       {/* RECEIPT PREVIEW WRAPPER */}
       <div className="flex-1 flex items-center justify-center p-8 print:p-0 print:block">
-        
+
         {/* RECEIPT PAPER */}
         <div className="bg-white w-[80mm] max-w-full mx-auto p-4 sm:p-6 print:p-0 shadow-2xl print:shadow-none text-black font-mono text-sm leading-tight">
-          
+
           {/* HEADER */}
           <div className="text-center mb-6">
+            <img src="/logo.png" alt="Cindyrella Logo" className="w-16 h-16 object-contain mx-auto mb-2 brightness-0" />
             <h1 className="text-xl font-bold mb-1 tracking-wider">CINDYRELLA DRIP</h1>
             <p className="text-[10px] uppercase tracking-[0.2em] font-semibold">Aesthetic & Wellness</p>
-            
+
             <div className="mt-4 text-xs space-y-0.5">
-              <p className="font-bold">{branch?.name || "Main Branch"}</p>
-              {branch?.address && <p>{branch.address}</p>}
+              <p className="font-bold">{branch?.name ? `${branch.name} Branch` : "Main Branch"}</p>
+              {branch?.address && branch.address.trim().toLowerCase() !== branch?.name?.trim().toLowerCase() && (
+                <p>{branch.address}</p>
+              )}
               <p>{branch?.phone || "09302245668"}</p>
             </div>
           </div>
@@ -138,7 +145,7 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
               <span className="w-1/4 text-center">QTY</span>
               <span className="w-1/4 text-right">AMT</span>
             </div>
-            
+
             <div className="space-y-3">
               {items.map((item: any, idx: number) => (
                 <div key={idx} className="flex flex-col">
@@ -159,12 +166,14 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
           <div className="text-xs space-y-1.5 mb-4">
             <div className="flex justify-between">
               <span>Subtotal:</span>
-              <span>₱{totalAmount.toLocaleString()}</span>
+              <span>₱{subtotal.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Discount:</span>
-              <span>₱0</span>
-            </div>
+            {discount > 0 && (
+              <div className="flex justify-between text-red-600 print:text-black">
+                <span>Discount:</span>
+                <span>-₱{discount.toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex justify-between text-base font-bold mt-2 pt-2 border-t border-black">
               <span>TOTAL:</span>
               <span>₱{totalAmount.toLocaleString()}</span>
@@ -204,7 +213,7 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
 
           {/* FOOTER */}
           <div className="text-center text-[10px] space-y-1.5">
-            <p className="font-bold">Thank you for choosing<br/>CINDYRELLA AESTHETIC & WELLNESS</p>
+            <p className="font-bold">Thank you for choosing<br />CINDYRELLA DRIP AESTHETIC & WELLNESS</p>
             <p className="mt-2">We appreciate your trust and support.</p>
             <p>Please keep this receipt for your records.</p>
             <div className="mt-3 pt-3 border-t border-black/30 print:border-black/50 space-y-1">
