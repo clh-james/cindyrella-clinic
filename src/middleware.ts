@@ -45,6 +45,11 @@ export async function middleware(request: NextRequest) {
         '/admin/gallery': 'gallery.view',
         '/admin/staff': 'staff.view',
         '/admin/settings': 'settings.view',
+        '/admin/transactions': 'transactions.view',
+        '/admin/reports': 'reports.view',
+        '/admin/roles': 'users.assign_role',
+        '/admin/audit-logs': 'audit_logs.view',
+        '/admin/shifts': 'cashier.view',
       };
 
       // Find if current path requires a permission

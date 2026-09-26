@@ -13,15 +13,15 @@ export default async function AdminOverview() {
   const today = isoDate(new Date());
   const monthStart = isoDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
-  const [todayAppts, monthAppts, upcoming, treatmentCounts] = await Promise.all([
+  const [appointmentsRes, posSalesRes, upcoming, treatmentCounts] = await Promise.all([
     supabase
       .from("appointments")
-      .select("id, amount_due, status")
-      .eq("appointment_date", today),
-    supabase
-      .from("appointments")
-      .select("id, amount_due, status, appointment_date, created_at, customer_id")
+      .select("id, amount_due, status, appointment_date, customer_id")
       .gte("appointment_date", monthStart),
+    supabase
+      .from("pos_sales")
+      .select("id, total_amount, created_at, status")
+      .gte("created_at", `${monthStart}T00:00:00.000Z`),
     supabase
       .from("appointments")
       .select("id, reference_number, appointment_date, appointment_time, status, treatments(name), branches(name), customers(first_name, last_name)")
@@ -34,18 +34,42 @@ export default async function AdminOverview() {
       .gte("appointment_date", monthStart),
   ]);
 
-  const todayList = todayAppts.data ?? [];
-  const monthList = monthAppts.data ?? [];
+  const monthApptsList = appointmentsRes.data ?? [];
+  const monthSalesList = posSalesRes.data ?? [];
 
-  const todayRevenue = todayList
-    .filter((a) => a.status !== "cancelled")
-    .reduce((sum, a) => sum + a.amount_due, 0);
+  const todayApptsList = monthApptsList.filter(a => a.appointment_date === today);
+  
+  // Format dates for pos_sales to YYYY-MM-DD in local time
+  const formatSaleDate = (isoString: string) => {
+    const d = new Date(isoString);
+    // Adjust for UTC offset if needed, but simple slice might work if it's stored in UTC and we want to align,
+    // let's just use the robust Date approach for local YYYY-MM-DD
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
-  const monthRevenue = monthList
-    .filter((a) => a.status !== "cancelled")
-    .reduce((sum, a) => sum + a.amount_due, 0);
+  const monthSalesFormatted = monthSalesList.map(s => ({
+    ...s,
+    sale_date: formatSaleDate(s.created_at)
+  }));
+  const todaySalesList = monthSalesFormatted.filter(s => s.sale_date === today);
 
-  const newClientIds = new Set(monthList.map((a) => a.customer_id));
+  const calculateRevenue = (appts: typeof monthApptsList, sales: typeof monthSalesFormatted) => {
+    const apptsRev = appts
+      .filter((a) => a.status !== "cancelled" && a.status !== "voided")
+      .reduce((sum, a) => sum + a.amount_due, 0);
+    const salesRev = sales
+      .filter((s) => s.status !== "voided")
+      .reduce((sum, s) => sum + s.total_amount, 0);
+    return apptsRev + salesRev;
+  };
+
+  const todayRevenue = calculateRevenue(todayApptsList, todaySalesList);
+  const monthRevenue = calculateRevenue(monthApptsList, monthSalesFormatted);
+
+  const newClientIds = new Set(monthApptsList.map((a) => a.customer_id).filter(Boolean));
 
   const last7 = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
@@ -53,12 +77,14 @@ export default async function AdminOverview() {
     return { iso: isoDate(d), label: d.toLocaleDateString("en-US", { weekday: "short" }) };
   });
 
-  const revenueByDay = last7.map(({ iso, label }) => ({
-    day: label,
-    revenue: monthList
-      .filter((a) => a.appointment_date === iso && a.status !== "cancelled")
-      .reduce((sum, a) => sum + a.amount_due, 0),
-  }));
+  const revenueByDay = last7.map(({ iso, label }) => {
+    const dayAppts = monthApptsList.filter((a) => a.appointment_date === iso);
+    const daySales = monthSalesFormatted.filter((s) => s.sale_date === iso);
+    return {
+      day: label,
+      revenue: calculateRevenue(dayAppts, daySales),
+    };
+  });
 
   const popularity = new Map<string, number>();
   (treatmentCounts.data ?? []).forEach((row) => {
@@ -69,7 +95,7 @@ export default async function AdminOverview() {
   const mostPopular = [...popularity.entries()].sort((a, b) => b[1] - a[1])[0];
 
   const stats = [
-    { label: "Today's bookings", value: String(todayList.length), icon: CalendarDays },
+    { label: "Today's bookings", value: String(todayApptsList.length), icon: CalendarDays },
     { label: "Today's revenue", value: peso(todayRevenue), icon: PhilippinePeso },
     { label: "Monthly revenue", value: peso(monthRevenue), icon: TrendingUp },
     { label: "New clients (month)", value: String(newClientIds.size), icon: Users },

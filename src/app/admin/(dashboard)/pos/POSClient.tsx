@@ -88,7 +88,17 @@ export function POSClient({
     });
   }, [inventory, searchQuery, selectedCategory]);
 
-  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const [discountType, setDiscountType] = useState<"none" | "percentage" | "fixed">("none");
+  const [discountValue, setDiscountValue] = useState<number | "">("");
+  const [discountReason, setDiscountReason] = useState("");
+
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const discountAmount = discountType === "percentage" 
+    ? (subtotal * (Number(discountValue) / 100)) 
+    : discountType === "fixed" 
+      ? Number(discountValue) 
+      : 0;
+  const total = Math.max(0, subtotal - discountAmount);
 
   const addToCart = (item: { id: string; name: string; price: number; maxStock?: number }) => {
     if (mode === "walkin") {
@@ -165,13 +175,18 @@ export function POSClient({
         customerName: customerName || "Walk-in Customer",
         customerPhone: customerPhone || "N/A",
         paymentMethod,
-        amountDue: total
+        amountDue: total,
+        discountAmount,
+        discountReason
       });
     } else {
       res = await processPOSRetail({
         items: cart,
+        branchId: selectedBranch,
         paymentMethod,
-        amountDue: total
+        amountDue: total,
+        discountAmount,
+        discountReason
       });
     }
 
@@ -652,6 +667,44 @@ export function POSClient({
             )}
           </div>
 
+          {/* Discount Block */}
+          {cart.length > 0 && (
+            <div className="p-4 bg-white border-t border-line shrink-0 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-ink-soft uppercase">
+                Add Discount (Optional)
+              </div>
+              <div className="flex gap-2">
+                <select 
+                  value={discountType} 
+                  onChange={e => setDiscountType(e.target.value as any)}
+                  className="px-2 py-2 border border-line rounded-lg text-sm bg-pale w-1/3 outline-none focus:border-royal"
+                >
+                  <option value="none">None</option>
+                  <option value="percentage">% Off</option>
+                  <option value="fixed">₱ Off</option>
+                </select>
+                {discountType !== "none" && (
+                  <input 
+                    type="number" 
+                    placeholder="Amount"
+                    value={discountValue}
+                    onChange={e => setDiscountValue(Number(e.target.value))}
+                    className="flex-1 px-3 py-2 border border-line rounded-lg text-sm outline-none focus:border-royal"
+                  />
+                )}
+              </div>
+              {discountType !== "none" && (
+                <input 
+                  type="text" 
+                  placeholder="Reason for discount (e.g. Promo, VIP, Staff)"
+                  value={discountReason}
+                  onChange={e => setDiscountReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-line rounded-lg text-sm outline-none focus:border-royal mt-2"
+                />
+              )}
+            </div>
+          )}
+
           {/* Payment & Summary Area */}
           <div className="bg-white border-t border-line shrink-0 pb-safe lg:pb-4 shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
             
@@ -659,12 +712,14 @@ export function POSClient({
             <div className="p-4 sm:p-5 border-b border-line border-dashed space-y-1 sm:space-y-2">
               <div className="flex justify-between items-center text-xs sm:text-sm">
                 <span className="text-ink-soft">Subtotal</span>
-                <span className="font-mono text-ink">₱{total.toLocaleString()}</span>
+                <span className="font-mono text-ink">₱{subtotal.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between items-center text-xs sm:text-sm">
-                <span className="text-ink-soft">Discount</span>
-                <span className="font-mono text-ink">₱0</span>
-              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center text-xs sm:text-sm">
+                  <span className="text-red-500 font-medium">Discount {discountType === 'percentage' ? `(${discountValue}%)` : ''}</span>
+                  <span className="font-mono text-red-500 font-medium">-₱{discountAmount.toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between items-end pt-1 sm:pt-2">
                 <span className="font-medium text-ink text-base sm:text-lg">Total</span>
                 <span className="text-xl sm:text-3xl font-bold font-mono text-royal">₱{total.toLocaleString()}</span>

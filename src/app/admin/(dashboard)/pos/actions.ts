@@ -20,6 +20,8 @@ export async function processPOSWalkin(input: {
   customerPhone: string;
   paymentMethod: string;
   amountDue: number;
+  discountAmount?: number;
+  discountReason?: string;
 }) {
   const hasAccess = await hasServerPermission("pos.create_sale");
   if (!hasAccess) {
@@ -78,6 +80,8 @@ export async function processPOSWalkin(input: {
       appointment_time: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
       payment_method: input.paymentMethod,
       amount_due: input.amountDue,
+      discount_amount: input.discountAmount || 0,
+      discount_reason: input.discountReason || null,
       status: "completed",
       payment_status: "paid",
       notes: itemsJson // Store full cart here
@@ -108,8 +112,11 @@ export async function processPOSWalkin(input: {
 
 export async function processPOSRetail(input: {
   items: { id: string; price: number; quantity: number }[];
+  branchId: string;
   paymentMethod: string;
   amountDue: number;
+  discountAmount?: number;
+  discountReason?: string;
 }) {
   const hasAccess = await hasServerPermission("pos.create_sale");
   if (!hasAccess) {
@@ -127,7 +134,10 @@ export async function processPOSRetail(input: {
       reference_number: referenceNumber,
       total_amount: input.amountDue,
       payment_method: input.paymentMethod,
-      created_by: user.data.user?.id
+      created_by: user.data.user?.id,
+      branch_id: input.branchId,
+      discount_amount: input.discountAmount || 0,
+      discount_reason: input.discountReason || null
     })
     .select("id")
     .single();
