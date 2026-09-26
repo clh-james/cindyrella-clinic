@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireServerPermission } from "@/lib/rbac";
 import { revalidatePath } from "next/cache";
 
@@ -12,7 +12,9 @@ export async function toggleRolePermission(
   // Ensure the user calling this action actually has permission to modify roles
   await requireServerPermission("users.assign_role");
   
-  const supabase = await createClient();
+  // Use admin client to bypass RLS, since role_permissions table is read-only
+  // for regular clients and we've already done our authorization check above.
+  const supabase = createAdminClient();
 
   if (assign) {
     const { error } = await supabase
