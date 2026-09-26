@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   title: "Receipt - Cindyrella",
 };
 
-export default async function ReceiptPage({ params }: { params: { ref: string } }) {
+export default async function ReceiptPage({ params }: { params: Promise<{ ref: string }> }) {
   await requireStaff(); // Ensure only staff can view full receipts
   
   const supabase = await createClient();
-  const ref = params.ref;
+  const { ref } = await params;
 
   // 1. Try finding in appointments
   const { data: appt } = await supabase
