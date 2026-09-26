@@ -335,61 +335,64 @@ export function POSClient({
     );
   };
 
+  // Responsive Cart State
+  const [showMobileCart, setShowMobileCart] = useState(false);
+
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden bg-[#f4f7f9] -mx-6 -my-8 md:-mx-10 md:-my-10">
+    <div className="flex flex-col h-[calc(100vh-64px)] md:h-[calc(100vh-80px)] overflow-hidden bg-[#f4f7f9] -mx-4 -my-6 sm:-mx-6 sm:-my-8 md:-mx-10 md:-my-10 relative">
       
       {/* HEADER TOP BAR */}
-      <div className="h-16 bg-white border-b border-line px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
+      <div className="h-16 bg-white border-b border-line px-4 sm:px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
         <div>
-          <h1 className="font-serif text-xl font-semibold text-ink flex items-center gap-2">
+          <h1 className="font-serif text-lg sm:text-xl font-semibold text-ink flex items-center gap-2">
             Point of Sale
           </h1>
-          <p className="text-xs text-ink-soft">Create and manage transactions</p>
+          <p className="hidden sm:block text-xs text-ink-soft">Create and manage transactions</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <button 
             onClick={handleOpenHistory}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-line rounded-lg text-sm font-medium text-ink-soft hover:text-royal hover:border-royal hover:bg-pale transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-line rounded-lg text-sm font-medium text-ink-soft hover:text-royal hover:border-royal hover:bg-pale transition-colors shadow-sm"
           >
             <History size={16} />
             <span className="hidden sm:inline">History</span>
           </button>
           
-          <div className="hidden md:flex flex-col items-end border-l border-line pl-4">
-            <div className="text-sm font-medium text-ink-soft flex items-center gap-2">
-              Branch: 
+          <div className="flex flex-col items-end border-l border-line pl-2 sm:pl-4">
+            <div className="text-xs sm:text-sm font-medium text-ink-soft flex items-center gap-2">
+              <span className="hidden sm:inline">Branch:</span>
               <select 
                 value={selectedBranch} 
                 onChange={e => setSelectedBranch(e.target.value)}
-                className="bg-pale border border-line rounded px-2 py-1 text-xs font-semibold text-ink outline-none"
+                className="bg-pale border border-line rounded px-1 sm:px-2 py-1 text-xs font-semibold text-ink outline-none"
               >
                 {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
-            <div className="text-xs text-ink-soft/70">
+            <div className="hidden sm:block text-xs text-ink-soft/70">
               {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         
         {/* LEFT/CENTER: SERVICES BROWSER */}
         <div className="flex-1 flex flex-col min-w-0 bg-[#f4f7f9]">
           
           {/* Mode Selector */}
-          <div className="px-6 pt-6 pb-4 shrink-0">
+          <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 sm:pb-4 shrink-0">
             <div className="flex p-1 bg-white border border-line rounded-xl w-full max-w-sm mx-auto shadow-sm">
               <button 
                 onClick={() => { setMode("walkin"); setSelectedCategory("All"); }}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === "walkin" ? "bg-royal text-white shadow-md" : "text-ink-soft hover:bg-pale"}`}
+                className={`flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${mode === "walkin" ? "bg-royal text-white shadow-md" : "text-ink-soft hover:bg-pale"}`}
               >
-                Walk-in Treatments
+                Walk-in
               </button>
               <button 
                 onClick={() => { setMode("retail"); setSelectedCategory("All"); }}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === "retail" ? "bg-royal text-white shadow-md" : "text-ink-soft hover:bg-pale"}`}
+                className={`flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${mode === "retail" ? "bg-royal text-white shadow-md" : "text-ink-soft hover:bg-pale"}`}
               >
                 Retail Sales
               </button>
@@ -397,33 +400,33 @@ export function POSClient({
           </div>
 
           {/* Search & Filters */}
-          <div className="px-6 pb-4 shrink-0 space-y-4">
+          <div className="px-4 sm:px-6 pb-2 sm:pb-4 shrink-0 space-y-3 sm:space-y-4">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-soft" size={18} />
+              <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-ink-soft" size={16} />
               <input 
                 type="text" 
-                placeholder="Search services, products, or packages..."
+                placeholder="Search services, products..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-11 pr-10 py-3.5 bg-white border border-line rounded-2xl text-sm outline-none focus:border-royal focus:ring-4 focus:ring-royal/10 shadow-sm transition-all placeholder:text-ink-soft/60"
+                className="w-full pl-9 sm:pl-11 pr-10 py-3 sm:py-3.5 bg-white border border-line rounded-2xl text-xs sm:text-sm outline-none focus:border-royal focus:ring-4 focus:ring-royal/10 shadow-sm transition-all placeholder:text-ink-soft/60"
               />
               {searchQuery && (
                 <button 
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink p-1 rounded-full hover:bg-pale"
+                  className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink p-1 rounded-full hover:bg-pale"
                 >
-                  <X size={16} />
+                  <X size={14} />
                 </button>
               )}
             </div>
 
             {/* Horizontal Categories */}
-            <div className="flex overflow-x-auto pb-2 -mx-2 px-2 scrollbar-hide gap-2">
+            <div className="flex overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide gap-2">
               {categories.map(cat => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`shrink-0 px-5 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap border
+                  className={`shrink-0 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all whitespace-nowrap border
                     ${selectedCategory === cat 
                       ? 'bg-royal text-white border-royal shadow-md' 
                       : 'bg-white text-ink-soft border-line hover:border-royal/30 hover:bg-pale'
@@ -436,29 +439,29 @@ export function POSClient({
           </div>
 
           {/* Catalog Grid */}
-          <div className="flex-1 overflow-y-auto px-6 pb-6 min-h-0">
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-24 lg:pb-6 min-h-0">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               
               {mode === "walkin" && filteredTreatments.map(t => (
                 <button 
                   key={t.id} 
                   onClick={() => addToCart({ id: t.id, name: t.name, price: t.session_price })}
-                  className="group flex flex-col bg-white border border-line rounded-2xl overflow-hidden hover:border-royal hover:shadow-lg transition-all text-left relative"
+                  className="group flex flex-col bg-white border border-line rounded-xl sm:rounded-2xl overflow-hidden hover:border-royal hover:shadow-lg transition-all text-left relative"
                 >
-                  <div className="h-28 bg-gradient-to-br from-pale to-white flex items-center justify-center relative overflow-hidden">
+                  <div className="h-20 sm:h-28 bg-gradient-to-br from-pale to-white flex items-center justify-center relative overflow-hidden">
                     {t.image_url ? (
                       <img src={t.image_url} alt={t.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     ) : (
-                      <BriefcaseMedical className="text-royal/20 group-hover:text-royal/40 transition-colors" size={48} />
+                      <BriefcaseMedical className="text-royal/20 group-hover:text-royal/40 transition-colors" size={32} />
                     )}
                   </div>
-                  <div className="p-4 flex flex-col flex-1">
-                    <span className="text-xs font-semibold text-royal mb-1 uppercase tracking-wider">{t.category}</span>
-                    <span className="font-semibold text-ink line-clamp-2 leading-snug">{t.name}</span>
-                    <div className="mt-auto pt-3 flex items-center justify-between">
-                      <span className="font-mono font-bold text-ink">₱{t.session_price.toLocaleString()}</span>
-                      <span className="w-8 h-8 rounded-full bg-pale flex items-center justify-center text-royal group-hover:bg-royal group-hover:text-white transition-colors">
-                        <Plus size={16} />
+                  <div className="p-3 sm:p-4 flex flex-col flex-1">
+                    <span className="text-[10px] sm:text-xs font-semibold text-royal mb-0.5 sm:mb-1 uppercase tracking-wider line-clamp-1">{t.category}</span>
+                    <span className="font-semibold text-ink text-xs sm:text-base line-clamp-2 leading-snug">{t.name}</span>
+                    <div className="mt-auto pt-2 sm:pt-3 flex items-center justify-between">
+                      <span className="font-mono font-bold text-ink text-xs sm:text-base">₱{t.session_price.toLocaleString()}</span>
+                      <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-pale flex items-center justify-center text-royal group-hover:bg-royal group-hover:text-white transition-colors">
+                        <Plus size={14} />
                       </span>
                     </div>
                   </div>
@@ -474,32 +477,32 @@ export function POSClient({
                     key={i.id} 
                     onClick={() => !isOutOfStock && addToCart({ id: i.id, name: i.name, price: i.retail_price || 0, maxStock: i.current_stock })}
                     disabled={isOutOfStock}
-                    className={`group flex flex-col bg-white border rounded-2xl overflow-hidden text-left relative transition-all
+                    className={`group flex flex-col bg-white border rounded-xl sm:rounded-2xl overflow-hidden text-left relative transition-all
                       ${isOutOfStock ? 'border-line/50 opacity-60 cursor-not-allowed' : 'border-line hover:border-royal hover:shadow-lg'}
                     `}
                   >
-                    <div className="h-28 bg-gradient-to-br from-pale to-white flex items-center justify-center relative overflow-hidden">
+                    <div className="h-20 sm:h-28 bg-gradient-to-br from-pale to-white flex items-center justify-center relative overflow-hidden">
                       {i.image_url ? (
                         <img src={i.image_url} alt={i.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                       ) : (
-                        <PackageIcon className={`${isOutOfStock ? 'text-ink-soft/20' : 'text-royal/20 group-hover:text-royal/40'} transition-colors`} size={48} />
+                        <PackageIcon className={`${isOutOfStock ? 'text-ink-soft/20' : 'text-royal/20 group-hover:text-royal/40'} transition-colors`} size={32} />
                       )}
                       {isLowStock && !isOutOfStock && (
-                        <div className="absolute top-2 left-2 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-1 rounded uppercase z-10">Low Stock</div>
+                        <div className="absolute top-1 sm:top-2 left-1 sm:left-2 bg-amber-100 text-amber-800 text-[8px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded uppercase z-10">Low Stock</div>
                       )}
                       {isOutOfStock && (
-                        <div className="absolute top-2 left-2 bg-red-100 text-red-800 text-[10px] font-bold px-2 py-1 rounded uppercase z-10">Sold Out</div>
+                        <div className="absolute top-1 sm:top-2 left-1 sm:left-2 bg-red-100 text-red-800 text-[8px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded uppercase z-10">Sold Out</div>
                       )}
                     </div>
-                    <div className="p-4 flex flex-col flex-1">
-                      <span className="text-xs font-semibold text-royal mb-1 uppercase tracking-wider line-clamp-1">{i.category}</span>
-                      <span className="font-semibold text-ink line-clamp-2 leading-snug">{i.name}</span>
+                    <div className="p-3 sm:p-4 flex flex-col flex-1">
+                      <span className="text-[10px] sm:text-xs font-semibold text-royal mb-0.5 sm:mb-1 uppercase tracking-wider line-clamp-1">{i.category}</span>
+                      <span className="font-semibold text-ink text-xs sm:text-base line-clamp-2 leading-snug">{i.name}</span>
                       
-                      <div className="mt-auto pt-3 flex items-center justify-between">
-                        <span className="font-mono font-bold text-ink">₱{(i.retail_price||0).toLocaleString()}</span>
+                      <div className="mt-auto pt-2 sm:pt-3 flex items-center justify-between">
+                        <span className="font-mono font-bold text-ink text-xs sm:text-base">₱{(i.retail_price||0).toLocaleString()}</span>
                         {!isOutOfStock && (
-                          <span className="w-8 h-8 rounded-full bg-pale flex items-center justify-center text-royal group-hover:bg-royal group-hover:text-white transition-colors">
-                            <Plus size={16} />
+                          <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-pale flex items-center justify-center text-royal group-hover:bg-royal group-hover:text-white transition-colors">
+                            <Plus size={14} />
                           </span>
                         )}
                       </div>
@@ -509,12 +512,12 @@ export function POSClient({
               })}
 
               {((mode === "walkin" && filteredTreatments.length === 0) || (mode === "retail" && filteredInventory.length === 0)) && (
-                <div className="col-span-full py-20 flex flex-col items-center justify-center text-ink-soft text-center">
-                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
+                <div className="col-span-full py-10 sm:py-20 flex flex-col items-center justify-center text-ink-soft text-center">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
                     <Search size={24} className="text-ink-soft/50" />
                   </div>
                   <p className="font-medium text-ink">No items found</p>
-                  <p className="text-sm mt-1">Try adjusting your search or category filter.</p>
+                  <p className="text-xs sm:text-sm mt-1">Try adjusting your search or category filter.</p>
                 </div>
               )}
 
@@ -522,15 +525,44 @@ export function POSClient({
           </div>
         </div>
 
-        {/* RIGHT PANEL: CURRENT ORDER */}
-        <div className="w-[420px] bg-white border-l border-line shadow-[-4px_0_24px_rgba(0,0,0,0.02)] flex flex-col shrink-0 z-20 relative">
+        {/* MOBILE STICKY CART BUTTON */}
+        <div className="lg:hidden absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-line shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-20 pb-safe">
+          <button 
+            onClick={() => setShowMobileCart(true)}
+            className="w-full h-14 rounded-xl bg-royal text-white font-semibold flex items-center justify-between px-6 shadow-md"
+          >
+            <div className="flex items-center gap-2">
+              <ShoppingCart size={20} />
+              <span>{cart.reduce((s,i) => s + i.quantity, 0)} items</span>
+            </div>
+            <span className="font-mono font-bold">₱{total.toLocaleString()}</span>
+          </button>
+        </div>
+
+        {/* RIGHT PANEL: CURRENT ORDER (Desktop side panel, Mobile bottom sheet/drawer) */}
+        <div className={`
+          fixed inset-0 z-40 bg-black/50 transition-opacity lg:hidden
+          ${showMobileCart ? 'opacity-100' : 'opacity-0 pointer-events-none'}
+        `} onClick={() => setShowMobileCart(false)}></div>
+        
+        <div className={`
+          fixed lg:static inset-y-0 right-0 z-50 w-full sm:w-[420px] lg:w-[420px] 
+          bg-white lg:border-l border-line shadow-2xl lg:shadow-[-4px_0_24px_rgba(0,0,0,0.02)] 
+          flex flex-col shrink-0 transition-transform duration-300 ease-in-out
+          ${showMobileCart ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+        `}>
           
           {/* Order Header */}
-          <div className="p-5 border-b border-line flex items-center justify-between bg-white shrink-0">
-            <h2 className="font-serif font-semibold text-lg text-ink flex items-center gap-2">
-              <ShoppingCart size={20} className="text-royal" />
-              Current Order
-            </h2>
+          <div className="p-4 sm:p-5 border-b border-line flex items-center justify-between bg-white shrink-0 pt-safe lg:pt-5">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setShowMobileCart(false)} className="lg:hidden p-1.5 -ml-1.5 text-ink-soft hover:bg-pale rounded-full">
+                <X size={20} />
+              </button>
+              <h2 className="font-serif font-semibold text-lg text-ink flex items-center gap-2">
+                <ShoppingCart size={20} className="text-royal hidden lg:block" />
+                Current Order
+              </h2>
+            </div>
             {cart.length > 0 && (
               <button onClick={() => setCart([])} className="text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors flex items-center gap-1">
                 <Trash2 size={14} /> Clear
@@ -538,74 +570,74 @@ export function POSClient({
             )}
           </div>
 
-          {/* Customer Selection (Only Walkin for now based on logic) */}
+          {/* Customer Selection */}
           {mode === "walkin" && (
-            <div className="p-5 border-b border-line bg-pale/30 shrink-0">
-              <div className="flex items-center gap-2 mb-3 text-sm font-medium text-ink">
+            <div className="p-4 sm:p-5 border-b border-line bg-pale/30 shrink-0">
+              <div className="flex items-center gap-2 mb-2 sm:mb-3 text-xs sm:text-sm font-medium text-ink">
                 <User size={16} className="text-royal" />
                 Customer Info
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <input 
                   type="text" 
                   placeholder="Customer Name" 
                   value={customerName} 
                   onChange={e => setCustomerName(e.target.value)} 
-                  className="w-full rounded-xl border border-line px-4 py-2.5 text-sm outline-none focus:border-royal focus:ring-2 focus:ring-royal/20 transition-all shadow-sm bg-white" 
+                  className="w-full rounded-xl border border-line px-3 sm:px-4 py-2 sm:py-2.5 text-sm outline-none focus:border-royal focus:ring-2 focus:ring-royal/20 transition-all shadow-sm bg-white" 
                 />
                 <input 
                   type="text" 
                   placeholder="Phone Number" 
                   value={customerPhone} 
                   onChange={e => setCustomerPhone(e.target.value)} 
-                  className="w-full rounded-xl border border-line px-4 py-2.5 text-sm outline-none focus:border-royal focus:ring-2 focus:ring-royal/20 transition-all shadow-sm bg-white" 
+                  className="w-full rounded-xl border border-line px-3 sm:px-4 py-2 sm:py-2.5 text-sm outline-none focus:border-royal focus:ring-2 focus:ring-royal/20 transition-all shadow-sm bg-white" 
                 />
               </div>
             </div>
           )}
 
           {/* Cart Items List */}
-          <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-5">
+          <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-4 sm:p-5">
             {cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-ink-soft text-center opacity-70">
-                <ShoppingCart size={48} className="mb-4 stroke-[1.5]" />
-                <p className="font-medium text-ink text-lg">Empty Cart</p>
-                <p className="text-sm mt-1 max-w-[200px]">Select a service or product to start a new transaction.</p>
+                <ShoppingCart size={40} sm:size={48} className="mb-3 sm:mb-4 stroke-[1.5]" />
+                <p className="font-medium text-ink text-base sm:text-lg">Empty Cart</p>
+                <p className="text-xs sm:text-sm mt-1 max-w-[200px]">Select a service or product to start a new transaction.</p>
               </div>
             ) : (
-              <ul className="space-y-3">
+              <ul className="space-y-2 sm:space-y-3 pb-4">
                 {cart.map(item => (
-                  <li key={item.id} className="bg-white border border-line rounded-2xl p-4 shadow-sm flex flex-col gap-3 group relative overflow-hidden">
+                  <li key={item.id} className="bg-white border border-line rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col gap-2 sm:gap-3 group relative overflow-hidden">
                     <div className="flex justify-between items-start">
-                      <div className="pr-4">
-                        <p className="font-medium text-ink line-clamp-2 leading-snug">{item.name}</p>
-                        <p className="text-xs text-ink-soft mt-1 font-mono">₱{item.price.toLocaleString()} each</p>
+                      <div className="pr-3 sm:pr-4">
+                        <p className="font-medium text-sm sm:text-base text-ink line-clamp-2 leading-snug">{item.name}</p>
+                        <p className="text-[10px] sm:text-xs text-ink-soft mt-1 font-mono">₱{item.price.toLocaleString()} each</p>
                       </div>
-                      <span className="font-mono font-bold text-ink whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
+                      <span className="font-mono font-bold text-sm sm:text-base text-ink whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
                     </div>
                     
                     <div className="flex items-center justify-between mt-1">
                       {/* Quantity Control */}
-                      <div className="flex items-center gap-3 bg-pale rounded-lg p-1 border border-line/50">
+                      <div className="flex items-center gap-2 sm:gap-3 bg-pale rounded-lg p-1 border border-line/50">
                         <button 
                           onClick={() => updateQuantity(item.id, -1)} 
-                          className="w-7 h-7 rounded bg-white shadow-sm flex items-center justify-center text-ink hover:text-red-600 transition-colors"
+                          className="w-6 h-6 sm:w-7 sm:h-7 rounded bg-white shadow-sm flex items-center justify-center text-ink hover:text-red-600 transition-colors"
                         >
-                          <Minus size={14} />
+                          <Minus size={12} sm:size={14} />
                         </button>
-                        <span className="font-mono font-medium text-sm w-4 text-center">{item.quantity}</span>
+                        <span className="font-mono font-medium text-xs sm:text-sm w-4 text-center">{item.quantity}</span>
                         <button 
                           onClick={() => updateQuantity(item.id, 1)} 
                           disabled={item.maxStock !== undefined && item.quantity >= item.maxStock}
-                          className="w-7 h-7 rounded bg-white shadow-sm flex items-center justify-center text-ink hover:text-royal transition-colors disabled:opacity-50 disabled:hover:text-ink"
+                          className="w-6 h-6 sm:w-7 sm:h-7 rounded bg-white shadow-sm flex items-center justify-center text-ink hover:text-royal transition-colors disabled:opacity-50 disabled:hover:text-ink"
                         >
-                          <Plus size={14} />
+                          <Plus size={12} sm:size={14} />
                         </button>
                       </div>
                       
                       <button 
                         onClick={() => removeFromCart(item.id)} 
-                        className="text-xs font-medium text-red-500 hover:bg-red-50 px-2 py-1.5 rounded-md transition-colors"
+                        className="text-[10px] sm:text-xs font-medium text-red-500 hover:bg-red-50 px-2 py-1.5 rounded-md transition-colors"
                       >
                         Remove
                       </button>
@@ -617,58 +649,58 @@ export function POSClient({
           </div>
 
           {/* Payment & Summary Area */}
-          <div className="bg-white border-t border-line shrink-0 pb-4 shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
+          <div className="bg-white border-t border-line shrink-0 pb-safe lg:pb-4 shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
             
             {/* Summary */}
-            <div className="p-5 border-b border-line border-dashed space-y-2">
-              <div className="flex justify-between items-center text-sm">
+            <div className="p-4 sm:p-5 border-b border-line border-dashed space-y-1 sm:space-y-2">
+              <div className="flex justify-between items-center text-xs sm:text-sm">
                 <span className="text-ink-soft">Subtotal</span>
                 <span className="font-mono text-ink">₱{total.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between items-center text-sm">
+              <div className="flex justify-between items-center text-xs sm:text-sm">
                 <span className="text-ink-soft">Discount</span>
                 <span className="font-mono text-ink">₱0</span>
               </div>
-              <div className="flex justify-between items-end pt-2">
-                <span className="font-medium text-ink text-lg">Total</span>
-                <span className="text-3xl font-bold font-mono text-royal">₱{total.toLocaleString()}</span>
+              <div className="flex justify-between items-end pt-1 sm:pt-2">
+                <span className="font-medium text-ink text-base sm:text-lg">Total</span>
+                <span className="text-xl sm:text-3xl font-bold font-mono text-royal">₱{total.toLocaleString()}</span>
               </div>
             </div>
 
             {/* Payment Method Selector */}
-            <div className="p-5">
-              <p className="text-xs font-semibold text-ink-soft uppercase tracking-wider mb-3">Payment Method</p>
-              <div className="grid grid-cols-3 gap-3 mb-5">
+            <div className="p-4 sm:p-5">
+              <p className="text-[10px] sm:text-xs font-semibold text-ink-soft uppercase tracking-wider mb-2 sm:mb-3">Payment Method</p>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-5">
                 <button 
                   onClick={() => setPaymentMethod("cash")} 
-                  className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${paymentMethod === "cash" ? "border-royal bg-royal/5 text-royal" : "border-line text-ink-soft hover:border-royal/30 hover:bg-pale"}`}
+                  className={`flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 rounded-xl border-2 transition-all ${paymentMethod === "cash" ? "border-royal bg-royal/5 text-royal" : "border-line text-ink-soft hover:border-royal/30 hover:bg-pale"}`}
                 >
-                  <Banknote size={24} className={paymentMethod === "cash" ? "text-royal" : ""} /> 
-                  <span className="text-xs font-semibold">Cash</span>
+                  <Banknote size={20} className={paymentMethod === "cash" ? "text-royal" : ""} /> 
+                  <span className="text-[10px] sm:text-xs font-semibold">Cash</span>
                 </button>
                 <button 
                   onClick={() => setPaymentMethod("card")} 
-                  className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${paymentMethod === "card" ? "border-royal bg-royal/5 text-royal" : "border-line text-ink-soft hover:border-royal/30 hover:bg-pale"}`}
+                  className={`flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 rounded-xl border-2 transition-all ${paymentMethod === "card" ? "border-royal bg-royal/5 text-royal" : "border-line text-ink-soft hover:border-royal/30 hover:bg-pale"}`}
                 >
-                  <CreditCard size={24} className={paymentMethod === "card" ? "text-royal" : ""} /> 
-                  <span className="text-xs font-semibold">Card</span>
+                  <CreditCard size={20} className={paymentMethod === "card" ? "text-royal" : ""} /> 
+                  <span className="text-[10px] sm:text-xs font-semibold">Card</span>
                 </button>
                 <button 
                   onClick={() => setPaymentMethod("maya")} 
-                  className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${paymentMethod === "maya" ? "border-royal bg-royal/5 text-royal" : "border-line text-ink-soft hover:border-royal/30 hover:bg-pale"}`}
+                  className={`flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 rounded-xl border-2 transition-all ${paymentMethod === "maya" ? "border-royal bg-royal/5 text-royal" : "border-line text-ink-soft hover:border-royal/30 hover:bg-pale"}`}
                 >
-                  <ScanLine size={24} className={paymentMethod === "maya" ? "text-royal" : ""} /> 
-                  <span className="text-xs font-semibold text-center leading-tight">Maya / GCash</span>
+                  <ScanLine size={20} className={paymentMethod === "maya" ? "text-royal" : ""} /> 
+                  <span className="text-[10px] sm:text-xs font-semibold text-center leading-tight">Maya/GCash</span>
                 </button>
               </div>
 
-              {error && <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2"><AlertTriangle size={16}/>{error}</div>}
+              {error && <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-red-50 text-red-600 text-[10px] sm:text-sm rounded-lg flex items-center gap-2"><AlertTriangle size={14}/>{error}</div>}
 
               {/* Huge Action Button */}
               <button 
                 onClick={handleOpenPayment} 
                 disabled={cart.length === 0}
-                className="w-full h-16 flex justify-center items-center gap-3 rounded-2xl bg-royal text-lg font-semibold text-white transition-all hover:bg-royal-deep hover:shadow-xl hover:shadow-royal/20 active:scale-[0.98] disabled:opacity-50 disabled:hover:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed"
+                className="w-full h-12 sm:h-16 flex justify-center items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-royal text-base sm:text-lg font-semibold text-white transition-all hover:bg-royal-deep hover:shadow-xl hover:shadow-royal/20 active:scale-[0.98] disabled:opacity-50 disabled:hover:shadow-none disabled:active:scale-100 disabled:cursor-not-allowed"
               >
                 CHARGE ₱{total.toLocaleString()}
               </button>

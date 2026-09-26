@@ -11,10 +11,51 @@ export default async function CustomersPage() {
 
   return (
     <div>
-      <h1 className="font-serif text-2xl font-semibold text-ink">Customers</h1>
-      <p className="mt-1 text-sm text-ink-soft">View all registered customers and their booking counts.</p>
+      <h1 className="font-serif text-xl sm:text-2xl font-semibold text-ink">Customers</h1>
+      <p className="mt-1 text-xs sm:text-sm text-ink-soft">View all registered customers and their booking counts.</p>
 
-      <div className="mt-6 overflow-x-auto rounded-2xl border border-line">
+      {/* MOBILE VIEW (CARDS) */}
+      <div className="mt-6 grid gap-4 lg:hidden">
+        {(customers ?? []).map((c) => {
+          const apptCount = Array.isArray(c.appointments) ? c.appointments[0]?.count : 0;
+          
+          return (
+            <div key={c.id} className="rounded-xl border border-line bg-white p-4 shadow-sm flex flex-col gap-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-semibold text-ink text-base">
+                    {c.first_name} {c.last_name}
+                  </h3>
+                  <p className="text-xs text-ink-soft mt-0.5">{c.phone}</p>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-[10px] text-ink-soft uppercase tracking-wider font-semibold">Bookings</span>
+                  <span className="font-mono text-lg font-bold text-royal">{apptCount || 0}</span>
+                </div>
+              </div>
+              
+              <div className="mt-2 space-y-1">
+                <p className="text-xs text-ink-soft">
+                  <span className="font-medium mr-1">Email:</span>
+                  {c.email}
+                </p>
+                <p className="text-xs text-ink-soft line-clamp-2">
+                  <span className="font-medium mr-1">Medical Info:</span>
+                  {c.medical_conditions || "None"}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+        {(customers ?? []).length === 0 && (
+          <div className="py-10 text-center text-sm text-ink-soft border border-line rounded-xl bg-white">
+            No customers found.
+          </div>
+        )}
+      </div>
+
+      {/* DESKTOP VIEW (TABLE) */}
+      <div className="mt-6 hidden lg:block overflow-x-auto rounded-2xl border border-line">
         <table className="w-full min-w-[800px] border-collapse text-sm">
           <thead>
             <tr className="bg-pale text-left text-ink">
@@ -30,7 +71,7 @@ export default async function CustomersPage() {
               const apptCount = Array.isArray(c.appointments) ? c.appointments[0]?.count : 0;
               
               return (
-                <tr key={c.id} className="border-b border-line last:border-0 hover:bg-pale/50">
+                <tr key={c.id} className="border-b border-line last:border-0 hover:bg-pale/50 transition-colors">
                   <td className="px-5 py-3 font-medium text-ink">
                     {c.first_name} {c.last_name}
                   </td>
