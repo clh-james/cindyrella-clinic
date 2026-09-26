@@ -87,13 +87,13 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
           
           {/* HEADER */}
           <div className="text-center mb-6">
-            <h1 className="text-xl font-bold mb-1 tracking-wider">CINDYRELLA</h1>
-            <p className="text-xs uppercase tracking-widest font-semibold">Aesthetic & Wellness</p>
+            <h1 className="text-xl font-bold mb-1 tracking-wider">CINDYRELLA DRIP</h1>
+            <p className="text-[10px] uppercase tracking-[0.2em] font-semibold">Aesthetic & Wellness</p>
             
             <div className="mt-4 text-xs space-y-0.5">
               <p className="font-bold">{branch?.name || "Main Branch"}</p>
-              <p>{branch?.address || "Address not set"}</p>
-              <p>{branch?.contact_number || "Contact not set"}</p>
+              {branch?.address && <p>{branch.address}</p>}
+              <p>{branch?.phone || "09302245668"}</p>
             </div>
           </div>
 
@@ -117,7 +117,7 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
             )}
             <div className="flex justify-between mt-2">
               <span>Customer:</span>
-              <span className="font-medium text-right max-w-[120px] truncate">
+              <span className="font-medium text-right max-w-[120px] truncate capitalize">
                 {customer ? `${customer.first_name} ${customer.last_name}`.trim() : "Walk-in Customer"}
               </span>
             </div>
