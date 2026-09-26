@@ -4,9 +4,13 @@ import { useState } from "react";
 import { inviteStaff } from "@/app/admin/actions";
 import type { Branch } from "@/lib/supabase/types";
 
-const roles = ["admin", "receptionist", "nurse", "doctor"] as const;
-
-export function InviteStaffForm({ branches }: { branches: Branch[] }) {
+export function InviteStaffForm({ 
+  branches,
+  roles
+}: { 
+  branches: Branch[];
+  roles: { id: string; name: string }[];
+}) {
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ email: string; tempPassword: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -48,12 +52,12 @@ export function InviteStaffForm({ branches }: { branches: Branch[] }) {
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="font-medium text-ink">Role</span>
           <select
-            name="role"
+            name="role_id"
             required
-            className="rounded-lg border border-line px-3 py-2 text-ink outline-none focus:border-royal"
+            className="rounded-lg border border-line px-3 py-2 text-ink outline-none focus:border-royal capitalize"
           >
             {roles.map((r) => (
-              <option key={r} value={r}>{r}</option>
+              <option key={r.id} value={r.id}>{r.name.replace("_", " ")}</option>
             ))}
           </select>
         </label>

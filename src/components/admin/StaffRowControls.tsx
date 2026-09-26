@@ -3,36 +3,38 @@
 import { useState, useTransition } from "react";
 import { setStaffActive, updateStaffRole } from "@/app/admin/actions";
 
-const roles = ["admin", "receptionist", "nurse", "doctor"] as const;
-
 export function StaffRowControls({
   staffId,
-  role,
+  roleId,
   isActive,
+  availableRoles,
 }: {
   staffId: string;
-  role: (typeof roles)[number];
+  roleId: string;
   isActive: boolean;
+  availableRoles: { id: string; name: string }[];
 }) {
-  const [currentRole, setCurrentRole] = useState(role);
+  const [currentRoleId, setCurrentRoleId] = useState(roleId);
   const [active, setActive] = useState(isActive);
   const [, startTransition] = useTransition();
 
   return (
     <div className="flex items-center gap-3">
       <select
-        value={currentRole}
+        value={currentRoleId}
         onChange={(e) => {
-          const next = e.target.value as (typeof roles)[number];
-          setCurrentRole(next);
+          const nextId = e.target.value;
+          setCurrentRoleId(nextId);
           startTransition(() => {
-            updateStaffRole(staffId, next);
+            updateStaffRole(staffId, nextId);
           });
         }}
         className="rounded-lg border border-line bg-paper px-2.5 py-1.5 text-xs font-medium capitalize text-ink outline-none focus:border-royal"
       >
-        {roles.map((r) => (
-          <option key={r} value={r}>{r}</option>
+        {availableRoles.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.name.replace("_", " ")}
+          </option>
         ))}
       </select>
 

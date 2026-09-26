@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaff } from "@/lib/auth";
+import { hasServerPermission } from "@/lib/rbac";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { sendSms } from "@/lib/sms";
@@ -80,17 +81,17 @@ export type InviteResult =
   | { ok: false; error: string };
 
 export async function inviteStaff(formData: FormData): Promise<InviteResult> {
-  const requester = await requireStaff();
-  if (requester.role !== "admin") {
-    return { ok: false, error: "Only admins can add staff." };
+  const canCreateStaff = await hasServerPermission("staff.create");
+  if (!canCreateStaff) {
+    return { ok: false, error: "You don't have permission to add staff." };
   }
 
   const fullName = String(formData.get("full_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
-  const role = String(formData.get("role") ?? "");
+  const roleId = String(formData.get("role_id") ?? "");
   const branchId = String(formData.get("branch_id") ?? "");
 
-  if (!fullName || !email || !role) {
+  if (!fullName || !email || !roleId) {
     return { ok: false, error: "Fill in name, email, and role." };
   }
 
@@ -110,7 +111,7 @@ export async function inviteStaff(formData: FormData): Promise<InviteResult> {
   const { error: staffError } = await admin.from("staff").insert({
     id: created.user.id,
     full_name: fullName,
-    role,
+    role_id: roleId,
     branch_id: branchId || null,
   });
 
@@ -129,8 +130,8 @@ export async function inviteStaff(formData: FormData): Promise<InviteResult> {
 }
 
 export async function setStaffActive(staffId: string, isActive: boolean) {
-  const requester = await requireStaff();
-  if (requester.role !== "admin") return { error: "Only admins can do that." };
+  const canAssignRole = await hasServerPermission("users.assign_role");
+  if (!canAssignRole) return { error: "Only authorized users can do that." };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -145,13 +146,13 @@ export async function setStaffActive(staffId: string, isActive: boolean) {
 
 export async function updateStaffRole(
   staffId: string,
-  role: "admin" | "receptionist" | "nurse" | "doctor"
+  roleId: string
 ) {
-  const requester = await requireStaff();
-  if (requester.role !== "admin") return { error: "Only admins can do that." };
+  const canAssignRole = await hasServerPermission("users.assign_role");
+  if (!canAssignRole) return { error: "Only authorized users can do that." };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("staff").update({ role }).eq("id", staffId);
+  const { error } = await supabase.from("staff").update({ role_id: roleId }).eq("id", staffId);
 
   if (error) return { error: "Could not update that role." };
   revalidatePath("/admin/staff");
