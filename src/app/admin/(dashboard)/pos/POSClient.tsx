@@ -600,7 +600,7 @@ export function POSClient({
           <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-4 sm:p-5">
             {cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-ink-soft text-center opacity-70">
-                <ShoppingCart size={40} sm:size={48} className="mb-3 sm:mb-4 stroke-[1.5]" />
+                <ShoppingCart className="w-10 h-10 sm:w-12 sm:h-12 mb-3 sm:mb-4 stroke-[1.5]" />
                 <p className="font-medium text-ink text-base sm:text-lg">Empty Cart</p>
                 <p className="text-xs sm:text-sm mt-1 max-w-[200px]">Select a service or product to start a new transaction.</p>
               </div>
@@ -623,7 +623,7 @@ export function POSClient({
                           onClick={() => updateQuantity(item.id, -1)} 
                           className="w-6 h-6 sm:w-7 sm:h-7 rounded bg-white shadow-sm flex items-center justify-center text-ink hover:text-red-600 transition-colors"
                         >
-                          <Minus size={12} sm:size={14} />
+                          <Minus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         </button>
                         <span className="font-mono font-medium text-xs sm:text-sm w-4 text-center">{item.quantity}</span>
                         <button 
@@ -631,7 +631,7 @@ export function POSClient({
                           disabled={item.maxStock !== undefined && item.quantity >= item.maxStock}
                           className="w-6 h-6 sm:w-7 sm:h-7 rounded bg-white shadow-sm flex items-center justify-center text-ink hover:text-royal transition-colors disabled:opacity-50 disabled:hover:text-ink"
                         >
-                          <Plus size={12} sm:size={14} />
+                          <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         </button>
                       </div>
                       
