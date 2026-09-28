@@ -46,11 +46,36 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
     return { ok: false, error: "That time slot isn't available — please choose another." };
   }
 
-  const { data: customer, error: customerError } = await supabase
+  // Find existing customer by email
+  const { data: existingCustomer } = await supabase
     .from("customers")
-    .upsert({ ...input.customer, auth_id: input.customer.auth_id || undefined }, { onConflict: "email" })
     .select("id, loyalty_points")
-    .single();
+    .eq("email", input.customer.email)
+    .maybeSingle();
+
+  let customer = existingCustomer;
+  let customerError = null;
+
+  if (customer) {
+    // Update existing customer
+    const { data: updated, error: updateErr } = await supabase
+      .from("customers")
+      .update({ ...input.customer, auth_id: input.customer.auth_id || undefined })
+      .eq("id", customer.id)
+      .select("id, loyalty_points")
+      .single();
+    if (!updateErr) customer = updated;
+    customerError = updateErr;
+  } else {
+    // Insert new customer
+    const { data: inserted, error: insertErr } = await supabase
+      .from("customers")
+      .insert({ ...input.customer, auth_id: input.customer.auth_id || undefined })
+      .select("id, loyalty_points")
+      .single();
+    if (!insertErr) customer = inserted;
+    customerError = insertErr;
+  }
 
   if (customerError || !customer) {
     return { ok: false, error: "Could not save your details. Please check the form and try again." };
