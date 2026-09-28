@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 
 const links = [
@@ -17,6 +18,7 @@ const links = [
 
 export function NavBar() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-paper/90 backdrop-blur">
@@ -30,7 +32,9 @@ export function NavBar() {
             <Link
               key={l.href}
               href={l.href}
-              className="text-[15px] text-ink-soft transition-colors hover:text-royal"
+              className={`text-[15px] transition-colors hover:text-royal ${
+                pathname === l.href ? "text-royal font-semibold" : "text-ink-soft"
+              }`}
             >
               {l.label}
             </Link>
@@ -63,7 +67,9 @@ export function NavBar() {
                 key={l.href}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className="text-ink-soft"
+                className={`transition-colors hover:text-royal ${
+                  pathname === l.href ? "text-royal font-semibold" : "text-ink-soft"
+                }`}
               >
                 {l.label}
               </Link>
