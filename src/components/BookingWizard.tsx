@@ -12,7 +12,7 @@ const steps = [
   "Branch",
   "Date",
   "Time",
-  "Your info",
+  "Your Info",
   "Review",
   "Payment",
 ];
@@ -110,10 +110,17 @@ export function BookingWizard({
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoSuccess, setPromoSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Treatment step specifics
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+
+  useEffect(() => {
+    // Simulate initial loading state for smoother entry
+    const timer = setTimeout(() => setIsLoading(false), 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   const dates = useMemo(() => nextDates(10), []);
   const treatment = treatments.find((t) => t.id === treatmentId);
@@ -208,13 +215,25 @@ export function BookingWizard({
     }
   }
 
-  // Focus effect for moving to next step
   const handleContinue = () => {
     if (canContinue && step < steps.length - 1) {
       setStep((s) => s + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
+
+  const getStepTitle = () => {
+    switch(step) {
+      case 0: return "Choose your treatment";
+      case 1: return "Select a branch";
+      case 2: return "Choose a date";
+      case 3: return "Choose a time";
+      case 4: return "Your details";
+      case 5: return "Review booking";
+      case 6: return "Payment method";
+      default: return "";
+    }
+  }
 
   if (confirmed) {
     return (
@@ -272,13 +291,12 @@ export function BookingWizard({
     );
   }
 
-  const renderDesktopStepper = () => (
-    <div className="hidden md:block mb-10 w-full overflow-hidden">
-      <div className="flex items-center justify-between relative">
-        {/* Connecting Line */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-[2px] bg-line -z-10" />
+  const renderStepper = () => (
+    <div className="w-full mb-8 relative hidden md:block">
+      <div className="flex items-center justify-between relative px-2">
+        <div className="absolute left-0 top-[11px] w-full h-[2px] bg-line -z-10" />
         <div 
-          className="absolute left-0 top-1/2 -translate-y-1/2 h-[2px] bg-royal -z-10 transition-all duration-500 ease-in-out"
+          className="absolute left-0 top-[11px] h-[2px] bg-royal -z-10 transition-all duration-500 ease-in-out"
           style={{ width: `${(step / (steps.length - 1)) * 100}%` }}
         />
 
@@ -291,18 +309,18 @@ export function BookingWizard({
               key={label}
               onClick={() => i < step && setStep(i)}
               disabled={i > step}
-              className={`flex flex-col items-center gap-2 bg-paper px-2 ${isActive ? 'cursor-default' : isCompleted ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-50'}`}
+              className={`flex flex-col items-center gap-1.5 bg-paper px-2 ${isActive ? 'cursor-default' : isCompleted ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-50'}`}
             >
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+              <div className={`w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] font-bold transition-colors ${
                 isActive 
-                  ? "bg-royal text-white shadow-md ring-4 ring-royal/10" 
+                  ? "bg-royal text-white ring-4 ring-royal/10" 
                   : isCompleted 
                     ? "bg-royal text-white" 
                     : "bg-pale border-2 border-line text-ink-soft"
               }`}>
-                {isCompleted ? <Check size={16} /> : i + 1}
+                {isCompleted ? <Check size={12} strokeWidth={3} /> : `0${i + 1}`}
               </div>
-              <span className={`text-xs font-medium whitespace-nowrap ${isActive ? "text-royal" : "text-ink-soft"}`}>
+              <span className={`text-[11px] font-semibold tracking-wide whitespace-nowrap ${isActive ? "text-ink" : "text-ink-soft"}`}>
                 {label}
               </span>
             </button>
@@ -312,57 +330,42 @@ export function BookingWizard({
     </div>
   );
 
-  const renderMobileStepper = () => (
-    <div className="md:hidden mb-8">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-sm font-medium text-royal">Step {step + 1} of {steps.length}</span>
-        <span className="text-sm text-ink-soft">· {steps[step]}</span>
-      </div>
-      <div className="w-full h-1.5 bg-line rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-royal transition-all duration-300"
-          style={{ width: `${((step + 1) / steps.length) * 100}%` }}
-        />
-      </div>
-    </div>
-  );
-
   const renderBookingSummary = () => (
-    <div className="bg-white rounded-2xl border border-line shadow-sm overflow-hidden sticky top-24">
-      <div className="p-6 bg-pale/30 border-b border-line">
-        <h3 className="font-serif text-xl text-ink font-semibold tracking-tight">Your Booking</h3>
+    <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden sticky top-24">
+      <div className="p-5 bg-pale/30 border-b border-line">
+        <h3 className="font-serif text-lg text-ink font-semibold tracking-tight uppercase text-xs tracking-wider">Your Booking</h3>
       </div>
-      <div className="p-6 space-y-6">
+      <div className="p-5 space-y-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1">Treatment</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft mb-1">Treatment</p>
           {treatment ? (
             <div>
-              <p className="font-medium text-ink">{treatment.name}</p>
-              <p className="text-sm text-ink-soft mt-0.5">{treatment.duration_minutes} min · {peso(treatment.session_price)}</p>
+              <p className="font-medium text-ink text-sm">{treatment.name}</p>
+              <p className="text-xs text-ink-soft mt-0.5">{treatment.duration_minutes} min</p>
             </div>
           ) : (
-            <p className="text-sm text-ink-soft/70 italic">Not selected</p>
+            <p className="text-xs text-ink-soft/70 italic">Not selected</p>
           )}
         </div>
 
         <div className="h-px w-full bg-line/60" />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1">Branch</p>
-            <p className={`text-sm ${branch ? "font-medium text-ink" : "text-ink-soft/70 italic"}`}>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft mb-1">Branch</p>
+            <p className={`text-xs ${branch ? "font-medium text-ink" : "text-ink-soft/70 italic"}`}>
               {branch?.name || "Not selected"}
             </p>
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1">Date</p>
-            <p className={`text-sm ${date ? "font-medium text-ink" : "text-ink-soft/70 italic"}`}>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft mb-1">Date</p>
+            <p className={`text-xs ${date ? "font-medium text-ink" : "text-ink-soft/70 italic"}`}>
               {date?.label || "Not selected"}
             </p>
           </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1">Time</p>
-            <p className={`text-sm ${time ? "font-medium text-ink" : "text-ink-soft/70 italic"}`}>
+          <div className="col-span-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft mb-1">Time</p>
+            <p className={`text-xs ${time ? "font-medium text-ink" : "text-ink-soft/70 italic"}`}>
               {time || "Not selected"}
             </p>
           </div>
@@ -370,28 +373,28 @@ export function BookingWizard({
 
         <div className="h-px w-full bg-line/60" />
 
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-sm font-semibold uppercase tracking-wider text-ink">Total</p>
-          <p className="font-serif text-2xl text-royal font-medium">
+        <div className="flex items-center justify-between pt-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft">Total</p>
+          <p className="font-serif text-xl text-royal font-medium">
             {peso(calculateDiscountedPrice())}
           </p>
         </div>
       </div>
       
-      <div className="p-6 pt-0">
+      <div className="p-5 pt-0">
         {step < steps.length - 1 ? (
           <button
             onClick={handleContinue}
             disabled={!canContinue}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-royal py-3.5 text-sm font-semibold text-white transition-all hover:bg-royal-deep hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+            className="w-full flex items-center justify-center gap-2 rounded-lg bg-royal py-3 text-sm font-semibold text-white transition-all hover:bg-royal-deep disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Continue to {steps[step + 1]} <ArrowRight size={16} />
+            Continue <ArrowRight size={16} />
           </button>
         ) : (
           <button
             onClick={submit}
             disabled={!canContinue || submitting}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-royal py-3.5 text-sm font-semibold text-white transition-all hover:bg-royal-deep hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+            className="w-full flex items-center justify-center gap-2 rounded-lg bg-royal py-3 text-sm font-semibold text-white transition-all hover:bg-royal-deep disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
             Confirm booking
@@ -402,169 +405,208 @@ export function BookingWizard({
   );
 
   const renderMobileBottomBar = () => (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-line shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-50 md:hidden p-4 pb-safe">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex-1 truncate pr-4">
-          <p className="font-semibold text-ink text-sm truncate">{treatment?.name || "No treatment selected"}</p>
-          <p className="text-xs text-ink-soft mt-0.5">
-            {treatment ? `${peso(calculateDiscountedPrice())} · ${treatment.duration_minutes} min` : "—"}
-          </p>
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-line shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-[60] md:hidden pb-safe">
+      <div className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex-1 truncate pr-4">
+            <p className="font-semibold text-ink text-sm truncate">{treatment?.name || "No treatment selected"}</p>
+            <p className="text-xs text-ink-soft mt-0.5">
+              {treatment ? `${peso(calculateDiscountedPrice())} · ${treatment.duration_minutes} min` : "—"}
+            </p>
+          </div>
         </div>
+        {step < steps.length - 1 ? (
+          <button
+            onClick={handleContinue}
+            disabled={!canContinue}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-royal py-3.5 text-sm font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Continue <ArrowRight size={16} />
+          </button>
+        ) : (
+          <button
+            onClick={submit}
+            disabled={!canContinue || submitting}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-royal py-3.5 text-sm font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+            Confirm booking
+          </button>
+        )}
       </div>
-      {step < steps.length - 1 ? (
-        <button
-          onClick={handleContinue}
-          disabled={!canContinue}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-royal py-3.5 text-sm font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Continue <ArrowRight size={16} />
-        </button>
-      ) : (
-        <button
-          onClick={submit}
-          disabled={!canContinue || submitting}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-royal py-3.5 text-sm font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {submitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-          Confirm booking
-        </button>
-      )}
     </div>
   );
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 relative min-h-screen">
-      {/* Header */}
-      <div className="mb-10 text-center md:text-left">
-        <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl font-semibold text-ink tracking-tight mb-3">
+    <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-32 md:py-10 relative min-h-[80vh] overflow-x-hidden md:overflow-x-visible">
+      {/* Page Header */}
+      <div className="mb-8 text-left">
+        <h1 className="font-serif text-[28px] md:text-[36px] font-semibold text-ink tracking-tight mb-2">
           Book Your Cindyrella Session
         </h1>
-        <p className="text-ink-soft text-lg max-w-2xl">
+        <p className="text-ink-soft text-sm md:text-base max-w-2xl mb-4">
           Choose your treatment and we&apos;ll take care of the rest.
+        </p>
+        <p className="text-xs md:text-sm font-semibold text-royal tracking-wide uppercase">
+          Step {step + 1} of {steps.length} <span className="text-ink-soft/40 mx-1">·</span> <span className="text-ink-soft font-medium capitalize">{getStepTitle()}</span>
         </p>
       </div>
 
-      {renderDesktopStepper()}
-      {renderMobileStepper()}
+      {renderStepper()}
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] lg:grid-cols-[1fr_380px] gap-8 lg:gap-12 pb-32 md:pb-0">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_340px] gap-8 lg:gap-10">
         
         {/* Left Column: Form Content */}
-        <div className="min-h-[500px]">
+        <div className="min-h-[400px]">
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
               
               {/* STEP 0: TREATMENT */}
               {step === 0 && (
                 <div className="space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="relative w-full sm:max-w-xs">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft/50" size={18} />
+                  
+                  {/* Search and Categories Box */}
+                  <div className="space-y-4">
+                    <div className="relative w-full md:w-[360px]">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft/50" size={16} />
                       <input 
                         type="text" 
                         placeholder="Search treatments..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-line rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-royal/20 focus:border-royal transition-all"
+                        className="w-full pl-9 pr-4 py-2.5 bg-white border border-line rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-royal/50 focus:border-royal transition-all placeholder:text-ink-soft/60"
                       />
                       {searchQuery && (
                         <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink">
-                          <X size={16} />
+                          <X size={14} />
                         </button>
                       )}
                     </div>
-                  </div>
 
-                  {/* Categories */}
-                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-                    {categories.map(cat => (
-                      <button
-                        key={cat}
-                        onClick={() => setSelectedCategory(cat)}
-                        className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                          selectedCategory === cat 
-                            ? "bg-ink text-white shadow-md" 
-                            : "bg-pale text-ink-soft hover:bg-line/50"
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+                      {categories.map(cat => (
+                        <button
+                          key={cat}
+                          onClick={() => setSelectedCategory(cat)}
+                          className={`whitespace-nowrap px-4 py-1.5 rounded-full text-[13px] font-medium transition-all border ${
+                            selectedCategory === cat 
+                              ? "bg-ink text-white border-ink shadow-sm" 
+                              : "bg-white text-ink-soft border-line hover:bg-pale"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Treatments Grid */}
-                  {filteredTreatments.length === 0 ? (
-                    <div className="py-20 text-center border border-dashed border-line rounded-2xl bg-pale/50">
-                      <p className="text-ink font-medium text-lg mb-2">No treatments found</p>
-                      <p className="text-ink-soft text-sm">Try another category or adjust your search.</p>
-                      <button onClick={() => {setSearchQuery(""); setSelectedCategory("All");}} className="mt-4 text-royal text-sm font-medium hover:underline">
+                  {isLoading ? (
+                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+                        {[1,2,3,4].map(i => (
+                          <div key={i} className="rounded-xl border border-line bg-white overflow-hidden flex flex-col h-[280px]">
+                            <div className="w-full aspect-[16/7] md:aspect-[16/6] bg-pale animate-pulse"></div>
+                            <div className="p-4 flex-1 flex flex-col">
+                              <div className="w-3/4 h-5 bg-pale animate-pulse rounded mb-2"></div>
+                              <div className="w-full h-3 bg-pale animate-pulse rounded mb-1"></div>
+                              <div className="w-2/3 h-3 bg-pale animate-pulse rounded mb-auto"></div>
+                              <div className="flex justify-between items-end mt-4">
+                                <div>
+                                  <div className="w-12 h-3 bg-pale animate-pulse rounded mb-1"></div>
+                                  <div className="w-16 h-5 bg-pale animate-pulse rounded"></div>
+                                </div>
+                                <div className="w-20 h-8 bg-pale animate-pulse rounded-lg"></div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                     </div>
+                  ) : filteredTreatments.length === 0 ? (
+                    <div className="py-16 text-center border border-dashed border-line rounded-xl bg-pale/30">
+                      <p className="text-ink font-medium text-[15px] mb-1">No treatments found</p>
+                      <p className="text-ink-soft text-sm">Try adjusting your search or category.</p>
+                      <button onClick={() => {setSearchQuery(""); setSelectedCategory("All");}} className="mt-3 text-royal text-sm font-medium hover:underline">
                         Clear filters
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-5">
                       {filteredTreatments.map((t) => {
                         const isSelected = treatmentId === t.id;
                         return (
-                          <button
+                          <div
                             key={t.id}
-                            onClick={() => setTreatmentId(t.id)}
-                            className={`group relative flex flex-col text-left overflow-hidden rounded-2xl border transition-all duration-200 ${
+                            className={`group flex flex-col overflow-hidden rounded-xl border transition-all duration-200 bg-white ${
                               isSelected 
-                                ? "border-royal ring-1 ring-royal shadow-md bg-royal/5" 
-                                : "border-line bg-white hover:border-royal/50 hover:shadow-sm"
+                                ? "border-royal ring-1 ring-royal bg-royal/[0.02] shadow-sm" 
+                                : "border-line hover:border-royal/40"
                             }`}
                           >
-                            <div className="relative w-full h-40 bg-pale overflow-hidden">
+                            {/* Image area: more compact aspect ratio */}
+                            <div className="relative w-full aspect-[16/8] md:aspect-[16/6] bg-pale overflow-hidden border-b border-line/50">
                               {t.image_url ? (
-                                <img src={t.image_url} alt={t.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                <img src={t.image_url} alt={t.name} className="w-full h-full object-cover" />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-royal/5 text-royal/20">
-                                  <span className="font-serif text-3xl font-bold opacity-30">C</span>
+                                <div className="w-full h-full flex flex-col items-center justify-center bg-royal/[0.03] text-royal/30 p-4 text-center">
+                                  <span className="font-serif text-lg font-bold tracking-widest uppercase opacity-60">Cindyrella</span>
+                                  <span className="text-[10px] uppercase tracking-widest font-medium opacity-50 mt-1">Aesthetic & Wellness</span>
                                 </div>
                               )}
                               
-                              {/* Selected Indicator */}
-                              {isSelected && (
-                                <div className="absolute top-3 right-3 w-7 h-7 bg-royal text-white rounded-full flex items-center justify-center shadow-lg">
-                                  <Check size={16} strokeWidth={3} />
-                                </div>
-                              )}
-                              
-                              {/* Badge */}
-                              {t.badge && !isSelected && (
-                                <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-ink px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm">
-                                  {t.badge}
-                                </div>
-                              )}
+                              {/* Selected Indicator Top Right */}
+                              <AnimatePresence>
+                                {isSelected && (
+                                  <motion.div 
+                                    initial={{ scale: 0, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0, opacity: 0 }}
+                                    className="absolute top-2.5 right-2.5 w-6 h-6 bg-royal text-white rounded-full flex items-center justify-center shadow-md z-10"
+                                  >
+                                    <Check size={14} strokeWidth={3} />
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </div>
                             
                             <div className="p-4 flex flex-col flex-1">
-                              <h3 className="font-semibold text-ink text-base mb-1">{t.name}</h3>
+                              <h3 className="font-semibold text-ink text-[16px] mb-1 leading-tight pr-6">{t.name}</h3>
                               {t.primary_desc && (
-                                <p className="text-ink-soft text-xs line-clamp-2 mb-3 leading-relaxed">{t.primary_desc}</p>
+                                <p className="text-ink-soft text-[13px] line-clamp-2 mb-4 leading-relaxed">{t.primary_desc}</p>
                               )}
                               
-                              <div className="mt-auto flex items-end justify-between pt-2">
+                              <div className="mt-auto flex items-end justify-between border-t border-line/30 pt-3">
                                 <div>
-                                  <p className="text-xs font-medium text-ink-soft uppercase tracking-wider mb-0.5">{t.duration_minutes} min</p>
-                                  <p className="font-serif text-lg font-semibold text-royal">{peso(t.session_price)}</p>
+                                  <p className="text-[11px] font-medium text-ink-soft uppercase tracking-wider mb-0.5">{t.duration_minutes} min</p>
+                                  <p className="font-serif text-[17px] font-semibold text-ink">{peso(t.session_price)}</p>
                                 </div>
                                 
-                                <div className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                                  isSelected ? "bg-royal text-white" : "bg-pale text-ink group-hover:bg-royal/10 group-hover:text-royal"
-                                }`}>
-                                  {isSelected ? "Selected" : "Select"}
-                                </div>
+                                <button
+                                  onClick={() => setTreatmentId(t.id)}
+                                  className={`px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-colors flex items-center gap-1.5 ${
+                                    isSelected 
+                                      ? "bg-royal text-white" 
+                                      : "bg-pale border border-line text-ink hover:bg-royal/5 hover:border-royal/30 hover:text-royal"
+                                  }`}
+                                >
+                                  {isSelected ? (
+                                    <>
+                                      <Check size={14} /> Selected
+                                    </>
+                                  ) : (
+                                    <>
+                                      Select <span className="hidden sm:inline">→</span>
+                                    </>
+                                  )}
+                                </button>
                               </div>
                             </div>
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -574,214 +616,196 @@ export function BookingWizard({
 
               {/* STEP 1: BRANCH */}
               {step === 1 && (
-                <div className="space-y-4">
-                  <h2 className="font-serif text-2xl text-ink font-semibold mb-6">Select a Branch</h2>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {branches.map((b) => (
-                      <button
-                        key={b.id}
-                        onClick={() => setBranchId(b.id)}
-                        className={`relative p-5 text-left rounded-2xl border transition-all duration-200 ${
-                          branchId === b.id 
-                            ? "border-royal ring-1 ring-royal bg-royal/5 shadow-md" 
-                            : "border-line bg-white hover:border-royal/50 hover:shadow-sm"
-                        }`}
-                      >
-                        {branchId === b.id && (
-                          <div className="absolute top-4 right-4 text-royal">
-                            <Check size={20} />
-                          </div>
-                        )}
-                        <p className={`font-semibold text-lg mb-1 ${branchId === b.id ? "text-royal" : "text-ink"}`}>{b.name}</p>
-                        <p className="text-sm text-ink-soft line-clamp-2">{b.address || "Address not provided"}</p>
-                        {b.phone && <p className="text-xs text-ink-soft/70 mt-3 flex items-center gap-1">📞 {b.phone}</p>}
-                      </button>
-                    ))}
-                  </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {branches.map((b) => (
+                    <button
+                      key={b.id}
+                      onClick={() => setBranchId(b.id)}
+                      className={`relative p-5 text-left rounded-xl border transition-all duration-200 ${
+                        branchId === b.id 
+                          ? "border-royal ring-1 ring-royal bg-royal/[0.02]" 
+                          : "border-line bg-white hover:border-royal/40"
+                      }`}
+                    >
+                      {branchId === b.id && (
+                        <div className="absolute top-4 right-4 text-royal bg-white rounded-full">
+                          <Check size={18} />
+                        </div>
+                      )}
+                      <p className={`font-semibold text-[16px] mb-1.5 ${branchId === b.id ? "text-royal" : "text-ink"}`}>{b.name}</p>
+                      <p className="text-[13px] text-ink-soft leading-relaxed">{b.address || "Address not provided"}</p>
+                      {b.phone && <p className="text-[12px] text-ink-soft/70 mt-3 font-medium">📞 {b.phone}</p>}
+                    </button>
+                  ))}
                 </div>
               )}
 
               {/* STEP 2: DATE */}
               {step === 2 && (
-                <div className="space-y-4">
-                  <h2 className="font-serif text-2xl text-ink font-semibold mb-6">Choose a Date</h2>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {dates.map((d) => (
-                      <button
-                        key={d.iso}
-                        onClick={() => setDate(d)}
-                        className={`p-4 text-center rounded-2xl border transition-all duration-200 ${
-                          date?.iso === d.iso 
-                            ? "border-royal ring-1 ring-royal bg-royal text-white shadow-md" 
-                            : "border-line bg-white text-ink hover:border-royal/50 hover:bg-pale"
-                        }`}
-                      >
-                        <p className="text-sm font-semibold mb-1">{d.label.split(',')[0]}</p>
-                        <p className={`text-xs ${date?.iso === d.iso ? "text-white/80" : "text-ink-soft"}`}>
-                          {d.label.split(',')[1]}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {dates.map((d) => (
+                    <button
+                      key={d.iso}
+                      onClick={() => setDate(d)}
+                      className={`p-4 text-center rounded-xl border transition-all duration-200 flex flex-col items-center justify-center h-[90px] ${
+                        date?.iso === d.iso 
+                          ? "border-royal ring-1 ring-royal bg-royal text-white shadow-sm" 
+                          : "border-line bg-white text-ink hover:border-royal/40 hover:bg-pale/50"
+                      }`}
+                    >
+                      <p className="text-[15px] font-semibold mb-0.5">{d.label.split(',')[0]}</p>
+                      <p className={`text-[12px] font-medium ${date?.iso === d.iso ? "text-white/80" : "text-ink-soft"}`}>
+                        {d.label.split(',')[1]}
+                      </p>
+                    </button>
+                  ))}
                 </div>
               )}
 
               {/* STEP 3: TIME */}
               {step === 3 && (
-                <div className="space-y-4">
-                  <h2 className="font-serif text-2xl text-ink font-semibold mb-6">Choose a Time</h2>
-                  <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-                    {timeSlots.map((t) => (
-                      <button
-                        key={t}
-                        onClick={() => setTime(t)}
-                        className={`p-4 text-center rounded-2xl border transition-all duration-200 ${
-                          time === t 
-                            ? "border-royal ring-1 ring-royal bg-royal text-white shadow-md" 
-                            : "border-line bg-white text-ink font-medium hover:border-royal/50 hover:bg-pale"
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
+                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                  {timeSlots.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTime(t)}
+                      className={`p-3.5 text-center rounded-xl border transition-all duration-200 text-[14px] ${
+                        time === t 
+                          ? "border-royal ring-1 ring-royal bg-royal text-white shadow-sm" 
+                          : "border-line bg-white text-ink font-medium hover:border-royal/40 hover:bg-pale/50"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
                 </div>
               )}
 
               {/* STEP 4: YOUR INFO */}
               {step === 4 && (
-                <div className="space-y-6">
-                  <h2 className="font-serif text-2xl text-ink font-semibold mb-2">Your Information</h2>
-                  <p className="text-sm text-ink-soft mb-6">Please provide your details so we can securely complete your booking.</p>
-                  
-                  <div className="bg-white rounded-2xl border border-line p-6 shadow-sm">
-                    <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-                      <Field label="First Name" value={customer.firstName} onChange={(v) => setField("firstName", v)} />
-                      <Field label="Last Name" value={customer.lastName} onChange={(v) => setField("lastName", v)} />
-                      <Field label="Birthday" type="date" value={customer.birthday} onChange={(v) => setField("birthday", v)} />
-                      <Field label="Gender" value={customer.gender} onChange={(v) => setField("gender", v)} />
-                      <Field label="Phone Number" value={customer.phone} onChange={(v) => setField("phone", v)} />
-                      <Field label="Email Address" type="email" value={customer.email} onChange={(v) => setField("email", v)} />
-                      <Field label="Home Address" value={customer.address} onChange={(v) => setField("address", v)} full />
-                      
-                      <div className="col-span-full h-px bg-line/60 my-2"></div>
-                      <h3 className="col-span-full font-semibold text-ink">Medical Information</h3>
-                      
-                      <Field label="Medical Conditions" value={customer.medicalConditions} onChange={(v) => setField("medicalConditions", v)} full />
-                      <Field label="Allergies" value={customer.allergies} onChange={(v) => setField("allergies", v)} />
-                      <Field label="Are you pregnant?" value={customer.pregnant} onChange={(v) => setField("pregnant", v)} />
-                      <Field label="Emergency Contact" value={customer.emergencyContact} onChange={(v) => setField("emergencyContact", v)} />
-                      <Field label="Additional Notes" value={customer.notes} onChange={(v) => setField("notes", v)} full />
-                    </div>
+                <div className="bg-white rounded-xl border border-line p-5 md:p-6 shadow-sm">
+                  <p className="text-[13px] text-ink-soft mb-5 border-b border-line pb-4">Please provide your details so we can securely complete your booking.</p>
+                  <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+                    <Field label="First Name" value={customer.firstName} onChange={(v) => setField("firstName", v)} />
+                    <Field label="Last Name" value={customer.lastName} onChange={(v) => setField("lastName", v)} />
+                    <Field label="Birthday" type="date" value={customer.birthday} onChange={(v) => setField("birthday", v)} />
+                    <Field label="Gender" value={customer.gender} onChange={(v) => setField("gender", v)} />
+                    <Field label="Phone Number" value={customer.phone} onChange={(v) => setField("phone", v)} />
+                    <Field label="Email Address" type="email" value={customer.email} onChange={(v) => setField("email", v)} />
+                    <Field label="Home Address" value={customer.address} onChange={(v) => setField("address", v)} full />
+                    
+                    <div className="col-span-full h-px bg-line/60 my-2"></div>
+                    <h3 className="col-span-full font-semibold text-[15px] text-ink">Medical Information</h3>
+                    
+                    <Field label="Medical Conditions" value={customer.medicalConditions} onChange={(v) => setField("medicalConditions", v)} full />
+                    <Field label="Allergies" value={customer.allergies} onChange={(v) => setField("allergies", v)} />
+                    <Field label="Are you pregnant?" value={customer.pregnant} onChange={(v) => setField("pregnant", v)} />
+                    <Field label="Emergency Contact" value={customer.emergencyContact} onChange={(v) => setField("emergencyContact", v)} />
+                    <Field label="Additional Notes" value={customer.notes} onChange={(v) => setField("notes", v)} full />
                   </div>
                 </div>
               )}
 
               {/* STEP 5: REVIEW */}
               {step === 5 && (
-                <div className="space-y-6">
-                  <h2 className="font-serif text-2xl text-ink font-semibold mb-6">Review Booking</h2>
+                <div className="bg-white rounded-xl border border-line p-5 md:p-6 shadow-sm">
+                  <h3 className="font-semibold text-ink text-[16px] mb-4 border-b border-line pb-4">Order Summary</h3>
                   
-                  <div className="bg-white rounded-2xl border border-line p-6 shadow-sm">
-                    <h3 className="font-semibold text-ink mb-4 border-b border-line pb-4">Order Summary</h3>
-                    
-                    <div className="space-y-3 mb-6">
-                      <SummaryRow label="Treatment" value={`${treatment?.name}`} />
-                      <SummaryRow label="Subtotal" value={peso(treatment?.session_price ?? 0)} />
-                      {appliedPromo && (
-                        <SummaryRow 
-                          label="Promo Applied" 
-                          value={`-${appliedPromo.discount_type === 'fixed' ? peso(appliedPromo.discount_value) : `${appliedPromo.discount_value}%`} (${appliedPromo.code})`} 
-                        />
-                      )}
-                      <div className="pt-3 border-t border-line/50 mt-3">
-                        <SummaryRow label="Total Amount" value={peso(calculateDiscountedPrice())} isBold />
-                      </div>
-                    </div>
-
-                    <div className="bg-pale rounded-xl p-5 mb-6">
-                      <label className="text-sm font-semibold text-ink block mb-2">Have a promo code?</label>
-                      <div className="flex gap-2">
-                        <input 
-                          type="text" 
-                          value={promoCodeInput}
-                          onChange={(e) => {
-                            setPromoCodeInput(e.target.value.toUpperCase());
-                            setPromoError(null);
-                            setPromoSuccess(null);
-                          }}
-                          placeholder="Enter code" 
-                          className="flex-1 rounded-xl border border-line px-4 py-2.5 text-sm text-ink outline-none focus:border-royal bg-white"
-                        />
-                        <button 
-                          type="button"
-                          onClick={async () => {
-                            if (!promoCodeInput) return;
-                            setPromoError(null);
-                            setPromoSuccess(null);
-                            const result = await validatePromoCode(promoCodeInput);
-                            if (result.error) {
-                              setPromoError(result.error);
-                              setAppliedPromo(null);
-                            } else if (result.promo) {
-                              setAppliedPromo(result.promo);
-                              setPromoSuccess("Promo applied successfully!");
-                            }
-                          }}
-                          className="rounded-xl bg-ink px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-ink/80"
-                        >
-                          Apply
-                        </button>
-                      </div>
-                      {promoError && <p className="mt-2 text-xs font-medium text-red-600 flex items-center gap-1"><X size={12}/> {promoError}</p>}
-                      {promoSuccess && <p className="mt-2 text-xs font-medium text-green-600 flex items-center gap-1"><Check size={12}/> {promoSuccess}</p>}
-                    </div>
-
-                    <label className="flex items-start gap-3 p-1 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={customer.agreeToTerms}
-                        onChange={(e) => setField("agreeToTerms", e.target.checked)}
-                        className="mt-1 h-5 w-5 shrink-0 rounded border-line text-royal focus:ring-royal transition-all cursor-pointer"
+                  <div className="space-y-3 mb-6">
+                    <SummaryRow label="Treatment" value={`${treatment?.name}`} />
+                    <SummaryRow label="Subtotal" value={peso(treatment?.session_price ?? 0)} />
+                    {appliedPromo && (
+                      <SummaryRow 
+                        label="Promo Applied" 
+                        value={`-${appliedPromo.discount_type === 'fixed' ? peso(appliedPromo.discount_value) : `${appliedPromo.discount_value}%`} (${appliedPromo.code})`} 
                       />
-                      <span className="text-sm text-ink-soft leading-relaxed">
-                        I have read and agree to the <a href="/terms" target="_blank" className="text-royal font-medium hover:underline">Terms & Conditions</a> and <a href="/privacy" target="_blank" className="text-royal font-medium hover:underline">Privacy Policy</a> of Cindyrella Medical Group.
-                      </span>
-                    </label>
+                    )}
+                    <div className="pt-3 border-t border-line/50 mt-3">
+                      <SummaryRow label="Total Amount" value={peso(calculateDiscountedPrice())} isBold />
+                    </div>
                   </div>
+
+                  <div className="bg-pale/50 border border-line rounded-lg p-4 mb-6">
+                    <label className="text-[13px] font-semibold text-ink block mb-2">Have a promo code?</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={promoCodeInput}
+                        onChange={(e) => {
+                          setPromoCodeInput(e.target.value.toUpperCase());
+                          setPromoError(null);
+                          setPromoSuccess(null);
+                        }}
+                        placeholder="Enter code" 
+                        className="flex-1 rounded-lg border border-line px-3 py-2 text-[13px] text-ink outline-none focus:border-royal bg-white"
+                      />
+                      <button 
+                        type="button"
+                        onClick={async () => {
+                          if (!promoCodeInput) return;
+                          setPromoError(null);
+                          setPromoSuccess(null);
+                          const result = await validatePromoCode(promoCodeInput);
+                          if (result.error) {
+                            setPromoError(result.error);
+                            setAppliedPromo(null);
+                          } else if (result.promo) {
+                            setAppliedPromo(result.promo);
+                            setPromoSuccess("Promo applied successfully!");
+                          }
+                        }}
+                        className="rounded-lg bg-ink px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-ink/80"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                    {promoError && <p className="mt-2 text-[12px] font-medium text-red-600 flex items-center gap-1"><X size={12}/> {promoError}</p>}
+                    {promoSuccess && <p className="mt-2 text-[12px] font-medium text-green-600 flex items-center gap-1"><Check size={12}/> {promoSuccess}</p>}
+                  </div>
+
+                  <label className="flex items-start gap-3 p-1 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={customer.agreeToTerms}
+                      onChange={(e) => setField("agreeToTerms", e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-line text-royal focus:ring-royal transition-all cursor-pointer"
+                    />
+                    <span className="text-[13px] text-ink-soft leading-relaxed">
+                      I have read and agree to the <a href="/terms" target="_blank" className="text-royal font-medium hover:underline">Terms & Conditions</a> and <a href="/privacy" target="_blank" className="text-royal font-medium hover:underline">Privacy Policy</a> of Cindyrella Medical Group.
+                    </span>
+                  </label>
                 </div>
               )}
 
               {/* STEP 6: PAYMENT */}
               {step === 6 && (
-                <div className="space-y-6">
-                  <h2 className="font-serif text-2xl text-ink font-semibold mb-2">Payment Method</h2>
-                  <p className="text-sm text-ink-soft mb-6">Select how you would like to pay for your session.</p>
+                <div className="space-y-5">
+                  <p className="text-[13px] text-ink-soft mb-2">Select how you would like to pay for your session.</p>
                   
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     {paymentOptions.map((m) => (
                       <button
                         key={m.value}
                         onClick={() => setPayment(m.value)}
-                        className={`relative p-5 text-left rounded-2xl border transition-all duration-200 ${
+                        className={`relative p-4 text-left rounded-xl border transition-all duration-200 ${
                           payment === m.value 
-                            ? "border-royal ring-1 ring-royal bg-royal/5 shadow-md" 
-                            : "border-line bg-white hover:border-royal/50 hover:shadow-sm"
+                            ? "border-royal ring-1 ring-royal bg-royal/[0.02]" 
+                            : "border-line bg-white hover:border-royal/40"
                         }`}
                       >
                         {payment === m.value && (
-                          <div className="absolute top-4 right-4 text-royal bg-white rounded-full shadow-sm">
-                            <Check size={20} />
+                          <div className="absolute top-1/2 -translate-y-1/2 right-4 text-royal bg-white rounded-full shadow-sm">
+                            <Check size={16} strokeWidth={3} />
                           </div>
                         )}
-                        <p className={`font-semibold text-lg ${payment === m.value ? "text-royal" : "text-ink"}`}>{m.label}</p>
+                        <p className={`font-semibold text-[15px] ${payment === m.value ? "text-royal" : "text-ink"}`}>{m.label}</p>
                       </button>
                     ))}
                   </div>
                   
-                  <div className="bg-pale/50 rounded-xl p-4 border border-line flex gap-3 items-start mt-6">
-                    <div className="mt-0.5 text-royal">ℹ️</div>
-                    <p className="text-sm text-ink-soft leading-relaxed">
+                  <div className="bg-pale/40 rounded-lg p-4 border border-line flex gap-2.5 items-start mt-2">
+                    <div className="mt-0.5 text-royal text-sm">ℹ️</div>
+                    <p className="text-[12px] text-ink-soft leading-relaxed">
                       For online payments (GCash, Maya, Bank Transfer), a deposit secures your slot. The remaining balance will be settled at the clinic after your treatment.
                     </p>
                   </div>
@@ -792,31 +816,31 @@ export function BookingWizard({
           </AnimatePresence>
           
           {error && (
-            <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">
-              <X className="text-red-500 mt-0.5 shrink-0" size={18} />
-              <p className="text-sm font-medium text-red-700">{error}</p>
+            <div className="mt-5 p-4 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3">
+              <X className="text-red-500 mt-0.5 shrink-0" size={16} />
+              <p className="text-[13px] font-medium text-red-700 leading-relaxed">{error}</p>
             </div>
           )}
 
-          {/* Desktop Navigation Buttons (hidden on mobile, replaced by bottom bar) */}
-          <div className="hidden md:flex mt-12 items-center justify-between border-t border-line pt-8">
-            <button
-              onClick={() => {
-                setStep((s) => Math.max(0, s - 1));
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              disabled={step === 0 || submitting}
-              className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all ${
-                step === 0 || submitting ? "opacity-0 cursor-default" : "bg-white border border-line text-ink hover:bg-pale hover:border-line/80 shadow-sm"
-              }`}
-            >
-              Back
-            </button>
-          </div>
+          {/* Desktop Navigation Back Button */}
+          {step > 0 && (
+            <div className="hidden md:flex mt-8 items-center pt-6 border-t border-line/50">
+              <button
+                onClick={() => {
+                  setStep((s) => Math.max(0, s - 1));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={submitting}
+                className="px-5 py-2.5 rounded-lg text-[13px] font-semibold bg-white border border-line text-ink hover:bg-pale transition-colors disabled:opacity-50"
+              >
+                ← Back
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Sticky Summary (Desktop Only) */}
-        <div className="hidden md:block">
+        <div className="hidden md:block relative">
           {renderBookingSummary()}
         </div>
       </div>
@@ -841,13 +865,13 @@ function Field({
   full?: boolean;
 }) {
   return (
-    <label className={`flex flex-col gap-1.5 text-sm ${full ? "sm:col-span-2" : ""}`}>
-      <span className="font-semibold text-ink">{label}</span>
+    <label className={`flex flex-col gap-1.5 ${full ? "sm:col-span-2" : ""}`}>
+      <span className="font-semibold text-ink text-[13px]">{label}</span>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-xl border border-line px-4 py-3 text-ink outline-none focus:ring-2 focus:ring-royal/20 focus:border-royal transition-all bg-pale/30 focus:bg-white"
+        className="rounded-lg border border-line px-3.5 py-2.5 text-[14px] text-ink outline-none focus:ring-1 focus:ring-royal/50 focus:border-royal transition-all bg-white shadow-sm"
       />
     </label>
   );
@@ -855,9 +879,9 @@ function Field({
 
 function SummaryRow({ label, value, isBold = false }: { label: string; value: string, isBold?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-4 text-sm">
-      <span className={`${isBold ? "font-semibold text-ink" : "text-ink-soft"}`}>{label}</span>
-      <span className={`${isBold ? "font-semibold text-royal text-base" : "font-medium text-ink"}`}>{value}</span>
+    <div className="flex items-center justify-between gap-4">
+      <span className={`text-[13px] ${isBold ? "font-semibold text-ink" : "text-ink-soft"}`}>{label}</span>
+      <span className={`text-[13px] ${isBold ? "font-semibold text-royal text-[15px]" : "font-medium text-ink"}`}>{value}</span>
     </div>
   );
 }
