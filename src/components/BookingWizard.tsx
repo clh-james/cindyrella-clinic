@@ -211,6 +211,28 @@ export function BookingWizard({
           <p className="mt-1">{branch?.name} · {date?.label} · {time}</p>
           <p className="mt-1">Payment: {paymentOptions.find((p) => p.value === payment)?.label}</p>
         </div>
+
+        {payment !== "cash" && (
+          <div className="mx-auto mt-6 max-w-sm rounded-xl border border-line p-6 bg-white shadow-sm">
+            <h3 className="font-medium text-ink text-lg mb-2">Scan to Pay Deposit</h3>
+            <p className="text-sm text-ink-soft mb-4">
+              Please scan the QR code below using your {paymentOptions.find((p) => p.value === payment)?.label} app to secure your slot. 
+              <br/><br/>
+              <strong>Important:</strong> Put your reference number (<span className="text-royal font-mono">{confirmed}</span>) in the payment notes.
+            </p>
+            <div className="bg-pale p-4 rounded-lg inline-block border border-line mb-4 w-full text-center">
+              <img 
+                src="/payment_qr.png" 
+                alt="Payment QR Code" 
+                className="w-full max-w-[280px] sm:max-w-xs mx-auto rounded-md" 
+              />
+            </div>
+            <p className="text-xs text-ink-soft">
+              Once paid, your appointment will be verified by our staff.
+            </p>
+          </div>
+        )}
+
         <a href="/manage" className="mt-6 inline-block text-sm font-medium text-royal hover:text-royal-deep">
           Need to reschedule or cancel?
         </a>
