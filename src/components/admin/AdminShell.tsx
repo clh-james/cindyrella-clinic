@@ -138,13 +138,13 @@ export function AdminShell({
       const { count: apptCount } = await supabase
         .from("appointments")
         .select("*", { count: "exact", head: true })
-        .eq("status", "scheduled");
+        .eq("status", "pending");
         
       // Badges: Inventory
       const { count: invCount } = await supabase
         .from("inventory_items")
         .select("*", { count: "exact", head: true })
-        .lt("stock", 10);
+        .lt("current_stock", 10);
         
       setBadges({
         appointments: apptCount || 0,

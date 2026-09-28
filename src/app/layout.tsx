@@ -14,7 +14,6 @@ export const metadata: Metadata = {
 };
 
 import { AIAssistant } from "@/components/AIAssistant";
-import { MobileBottomBar } from "@/components/MobileBottomBar";
 
 export default function RootLayout({
   children,
@@ -23,10 +22,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased pb-20 md:pb-0">
+      <body className="antialiased">
         {children}
         <AIAssistant />
-        <MobileBottomBar />
       </body>
     </html>
   );
