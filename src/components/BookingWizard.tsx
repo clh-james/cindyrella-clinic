@@ -440,7 +440,7 @@ export function BookingWizard({
           Book Your Cindyrella Session
         </h1>
         <p className="text-ink-soft text-lg max-w-2xl">
-          Choose your treatment and we'll take care of the rest.
+          Choose your treatment and we&apos;ll take care of the rest.
         </p>
       </div>
 
