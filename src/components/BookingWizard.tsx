@@ -497,7 +497,7 @@ export function BookingWizard({
       <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_340px] gap-8 lg:gap-10">
         
         {/* Left Column: Form Content */}
-        <div className="min-h-[400px]">
+        <div className="min-h-[400px] min-w-0">
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
