@@ -10,7 +10,7 @@ export function ServiceCard({ service }: { service: Treatment }) {
   
   return (
     <Link
-      href="/treatments"
+      href="/booking"
       className="group h-full flex flex-col rounded-2xl bg-[#18120F] shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] overflow-hidden"
     >
       {/* Image Area */}
