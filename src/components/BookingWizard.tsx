@@ -130,7 +130,7 @@ export function BookingWizard({
 
   // Treatment step specifics
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCategory, setSelectedCategory] = useState("");
 
   useEffect(() => {
     // Simulate initial loading state for smoother entry
@@ -147,14 +147,16 @@ export function BookingWizard({
     const activeCats = new Set(treatments.map((t) => t.category).filter(Boolean) as string[]);
     const sortedCats = PREFERRED_CATEGORY_ORDER.filter(c => activeCats.has(c));
     const otherCats = Array.from(activeCats).filter(c => !PREFERRED_CATEGORY_ORDER.includes(c));
-    return ["All", ...sortedCats, ...otherCats];
+    return [...sortedCats, ...otherCats];
   }, [treatments]);
+
+  const activeCategory = selectedCategory || categories[0] || "";
 
   const filteredTreatments = useMemo(() => {
     let result = treatments;
     
-    if (selectedCategory !== "All") {
-      result = result.filter(t => t.category === selectedCategory);
+    if (activeCategory) {
+      result = result.filter(t => t.category === activeCategory);
     }
     
     if (searchQuery) {
@@ -176,7 +178,7 @@ export function BookingWizard({
       }
       return 0; // retain original sort_order within same category
     });
-  }, [treatments, selectedCategory, searchQuery]);
+  }, [treatments, activeCategory, searchQuery]);
 
   const calculateDiscountedPrice = () => {
     if (!treatment) return 0;
@@ -533,7 +535,7 @@ export function BookingWizard({
                           key={cat}
                           onClick={() => setSelectedCategory(cat)}
                           className={`whitespace-nowrap px-4 py-1.5 rounded-full text-[13px] font-medium transition-all border ${
-                            selectedCategory === cat 
+                            activeCategory === cat 
                               ? "bg-ink text-white border-ink shadow-sm" 
                               : "bg-white text-ink-soft border-line hover:bg-pale"
                           }`}
@@ -569,7 +571,7 @@ export function BookingWizard({
                     <div className="py-16 text-center border border-dashed border-line rounded-xl bg-pale/30">
                       <p className="text-ink font-medium text-[15px] mb-1">No treatments found</p>
                       <p className="text-ink-soft text-sm">Try adjusting your search or category.</p>
-                      <button onClick={() => {setSearchQuery(""); setSelectedCategory("All");}} className="mt-3 text-royal text-sm font-medium hover:underline">
+                      <button onClick={() => {setSearchQuery(""); setSelectedCategory(categories[0] || "");}} className="mt-3 text-royal text-sm font-medium hover:underline">
                         Clear filters
                       </button>
                     </div>
