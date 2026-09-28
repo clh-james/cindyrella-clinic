@@ -87,6 +87,22 @@ function localReference() {
   return `CMG-${year}${rand}`;
 }
 
+const PREFERRED_CATEGORY_ORDER = [
+  "IV Treatment",
+  "IPL Hair Removal",
+  "Hair Waxing",
+  "Breast Augmentation",
+  "Butt Augmentation",
+  "Nail Care",
+  "Eyelash Extension",
+  "PRP Treatment",
+  "Facial & Warts",
+  "Contouring & Whitening",
+  "Piercings",
+  "Queen's Intimate Treatment",
+  "King's Treatment"
+];
+
 export function BookingWizard({
   treatments,
   branches,
@@ -126,17 +142,39 @@ export function BookingWizard({
   const treatment = treatments.find((t) => t.id === treatmentId);
   const branch = branches.find((b) => b.id === branchId);
 
-  // Derive categories from actual DB data
+  // Derive categories using preferred order
   const categories = useMemo(() => {
-    const cats = Array.from(new Set(treatments.map((t) => t.category).filter(Boolean)));
-    return ["All", ...cats];
+    const activeCats = new Set(treatments.map((t) => t.category).filter(Boolean) as string[]);
+    const sortedCats = PREFERRED_CATEGORY_ORDER.filter(c => activeCats.has(c));
+    const otherCats = Array.from(activeCats).filter(c => !PREFERRED_CATEGORY_ORDER.includes(c));
+    return ["All", ...sortedCats, ...otherCats];
   }, [treatments]);
 
   const filteredTreatments = useMemo(() => {
-    return treatments.filter((t) => {
-      const matchCat = selectedCategory === "All" || t.category === selectedCategory;
-      const matchSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchSearch;
+    let result = treatments;
+    
+    if (selectedCategory !== "All") {
+      result = result.filter(t => t.category === selectedCategory);
+    }
+    
+    if (searchQuery) {
+      result = result.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    
+    // Sort by preferred category order
+    return [...result].sort((a, b) => {
+      if (!a.category || !b.category) return 0;
+      
+      const idxA = PREFERRED_CATEGORY_ORDER.indexOf(a.category);
+      const idxB = PREFERRED_CATEGORY_ORDER.indexOf(b.category);
+      
+      const realIdxA = idxA === -1 ? 999 : idxA;
+      const realIdxB = idxB === -1 ? 999 : idxB;
+      
+      if (realIdxA !== realIdxB) {
+        return realIdxA - realIdxB;
+      }
+      return 0; // retain original sort_order within same category
     });
   }, [treatments, selectedCategory, searchQuery]);
 
