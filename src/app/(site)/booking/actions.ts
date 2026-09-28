@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { NewCustomer, PaymentMethod } from "@/lib/supabase/types";
 import { sendSms } from "@/lib/sms";
 import { sendEmail, bookingConfirmationEmail } from "@/lib/email";
@@ -30,7 +30,7 @@ function generateReference() {
 }
 
 export async function createBooking(input: BookingInput): Promise<BookingResult> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // 1. Availability check — capacity and blocked dates, via a security-
   // definer function (the public key has no SELECT on `appointments`).
@@ -54,6 +54,19 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
 
   if (customerError || !customer) {
     return { ok: false, error: "Could not save your details. Please check the form and try again." };
+  }
+
+  // Cash payment is only allowed for repeat customers
+  if (input.paymentMethod === "cash") {
+    const { count, error: countError } = await supabase
+      .from("appointments")
+      .select("*", { count: "exact", head: true })
+      .eq("customer_id", customer.id)
+      .eq("status", "completed");
+
+    if (countError || count === 0) {
+      return { ok: false, error: "Cash payment is only available for repeat customers. Please choose an online payment method for your first visit." };
+    }
   }
 
   // Calculate new points (1 point per ₱100)
