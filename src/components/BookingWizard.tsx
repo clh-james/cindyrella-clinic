@@ -478,7 +478,7 @@ export function BookingWizard({
   );
 
   return (
-    <div className="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-32 md:py-10 relative min-h-[80vh] overflow-x-hidden md:overflow-x-visible">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-32 md:py-10 relative min-h-[80vh] overflow-x-hidden md:overflow-x-visible">
       {/* Page Header */}
       <div className="mb-8 text-left">
         <h1 className="font-serif text-[28px] md:text-[36px] font-semibold text-ink tracking-tight mb-2">
@@ -563,9 +563,9 @@ export function BookingWizard({
 
                   {/* Treatments Grid */}
                   {isLoading ? (
-                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         {[1,2,3,4].map(i => (
-                          <div key={i} className="rounded-xl border border-line bg-white overflow-hidden flex flex-col h-[280px] w-full max-w-[360px] mx-auto">
+                          <div key={i} className="rounded-xl border border-line bg-white overflow-hidden flex flex-col h-[280px] w-full">
                             <div className="w-full aspect-[16/7] md:aspect-[16/6] bg-pale animate-pulse"></div>
                             <div className="p-4 flex-1 flex flex-col">
                               <div className="w-3/4 h-5 bg-pale animate-pulse rounded mb-2"></div>
@@ -591,14 +591,14 @@ export function BookingWizard({
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       {filteredTreatments.map((t) => {
                         const isSelected = treatmentId === t.id;
                         return (
                           <button
                             key={t.id}
                             onClick={() => setTreatmentId(t.id)}
-                            className={`group h-full w-full max-w-[360px] mx-auto flex flex-col text-left rounded-2xl bg-[#18120F] shadow-lg transition-all duration-300 overflow-hidden relative ${
+                            className={`group h-full w-full flex flex-col text-left rounded-2xl bg-[#18120F] shadow-lg transition-all duration-300 overflow-hidden relative ${
                               isSelected
                                 ? "ring-2 ring-royal -translate-y-2 shadow-[0_20px_40px_-10px_rgba(30,58,138,0.3)]"
                                 : "hover:-translate-y-2 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)]"
