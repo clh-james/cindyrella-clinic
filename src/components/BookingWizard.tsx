@@ -529,7 +529,7 @@ export function BookingWizard({
                       )}
                     </div>
 
-                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+                    <div className="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4 md:mx-0 md:px-0">
                       {categories.map(cat => (
                         <button
                           key={cat}
