@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   },
 };
 
-import { AIAssistant } from "@/components/AIAssistant";
+
 
 export default function RootLayout({
   children,
@@ -24,7 +24,6 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         {children}
-        <AIAssistant />
       </body>
     </html>
   );

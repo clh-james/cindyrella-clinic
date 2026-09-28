@@ -1,6 +1,7 @@
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 import { MobileBottomBar } from "@/components/MobileBottomBar";
+import { AIAssistant } from "@/components/AIAssistant";
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       {children}
       <Footer />
       <MobileBottomBar />
+      <AIAssistant />
     </div>
   );
 }
