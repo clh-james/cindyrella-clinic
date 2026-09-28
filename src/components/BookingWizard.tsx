@@ -491,13 +491,12 @@ export function BookingWizard({
           Step {step + 1} of {steps.length} <span className="text-ink-soft/40 mx-1">·</span> <span className="text-ink-soft font-medium capitalize">{getStepTitle()}</span>
         </p>
       </div>
-
-      {renderStepper()}
-
       <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_340px] gap-8 lg:gap-10">
         
         {/* Left Column: Form Content */}
         <div className="min-h-[400px] min-w-0">
+          {renderStepper()}
+          
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -563,7 +562,7 @@ export function BookingWizard({
 
                   {/* Treatments Grid */}
                   {isLoading ? (
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {[1,2,3,4].map(i => (
                           <div key={i} className="rounded-xl border border-line bg-white overflow-hidden flex flex-col h-[280px] w-full">
                             <div className="w-full aspect-[16/7] md:aspect-[16/6] bg-pale animate-pulse"></div>
@@ -591,7 +590,7 @@ export function BookingWizard({
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                       {filteredTreatments.map((t) => {
                         const isSelected = treatmentId === t.id;
                         return (
