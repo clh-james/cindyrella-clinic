@@ -53,16 +53,7 @@ export default async function BookingPage() {
   const { treatments, branches, live } = await loadData();
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-16">
-      <header className="max-w-xl">
-        <h1 className="font-serif text-4xl font-semibold text-ink sm:text-5xl">
-          Book your session
-        </h1>
-        <p className="mt-4 text-ink-soft">
-          Seven steps, about two minutes. A confirmation with your reference
-          number follows immediately.
-        </p>
-      </header>
+    <main>
       <BookingWizard treatments={treatments} branches={branches} live={live} />
     </main>
   );
