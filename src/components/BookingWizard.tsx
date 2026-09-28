@@ -546,7 +546,7 @@ export function BookingWizard({
 
                   {/* Treatments Grid */}
                   {isLoading ? (
-                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
                         {[1,2,3,4].map(i => (
                           <div key={i} className="rounded-xl border border-line bg-white overflow-hidden flex flex-col h-[280px]">
                             <div className="w-full aspect-[16/7] md:aspect-[16/6] bg-pale animate-pulse"></div>
@@ -574,7 +574,7 @@ export function BookingWizard({
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
                       {filteredTreatments.map((t) => {
                         const isSelected = treatmentId === t.id;
                         return (
