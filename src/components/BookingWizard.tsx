@@ -578,73 +578,73 @@ export function BookingWizard({
                       {filteredTreatments.map((t) => {
                         const isSelected = treatmentId === t.id;
                         return (
-                          <div
+                          <button
                             key={t.id}
-                            className={`group flex flex-col overflow-hidden rounded-xl border transition-all duration-200 bg-white ${
-                              isSelected 
-                                ? "border-royal ring-1 ring-royal bg-royal/[0.02] shadow-sm" 
-                                : "border-line hover:border-royal/40"
+                            onClick={() => setTreatmentId(t.id)}
+                            className={`group h-full flex flex-col text-left rounded-2xl bg-[#18120F] shadow-lg transition-all duration-300 overflow-hidden relative ${
+                              isSelected
+                                ? "ring-2 ring-royal -translate-y-2 shadow-[0_20px_40px_-10px_rgba(30,58,138,0.3)]"
+                                : "hover:-translate-y-2 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)]"
                             }`}
                           >
-                            {/* Image area: more compact aspect ratio */}
-                            <div className="relative w-full aspect-[16/8] md:aspect-[16/6] bg-pale overflow-hidden border-b border-line/50">
+                            {/* Image Area */}
+                            <div className="relative aspect-video w-full overflow-hidden bg-[#18120F]">
                               {t.image_url ? (
-                                <img src={t.image_url} alt={t.name} className="w-full h-full object-cover" />
+                                <img
+                                  src={t.image_url}
+                                  alt={t.name}
+                                  className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
+                                />
                               ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center bg-royal/[0.03] text-royal/30 p-4 text-center">
-                                  <span className="font-serif text-lg font-bold tracking-widest uppercase opacity-60">Cindyrella</span>
-                                  <span className="text-[10px] uppercase tracking-widest font-medium opacity-50 mt-1">Aesthetic & Wellness</span>
+                                <div className="absolute inset-0 flex items-center justify-center text-white/30 font-medium">
+                                  <span className="text-sm">Image coming soon</span>
                                 </div>
                               )}
                               
-                              {/* Selected Indicator Top Right */}
-                              <AnimatePresence>
-                                {isSelected && (
-                                  <motion.div 
-                                    initial={{ scale: 0, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 0, opacity: 0 }}
-                                    className="absolute top-2.5 right-2.5 w-6 h-6 bg-royal text-white rounded-full flex items-center justify-center shadow-md z-10"
-                                  >
-                                    <Check size={14} strokeWidth={3} />
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
+                              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#18120F] to-transparent pointer-events-none" />
                             </div>
-                            
-                            <div className="p-4 flex flex-col flex-1">
-                              <h3 className="font-semibold text-ink text-[16px] mb-1 leading-tight pr-6">{t.name}</h3>
-                              {t.primary_desc && (
-                                <p className="text-ink-soft text-[13px] line-clamp-2 mb-4 leading-relaxed">{t.primary_desc}</p>
-                              )}
-                              
-                              <div className="mt-auto flex items-end justify-between border-t border-line/30 pt-3">
-                                <div>
-                                  <p className="text-[11px] font-medium text-ink-soft uppercase tracking-wider mb-0.5">{t.duration_minutes} min</p>
-                                  <p className="font-serif text-[17px] font-semibold text-ink">{peso(t.session_price)}</p>
+
+                            <div className="flex flex-col justify-between p-5 pt-1 flex-1 bg-[#18120F] z-10 relative">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <h3 className="font-serif text-lg font-semibold text-white leading-tight pr-2">
+                                    {t.name}
+                                  </h3>
+                                  {t.badge && (
+                                    <span className="whitespace-nowrap rounded-full bg-[#d4af82] px-2.5 py-0.5 text-[10px] font-bold text-[#332211] uppercase tracking-wider shadow-sm mt-0.5 shrink-0">
+                                      {t.badge}
+                                    </span>
+                                  )}
                                 </div>
                                 
-                                <button
-                                  onClick={() => setTreatmentId(t.id)}
-                                  className={`px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-colors flex items-center gap-1.5 ${
-                                    isSelected 
-                                      ? "bg-royal text-white" 
-                                      : "bg-pale border border-line text-ink hover:bg-royal/5 hover:border-royal/30 hover:text-royal"
-                                  }`}
-                                >
-                                  {isSelected ? (
-                                    <>
-                                      <Check size={14} /> Selected
-                                    </>
-                                  ) : (
-                                    <>
-                                      Select <span className="hidden sm:inline">→</span>
-                                    </>
-                                  )}
-                                </button>
+                                <div className="flex items-baseline gap-1">
+                                  <span className="text-2xl font-bold text-[#d4af82]">
+                                    {peso(t.session_price)}
+                                  </span>
+                                  <span className="text-xs text-white/50 ml-2">{t.duration_minutes} min</span>
+                                </div>
+
+                                <ul className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2">
+                                  {(t.best_for ? t.best_for.split(',') : (t.primary_desc ? [t.primary_desc] : [])).slice(0, 4).map((feature: string, i: number) => (
+                                    <li key={i} className="flex items-start gap-1.5">
+                                      <Check size={14} className="shrink-0 text-[#d4af82] mt-0.5" />
+                                      <span className="text-xs text-white/90 leading-snug">{feature.trim()}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                              
+                              <div className="mt-5">
+                                <div className={`w-full rounded-full px-4 py-2.5 text-center text-sm font-medium transition-colors ${
+                                  isSelected
+                                    ? "bg-royal text-white"
+                                    : "bg-white/10 text-white group-hover:bg-royal group-hover:text-white"
+                                }`}>
+                                  {isSelected ? "✓ Selected" : "Select"}
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          </button>
                         );
                       })}
                     </div>
