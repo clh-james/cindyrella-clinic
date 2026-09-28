@@ -529,22 +529,37 @@ export function BookingWizard({
                       )}
                     </div>
 
-                    <div className="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4 md:mx-0 md:px-0">
-                      {categories.map(cat => (
-                        <button
-                          key={cat}
-                          onClick={() => setSelectedCategory(cat)}
-                          className={`whitespace-nowrap px-4 py-1.5 rounded-full text-[13px] font-medium transition-all border ${
-                            activeCategory === cat 
-                              ? "bg-ink text-white border-ink shadow-sm" 
-                              : "bg-white text-ink-soft border-line hover:bg-pale"
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
+                    <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+                      <div className="flex space-x-3 w-max">
+                        {categories.map(cat => (
+                          <button
+                            key={cat}
+                            onClick={() => setSelectedCategory(cat)}
+                            className={`whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-semibold transition-all ${
+                              activeCategory === cat 
+                                ? 'bg-royal text-white shadow-md ring-1 ring-royal'
+                                : 'bg-pale text-ink hover:bg-pale/80 hover:text-royal'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Active Category Content */}
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {activeCategory && !searchQuery && (
+                      <h2 className="font-serif text-3xl font-semibold text-ink border-b border-line pb-4 mb-8">
+                        {activeCategory}
+                      </h2>
+                    )}
+                    {searchQuery && (
+                      <h2 className="font-serif text-2xl font-semibold text-ink border-b border-line pb-4 mb-8">
+                        Search Results for "{searchQuery}"
+                      </h2>
+                    )}
 
                   {/* Treatments Grid */}
                   {isLoading ? (
@@ -576,7 +591,7 @@ export function BookingWizard({
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                       {filteredTreatments.map((t) => {
                         const isSelected = treatmentId === t.id;
                         return (
@@ -651,6 +666,7 @@ export function BookingWizard({
                       })}
                     </div>
                   )}
+                  </div>
                 </div>
               )}
 
