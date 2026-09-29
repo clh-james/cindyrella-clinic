@@ -556,7 +556,7 @@ export function BookingWizard({
                     )}
                     {searchQuery && (
                       <h2 className="font-serif text-2xl font-semibold text-ink border-b border-line pb-4 mb-8">
-                        Search Results for "{searchQuery}"
+                        Search Results for &quot;{searchQuery}&quot;
                       </h2>
                     )}
 
