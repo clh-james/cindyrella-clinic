@@ -11,7 +11,7 @@ import {
   LayoutDashboard, CreditCard, CalendarDays, Users, Sparkles, PackageOpen, Crown, Gift, Boxes, 
   ReceiptText, WalletCards, ClipboardCheck, Banknote, BarChart3, UserRoundCog, ShieldCheck, 
   Images, Megaphone, Bell, ScrollText, Building2, Settings,
-  ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check
+  ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity
 } from "lucide-react";
 import { Can, usePermissions } from "@/components/rbac/Can";
 
@@ -66,10 +66,17 @@ const NAVIGATION_GROUPS = [
     ]
   },
   {
+    name: "SECURITY",
+    items: [
+      { name: "Login Activity", href: "/admin/security/logins", icon: Activity, permission: "security.view_login_activity" },
+      { name: "Active Sessions", href: "/admin/security/sessions", icon: Monitor, permission: "security.view_active_sessions" },
+      { name: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText, permission: "audit_logs.view" },
+    ]
+  },
+  {
     name: "SYSTEM",
     items: [
       { name: "Notifications", href: "#", icon: Bell, permission: "notifications.view", unimplemented: true },
-      { name: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText, permission: "audit_logs.view" },
       { name: "Branches", href: "#", icon: Building2, permission: "branches.view", unimplemented: true },
       { name: "Settings", href: "/admin/settings", icon: Settings, permission: "settings.view" },
     ]

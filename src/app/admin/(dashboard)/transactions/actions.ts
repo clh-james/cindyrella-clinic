@@ -45,7 +45,8 @@ export async function voidTransaction(data: { id: string, type: "retail" | "appo
   }
 
   // 3. Log Audit Event
-  await supabase.from("audit_logs").insert({
+  const supabaseAdmin = await import("@/lib/supabase/admin").then(m => m.createAdminClient());
+  await supabaseAdmin.from("audit_logs").insert({
     user_id: userAuth.user.id,
     action: "VOID_TRANSACTION",
     resource_type: data.type === "retail" ? "pos_sales" : "appointments",

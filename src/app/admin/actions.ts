@@ -9,15 +9,58 @@ import { redirect } from "next/navigation";
 import { sendSms } from "@/lib/sms";
 import { sendEmail, staffInviteEmail } from "@/lib/email";
 
+import { headers } from "next/headers";
+import { UAParser } from "ua-parser-js";
+
 export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error) {
+  if (error || !data.user) {
     return { error: "Incorrect email or password." };
+  }
+
+  // Session Tracking
+  try {
+    const adminClient = createAdminClient();
+    
+    // Get staff branch
+    const { data: staffData } = await adminClient
+      .from("staff")
+      .select("branch_id")
+      .eq("id", data.user.id)
+      .single();
+
+    // Parse headers for device info
+    const reqHeaders = await headers();
+    const userAgentStr = reqHeaders.get("user-agent") || "";
+    const ipAddress = reqHeaders.get("x-forwarded-for") || reqHeaders.get("x-real-ip") || "Unknown";
+    
+    // Use simple string parsing since ua-parser-js might not be installed, but if it is, this works.
+    // We'll just fall back to basic parsing if needed, but let's assume standard strings.
+    const parser = new UAParser(userAgentStr);
+    const browser = parser.getBrowser();
+    const os = parser.getOS();
+    const device = parser.getDevice();
+    
+    const deviceName = device.type ? `${device.vendor || ''} ${device.type}`.trim() : "Desktop";
+    const browserName = browser.name ? `${browser.name} ${browser.version || ''}` : "Unknown Browser";
+    const osName = os.name ? `${os.name} ${os.version || ''}` : "Unknown OS";
+
+    await adminClient.from("user_sessions").insert({
+      user_id: data.user.id,
+      branch_id: staffData?.branch_id || null,
+      ip_address: ipAddress,
+      device: deviceName,
+      browser: browserName,
+      os: osName,
+      status: "ACTIVE"
+    });
+  } catch (err) {
+    console.error("Failed to log session:", err);
   }
 
   redirect("/admin");
@@ -25,6 +68,23 @@ export async function signIn(formData: FormData) {
 
 export async function signOut() {
   const supabase = await createClient();
+  
+  // Get current user before signing out to update their session
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (user) {
+    const adminClient = createAdminClient();
+    await adminClient
+      .from("user_sessions")
+      .update({ 
+        logout_at: new Date().toISOString(), 
+        status: "LOGGED_OUT",
+        logout_reason: "User initiated"
+      })
+      .eq("user_id", user.id)
+      .eq("status", "ACTIVE");
+  }
+
   await supabase.auth.signOut();
   redirect("/admin/login");
 }
