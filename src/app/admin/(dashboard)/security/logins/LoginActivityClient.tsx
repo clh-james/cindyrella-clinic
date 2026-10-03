@@ -149,9 +149,9 @@ export function LoginActivityClient({ initialSessions, staff, branches }: { init
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 text-ink">
-                          {getDeviceIcon(session.device)}
+                          {getDeviceIcon(session.device_type)}
                           <div>
-                            <p className="text-sm">{session.browser || "Unknown"} • {session.os || "Unknown"}</p>
+                            <p className="text-sm">{session.browser || "Unknown"} • {session.operating_system || "Unknown"}</p>
                             <p className="text-xs text-ink-soft">{session.ip_address}</p>
                           </div>
                         </div>

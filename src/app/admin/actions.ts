@@ -37,28 +37,56 @@ export async function signIn(formData: FormData) {
     // Parse headers for device info
     const reqHeaders = await headers();
     const userAgentStr = reqHeaders.get("user-agent") || "";
-    const ipAddress = reqHeaders.get("x-forwarded-for") || reqHeaders.get("x-real-ip") || "Unknown";
+    // Note: for INET in postgres, 'Unknown' will fail. We should leave it null if unknown, or try to get a valid IP.
+    let ipAddressStr = reqHeaders.get("x-forwarded-for") || reqHeaders.get("x-real-ip");
+    // Ensure it's a valid IP or null
+    if (ipAddressStr && ipAddressStr.includes(",")) ipAddressStr = ipAddressStr.split(",")[0].trim();
+    if (!ipAddressStr || ipAddressStr === "Unknown" || ipAddressStr === "::1") ipAddressStr = "127.0.0.1";
     
-    // Use simple string parsing since ua-parser-js might not be installed, but if it is, this works.
-    // We'll just fall back to basic parsing if needed, but let's assume standard strings.
     const parser = new UAParser(userAgentStr);
     const browser = parser.getBrowser();
     const os = parser.getOS();
     const device = parser.getDevice();
     
-    const deviceName = device.type ? `${device.vendor || ''} ${device.type}`.trim() : "Desktop";
-    const browserName = browser.name ? `${browser.name} ${browser.version || ''}` : "Unknown Browser";
-    const osName = os.name ? `${os.name} ${os.version || ''}` : "Unknown OS";
+    const deviceName = device.model || "Unknown";
+    const deviceType = device.type || "Desktop";
+    const browserName = browser.name ? `${browser.name} ${browser.version || ''}` : "Unknown";
+    const osName = os.name ? `${os.name} ${os.version || ''}` : "Unknown";
 
-    await adminClient.from("user_sessions").insert({
+    // Insert user session
+    const { data: sessionData, error: sessionError } = await adminClient.from("user_sessions").insert({
       user_id: data.user.id,
       branch_id: staffData?.branch_id || null,
-      ip_address: ipAddress,
-      device: deviceName,
+      ip_address: ipAddressStr,
+      user_agent: userAgentStr,
+      device_type: deviceType,
+      device_name: deviceName,
       browser: browserName,
-      os: osName,
+      operating_system: osName,
       status: "ACTIVE"
-    });
+    }).select("id").single();
+
+    if (sessionError) {
+      console.error("Failed to create user_session:", sessionError);
+    }
+
+    // Insert auth event
+    if (sessionData) {
+      await adminClient.from("auth_events").insert({
+        user_id: data.user.id,
+        branch_id: staffData?.branch_id || null,
+        session_id: sessionData.id,
+        event_type: "LOGIN_SUCCESS",
+        outcome: "SUCCESS",
+        ip_address: ipAddressStr,
+        user_agent: userAgentStr,
+        device_type: deviceType,
+        browser: browserName,
+        operating_system: osName,
+        metadata: { login_method: "password" }
+      });
+    }
+
   } catch (err) {
     console.error("Failed to log session:", err);
   }
@@ -74,15 +102,47 @@ export async function signOut() {
   
   if (user) {
     const adminClient = createAdminClient();
-    await adminClient
+    
+    // Find active session to calculate duration
+    const { data: activeSession } = await adminClient
       .from("user_sessions")
-      .update({ 
-        logout_at: new Date().toISOString(), 
-        status: "LOGGED_OUT",
-        logout_reason: "User initiated"
-      })
+      .select("*")
       .eq("user_id", user.id)
-      .eq("status", "ACTIVE");
+      .eq("status", "ACTIVE")
+      .order("login_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (activeSession) {
+      const logoutAt = new Date();
+      const loginAt = new Date(activeSession.login_at);
+      const durationSeconds = Math.floor((logoutAt.getTime() - loginAt.getTime()) / 1000);
+
+      await adminClient
+        .from("user_sessions")
+        .update({ 
+          logout_at: logoutAt.toISOString(), 
+          status: "LOGGED_OUT",
+          logout_reason: "USER_LOGOUT",
+          duration_seconds: durationSeconds
+        })
+        .eq("id", activeSession.id);
+
+      // Log auth event
+      await adminClient.from("auth_events").insert({
+        user_id: user.id,
+        branch_id: activeSession.branch_id,
+        session_id: activeSession.id,
+        event_type: "LOGOUT",
+        outcome: "SUCCESS",
+        ip_address: activeSession.ip_address,
+        user_agent: activeSession.user_agent,
+        device_type: activeSession.device_type,
+        browser: activeSession.browser,
+        operating_system: activeSession.operating_system,
+        metadata: { duration_seconds: durationSeconds }
+      });
+    }
   }
 
   await supabase.auth.signOut();

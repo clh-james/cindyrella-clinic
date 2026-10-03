@@ -99,8 +99,8 @@ export function ActiveSessionsClient({ activeSessions, staff, branches }: { acti
                     <div className="col-span-2">
                       <p className="text-[10px] text-ink-soft uppercase font-bold tracking-wider mb-0.5">Device</p>
                       <div className="flex items-center gap-1.5 text-xs text-ink font-medium">
-                        {getDeviceIcon(session.device)}
-                        <span className="truncate">{session.os || "Unknown OS"} • {session.browser || "Unknown Browser"}</span>
+                        {getDeviceIcon(session.device_type)}
+                        <span className="truncate">{session.operating_system || "Unknown OS"} • {session.browser || "Unknown Browser"}</span>
                       </div>
                     </div>
                   </div>
@@ -131,7 +131,7 @@ export function ActiveSessionsClient({ activeSessions, staff, branches }: { acti
               </div>
               <h3 className="text-lg font-bold text-ink text-center mb-1">Force Logout User?</h3>
               <p className="text-sm text-ink-soft text-center mb-6">
-                <span className="font-bold text-ink">{getStaff(sessionToForceLogout.user_id).full_name}</span> is currently logged in on their {sessionToForceLogout.os} device. 
+                <span className="font-bold text-ink">{getStaff(sessionToForceLogout.user_id).full_name}</span> is currently logged in on their {sessionToForceLogout.operating_system} device. 
                 This action will terminate their session and record an audit log.
               </p>
               
