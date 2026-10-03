@@ -185,7 +185,7 @@ export function ServicesClient({ initialTreatments }: { initialTreatments: Treat
                 
                 <div>
                   <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1.5">Duration (Mins)</label>
-                  <input type="number" name="duration_minutes" defaultValue={editingTreatment?.duration_minutes} className="w-full px-3 py-2 border border-line rounded-lg focus:outline-none focus:ring-1 focus:ring-royal" placeholder="e.g. 45" />
+                  <input type="number" name="duration_minutes" defaultValue={editingTreatment?.duration_minutes ?? ""} className="w-full px-3 py-2 border border-line rounded-lg focus:outline-none focus:ring-1 focus:ring-royal" placeholder="e.g. 45" />
                 </div>
 
                 <div>
@@ -200,12 +200,12 @@ export function ServicesClient({ initialTreatments }: { initialTreatments: Treat
 
                 <div>
                   <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1.5">5+1 Package (₱)</label>
-                  <input type="number" step="0.01" name="five_plus_one_price" defaultValue={editingTreatment?.five_plus_one_price} className="w-full px-3 py-2 border border-line rounded-lg focus:outline-none focus:ring-1 focus:ring-royal" placeholder="0.00" />
+                  <input type="number" step="0.01" name="five_plus_one_price" defaultValue={editingTreatment?.five_plus_one_price ?? ""} className="w-full px-3 py-2 border border-line rounded-lg focus:outline-none focus:ring-1 focus:ring-royal" placeholder="0.00" />
                 </div>
                 
                 <div>
                   <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1.5">10+2 Package (₱)</label>
-                  <input type="number" step="0.01" name="ten_plus_two_price" defaultValue={editingTreatment?.ten_plus_two_price} className="w-full px-3 py-2 border border-line rounded-lg focus:outline-none focus:ring-1 focus:ring-royal" placeholder="0.00" />
+                  <input type="number" step="0.01" name="ten_plus_two_price" defaultValue={editingTreatment?.ten_plus_two_price ?? ""} className="w-full px-3 py-2 border border-line rounded-lg focus:outline-none focus:ring-1 focus:ring-royal" placeholder="0.00" />
                 </div>
 
                 <div className="col-span-2 mt-2">
