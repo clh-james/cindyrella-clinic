@@ -1,10 +1,10 @@
 import { requireStaff } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { AuditLogsClient } from "./AuditLogsClient";
 
 export default async function AuditLogsPage() {
   await requireStaff();
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: logs } = await supabase
     .from("audit_logs")
