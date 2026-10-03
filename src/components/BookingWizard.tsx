@@ -370,6 +370,20 @@ export function BookingWizard({
     </div>
   );
 
+  const getValidationMessage = () => {
+    if (canContinue) return null;
+    switch (step) {
+      case 0: return "Please select a treatment to continue.";
+      case 1: return "Please select a branch to continue.";
+      case 2: return "Please select a date to continue.";
+      case 3: return "Please select a time to continue.";
+      case 4: return "Please provide First Name, Last Name, Phone, and Email to continue.";
+      case 5: return "Please review and agree to continue.";
+      case 6: return "Please select a payment method to continue.";
+      default: return null;
+    }
+  };
+
   const renderBookingSummary = () => (
     <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden sticky top-24">
       <div className="p-5 bg-pale/30 border-b border-line">
@@ -422,6 +436,9 @@ export function BookingWizard({
       </div>
       
       <div className="p-5 pt-0">
+        {!canContinue && (
+          <p className="text-xs text-red-500 font-medium mb-3 text-center">{getValidationMessage()}</p>
+        )}
         {step < steps.length - 1 ? (
           <button
             onClick={handleContinue}
@@ -455,6 +472,9 @@ export function BookingWizard({
             </p>
           </div>
         </div>
+        {!canContinue && (
+          <p className="text-xs text-red-500 font-medium mb-3 text-center">{getValidationMessage()}</p>
+        )}
         {step < steps.length - 1 ? (
           <button
             onClick={handleContinue}
