@@ -1,20 +1,20 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useTransition } from "react";
 import { Plus, Edit2, Trash2, X } from "lucide-react";
 import { upsertTreatment, deleteTreatment } from "./actions";
+import type { Treatment } from "@/lib/supabase/types";
 
 const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
 
-export function ServicesClient({ initialTreatments }: { initialTreatments: any[] }) {
+export function ServicesClient({ initialTreatments }: { initialTreatments: Treatment[] }) {
   const [isPending, startTransition] = useTransition();
-  const [treatments] = useState(initialTreatments);
+  const [treatments] = useState<Treatment[]>(initialTreatments);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTreatment, setEditingTreatment] = useState<any | null>(null);
+  const [editingTreatment, setEditingTreatment] = useState<Treatment | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const openModal = (t: any = null) => {
+  const openModal = (t: Treatment | null = null) => {
     setEditingTreatment(t);
     setError(null);
     setIsModalOpen(true);

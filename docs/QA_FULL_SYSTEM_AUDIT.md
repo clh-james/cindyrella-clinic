@@ -20,7 +20,7 @@
 | RBAC                  | BLOCKED    | PASS     | PASS     | BLOCKED| BLOCKED |
 | Staff                 | BLOCKED    | BLOCKED  | BLOCKED  | BLOCKED| BLOCKED |
 | Customers             | BLOCKED    | BLOCKED  | BLOCKED  | BLOCKED| BLOCKED |
-| Services              | PASS WITH ISSUES | PASS | PASS | BLOCKED| BLOCKED |
+| Services              | PASS       | PASS     | PASS     | BLOCKED| BLOCKED |
 | Appointments          | BLOCKED    | BLOCKED  | BLOCKED  | BLOCKED| BLOCKED |
 | POS                   | BLOCKED    | BLOCKED  | BLOCKED  | BLOCKED| BLOCKED |
 | Cashier & Shifts      | BLOCKED    | BLOCKED  | BLOCKED  | BLOCKED| BLOCKED |
