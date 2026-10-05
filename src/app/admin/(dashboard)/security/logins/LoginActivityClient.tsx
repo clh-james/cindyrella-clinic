@@ -18,7 +18,12 @@ export function LoginActivityClient({ initialSessions, staff, branches }: { init
     return b ? b.name : "Unknown";
   };
 
-  const filteredSessions = initialSessions.filter(session => {
+  const deduplicatedSessions = Array.from(new Map(initialSessions.map(session => [
+    `${session.user_id}-${session.device_type}-${session.operating_system}-${session.browser}-${session.login_at}`, 
+    session
+  ])).values());
+
+  const filteredSessions = deduplicatedSessions.filter(session => {
     const s = getStaff(session.user_id);
     const searchMatch = !searchTerm || 
       s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -37,10 +42,10 @@ export function LoginActivityClient({ initialSessions, staff, branches }: { init
     return <Monitor size={16} />;
   };
 
-  const totalLogins = initialSessions.length;
-  const activeUsers = initialSessions.filter(s => s.status === "ACTIVE").length;
-  const loggedOut = initialSessions.filter(s => s.status === "LOGGED_OUT").length;
-  const failedLogins = initialSessions.filter(s => s.status === "FAILED").length; // Mock failed if none
+  const totalLogins = deduplicatedSessions.length;
+  const activeUsers = deduplicatedSessions.filter(s => s.status === "ACTIVE").length;
+  const loggedOut = deduplicatedSessions.filter(s => s.status === "LOGGED_OUT").length;
+  const failedLogins = deduplicatedSessions.filter(s => s.status === "FAILED").length; // Mock failed if none
 
   return (
     <div className="space-y-6">

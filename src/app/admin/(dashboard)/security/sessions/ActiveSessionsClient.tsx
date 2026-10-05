@@ -64,7 +64,10 @@ export function ActiveSessionsClient({ activeSessions, staff, branches }: { acti
             <p className="text-ink-soft text-sm">There are no other active sessions at this time.</p>
           </div>
         ) : (
-          activeSessions.map((session) => {
+          Array.from(new Map(activeSessions.map(session => [
+            `${session.user_id}-${session.device_type}-${session.operating_system}-${session.browser}`, 
+            session
+          ])).values()).map((session) => {
             const staffInfo = getStaff(session.user_id);
             const roleName = staffInfo.roles?.name || "N/A";
             
