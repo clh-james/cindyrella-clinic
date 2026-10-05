@@ -66,6 +66,19 @@ export async function forceLogoutSession(sessionId: string) {
     }
   });
 
+  // 4. Also add an entry to system audit logs so it shows up in the admin dashboard
+  await supabaseAdmin.from("audit_logs").insert({
+    user_id: currentUser.id,
+    action: "FORCE_LOGOUT",
+    resource_type: "user_sessions",
+    resource_id: sessionId,
+    branch_id: sessionData.branch_id,
+    metadata: {
+      target_user: sessionData.user_id,
+      device_info: `${sessionData.operating_system} - ${sessionData.browser}`
+    }
+  });
+
   revalidatePath("/admin/security/sessions");
   revalidatePath("/admin/security/logins");
   revalidatePath("/admin/audit-logs");
