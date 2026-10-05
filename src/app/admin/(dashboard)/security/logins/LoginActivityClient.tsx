@@ -18,10 +18,13 @@ export function LoginActivityClient({ initialSessions, staff, branches }: { init
     return b ? b.name : "Unknown";
   };
 
-  const deduplicatedSessions = Array.from(new Map(initialSessions.map(session => [
-    `${session.user_id}-${session.device_type}-${session.operating_system}-${session.browser}-${session.login_at}`, 
-    session
-  ])).values());
+  const deduplicatedSessions = Array.from(new Map(initialSessions.map(session => {
+    const timeKey = session.login_at ? new Date(session.login_at).toISOString().substring(0, 16) : '';
+    return [
+      `${session.user_id}-${session.device_type}-${session.operating_system}-${session.browser}-${timeKey}`, 
+      session
+    ];
+  })).values());
 
   const filteredSessions = deduplicatedSessions.filter(session => {
     const s = getStaff(session.user_id);
