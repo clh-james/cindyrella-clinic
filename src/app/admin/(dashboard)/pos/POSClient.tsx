@@ -14,18 +14,20 @@ import { processPOSWalkin, processPOSRetail, getRecentTransactions } from "./act
 export function POSClient({ 
   treatments, 
   inventory, 
-  branches 
+  branches,
+  staffBranchId 
 }: { 
   treatments: { id: string; name: string; category: string; session_price: number; image_url?: string }[], 
   inventory: { id: string; name: string; category: string; retail_price?: number; current_stock: number; low_stock_threshold: number; image_url?: string }[], 
-  branches: { id: string; name: string }[] 
+  branches: { id: string; name: string }[],
+  staffBranchId?: string | null 
 }) {
   const [mode, setMode] = useState<"walkin" | "retail">("walkin");
   const [cart, setCart] = useState<{ id: string; name: string; price: number; quantity: number; maxStock?: number }[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "maya">("cash");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [selectedBranch, setSelectedBranch] = useState(branches[0]?.id || "");
+  const [selectedBranch, setSelectedBranch] = useState(staffBranchId || branches[0]?.id || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
