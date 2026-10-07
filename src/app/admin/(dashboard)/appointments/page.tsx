@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { StatusSelect } from "@/components/admin/StatusSelect";
 import { SendReminderButton } from "@/components/admin/SendReminderButton";
+import { ExportAppointmentsCSV } from "@/components/admin/ExportAppointmentsCSV";
 
 const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
 
@@ -23,10 +24,7 @@ export default async function AppointmentsPage() {
           <h1 className="font-serif text-xl sm:text-2xl font-semibold text-ink">Appointments</h1>
           <p className="mt-1 text-xs sm:text-sm text-ink-soft">Most recent bookings across all branches.</p>
         </div>
-        <button className="flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-royal hover:text-royal">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Export CSV
-        </button>
+        <ExportAppointmentsCSV appointments={appointments || []} />
       </div>
 
       {/* MOBILE VIEW (CARDS) */}
