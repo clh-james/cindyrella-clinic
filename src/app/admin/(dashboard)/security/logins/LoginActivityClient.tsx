@@ -176,10 +176,11 @@ export function LoginActivityClient({ initialSessions, staff, branches }: { init
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                           session.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
-                          session.status === 'LOGGED_OUT' ? 'bg-gray-100 text-gray-700' :
+                          session.status === 'LOGGED_OUT' && session.logout_reason !== 'AUTO_LOGOUT_INACTIVITY' ? 'bg-gray-100 text-gray-700' :
+                          session.logout_reason === 'AUTO_LOGOUT_INACTIVITY' ? 'bg-blue-100 text-blue-700' :
                           'bg-amber-100 text-amber-700'
                         }`}>
-                          {session.status}
+                          {session.logout_reason === 'AUTO_LOGOUT_INACTIVITY' ? 'AUTO LOGOUT' : session.status}
                         </span>
                       </td>
                     </tr>

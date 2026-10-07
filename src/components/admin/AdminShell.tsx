@@ -115,6 +115,45 @@ export function AdminShell({
     setIsMobileOpen(false);
   }, [pathname]);
 
+  // Inactivity Auto Logout (30 minutes)
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      // 30 minutes = 30 * 60 * 1000 ms
+      timeoutId = setTimeout(async () => {
+        try {
+          await signOut("AUTO_LOGOUT_INACTIVITY");
+        } catch (error) {
+          // Next.js redirect throws an error, which is expected
+        }
+      }, 30 * 60 * 1000);
+    };
+
+    resetTimer(); // Initialize
+
+    // Listen to user activity to reset the timer
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    
+    // Throttle to avoid calling clearTimeout too often
+    let isThrottled = false;
+    const handleActivity = () => {
+      if (!isThrottled) {
+        resetTimer();
+        isThrottled = true;
+        setTimeout(() => { isThrottled = false; }, 1000);
+      }
+    };
+
+    events.forEach(event => window.addEventListener(event, handleActivity, { passive: true }));
+
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach(event => window.removeEventListener(event, handleActivity));
+    };
+  }, []);
+
   // Load preferences from localStorage
   useEffect(() => {
     const savedSidebar = localStorage.getItem("cindyrella_sidebar_collapsed");

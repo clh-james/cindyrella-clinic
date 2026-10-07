@@ -105,7 +105,8 @@ export async function signIn(formData: FormData) {
   redirect("/admin");
 }
 
-export async function signOut() {
+export async function signOut(reasonOrFormData?: string | FormData) {
+  const reason = typeof reasonOrFormData === 'string' ? reasonOrFormData : "USER_LOGOUT";
   const supabase = await createClient();
   
   // Get current user before signing out to update their session
@@ -134,7 +135,7 @@ export async function signOut() {
         .update({ 
           logout_at: logoutAt.toISOString(), 
           status: "LOGGED_OUT",
-          logout_reason: "USER_LOGOUT",
+          logout_reason: reason,
           duration_seconds: durationSeconds
         })
         .eq("id", activeSession.id);
