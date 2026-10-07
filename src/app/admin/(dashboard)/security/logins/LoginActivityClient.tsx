@@ -151,7 +151,14 @@ export function LoginActivityClient({ initialSessions, staff, branches }: { init
                       </td>
                       <td className="px-6 py-4 text-ink-soft">
                         {session.logout_at ? (
-                          new Date(session.logout_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })
+                          <>
+                            <p className="font-medium">
+                              {new Date(session.logout_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                            <p className="text-xs text-ink-soft">
+                              {new Date(session.logout_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}
+                            </p>
+                          </>
                         ) : (
                           "-"
                         )}

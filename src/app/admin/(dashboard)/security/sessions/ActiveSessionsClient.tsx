@@ -97,6 +97,7 @@ export function ActiveSessionsClient({ activeSessions, staff, branches }: { acti
                     <div>
                       <p className="text-[10px] text-ink-soft uppercase font-bold tracking-wider mb-0.5">Logged In</p>
                       <p className="text-xs text-ink font-medium">
+                        {new Date(session.login_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}<br/>
                         {new Date(session.login_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}
                       </p>
                     </div>

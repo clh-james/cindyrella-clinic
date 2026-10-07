@@ -53,6 +53,17 @@ export async function signIn(formData: FormData) {
     const browserName = browser.name ? `${browser.name} ${browser.version || ''}` : "Unknown";
     const osName = os.name ? `${os.name} ${os.version || ''}` : "Unknown";
 
+    // Invalidate existing sessions for this user to avoid multi-login
+    await adminClient
+      .from("user_sessions")
+      .update({
+        status: "FORCE_LOGGED_OUT",
+        logout_at: new Date().toISOString(),
+        logout_reason: "MULTI_LOGIN",
+      })
+      .eq("user_id", data.user.id)
+      .eq("status", "ACTIVE");
+
     // Insert user session
     const { data: sessionData, error: sessionError } = await adminClient.from("user_sessions").insert({
       user_id: data.user.id,
