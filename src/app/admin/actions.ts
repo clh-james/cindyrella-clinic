@@ -64,6 +64,8 @@ export async function signIn(formData: FormData) {
       .eq("user_id", data.user.id)
       .eq("status", "ACTIVE");
 
+    const now = new Date().toISOString();
+    
     // Insert user session
     const { data: sessionData, error: sessionError } = await adminClient.from("user_sessions").insert({
       user_id: data.user.id,
@@ -74,7 +76,8 @@ export async function signIn(formData: FormData) {
       device_name: deviceName,
       browser: browserName,
       operating_system: osName,
-      status: "ACTIVE"
+      status: "ACTIVE",
+      last_activity_at: now
     }).select("id").single();
 
     if (sessionError) {
