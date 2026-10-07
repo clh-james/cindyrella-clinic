@@ -13,31 +13,41 @@ export async function openShift(data: { startingCash: number, branchId: string }
     .from("cashier_shifts")
     .select("id")
     .eq("cashier_id", userAuth.user.id)
-    .eq("status", "open")
+    .in("status", ["open", "variance_review", "investigation"])
     .single();
 
   if (existing) {
-    return { error: "You already have an open shift. Please close it first." };
+    return { error: "You already have an open shift or a shift pending review. Please close it first." };
   }
 
-  const { error } = await supabase
+  const { error, data: newShift } = await supabase
     .from("cashier_shifts")
     .insert({
       cashier_id: userAuth.user.id,
       branch_id: data.branchId,
       starting_cash: data.startingCash,
       status: "open"
-    });
+    }).select().single();
 
   if (error) {
     return { error: error.message };
   }
 
+  // Audit log
+  await supabase.from("audit_logs").insert({
+    action: "SHIFT_OPENED",
+    entity: "cashier_shifts",
+    entity_id: newShift.id,
+    performed_by: userAuth.user.id,
+    branch_id: data.branchId,
+    details: { opening_cash: data.startingCash }
+  });
+
   revalidatePath("/admin/shifts");
-  return { success: true };
+  return { success: true, shift: newShift };
 }
 
-export async function closeShift(data: { shiftId: string, actualCash: number, notes?: string }) {
+export async function closeShift(data: { shiftId: string, actualCash: number, notes?: string, reason?: string }) {
   const supabase = await createClient();
   const { data: userAuth } = await supabase.auth.getUser();
   if (!userAuth.user) return { error: "Not authenticated" };
@@ -50,7 +60,7 @@ export async function closeShift(data: { shiftId: string, actualCash: number, no
     .single();
 
   if (shiftError || !shift) return { error: "Shift not found." };
-  if (shift.status === "closed") return { error: "Shift is already closed." };
+  if (shift.status !== "open") return { error: "Shift is not open." };
 
   const now = new Date().toISOString();
 
@@ -65,31 +75,69 @@ export async function closeShift(data: { shiftId: string, actualCash: number, no
     .lte("created_at", now);
 
   const posCash = (posSales || []).reduce((acc, sale) => acc + (sale.total_amount || 0), 0);
-
-  // 2. Appointments / Walk-ins (CASH only)
-  // Wait, appointments don't have created_by. We might just rely on POS Sales for now or assume all cash in branch? 
-  // Let's assume walk-ins are done via POS, but appointments don't easily track which cashier checked them out unless we check audit logs.
-  // We will do our best by checking appointments in the same branch that were updated to paid.
-  // Actually, for a precise calculation we'd need `created_by` on appointments. For MVP, we'll just sum posSales cash, or maybe all cash in that branch during the shift.
   
-  const expectedCash = shift.starting_cash + posCash;
+  // Note: in a real implementation we would also query appointments/walkins here if they use a different table.
+  const cashSales = posCash;
+  const cashRefunds = 0; // Assuming 0 for now as refunds are not fully implemented
+
+  const expectedCash = shift.starting_cash + cashSales - cashRefunds;
   const variance = data.actualCash - expectedCash;
+  const status = variance === 0 ? "closed" : "variance_review";
 
   const { error: updateError } = await supabase
     .from("cashier_shifts")
     .update({
       closed_at: now,
-      status: "closed",
+      closed_by: userAuth.user.id,
+      status: status,
       actual_cash: data.actualCash,
       expected_cash: expectedCash,
       variance: variance,
-      notes: data.notes
+      notes: data.notes,
+      variance_reason: data.reason,
+      cash_sales: cashSales,
+      cash_refunds: cashRefunds
     })
     .eq("id", data.shiftId);
 
   if (updateError) {
     return { error: updateError.message };
   }
+
+  // Audit log
+  await supabase.from("audit_logs").insert({
+    action: status === "closed" ? "SHIFT_CLOSED" : "SHIFT_VARIANCE_CREATED",
+    entity: "cashier_shifts",
+    entity_id: shift.id,
+    performed_by: userAuth.user.id,
+    branch_id: shift.branch_id,
+    details: { expected: expectedCash, actual: data.actualCash, variance: variance, notes: data.notes }
+  });
+
+  revalidatePath("/admin/shifts");
+  return { success: true, variance, status };
+}
+
+export async function approveVariance(shiftId: string) {
+  const supabase = await createClient();
+  const { data: userAuth } = await supabase.auth.getUser();
+  if (!userAuth.user) return { error: "Not authenticated" };
+
+  const { data: shift } = await supabase.from("cashier_shifts").select("*").eq("id", shiftId).single();
+  if (!shift || shift.status !== "variance_review") return { error: "Shift not found or not in review." };
+  if (shift.cashier_id === userAuth.user.id) return { error: "You cannot approve your own variance." };
+
+  const { error } = await supabase.from("cashier_shifts").update({ status: "closed" }).eq("id", shiftId);
+  if (error) return { error: error.message };
+
+  await supabase.from("audit_logs").insert({
+    action: "SHIFT_VARIANCE_APPROVED",
+    entity: "cashier_shifts",
+    entity_id: shiftId,
+    performed_by: userAuth.user.id,
+    branch_id: shift.branch_id,
+    details: {}
+  });
 
   revalidatePath("/admin/shifts");
   return { success: true };

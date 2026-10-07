@@ -6,6 +6,8 @@ export default async function ShiftsPage() {
   const user = await requireStaff();
   const supabase = await createClient();
 
+  const { data: staffData } = await supabase.from("staff").select("role, branch_id").eq("id", user.id).single();
+
   // Fetch branches for selection
   const { data: branches } = await supabase.from("branches").select("id, name");
 
@@ -20,7 +22,9 @@ export default async function ShiftsPage() {
     <ShiftsClient 
       branches={branches || []} 
       initialShifts={shifts || []} 
-      currentUserId={user.id} 
+      currentUserId={user.id}
+      currentUserRole={staffData?.role || ""}
+      currentUserBranchId={staffData?.branch_id || ""}
     />
   );
 }
