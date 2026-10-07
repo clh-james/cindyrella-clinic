@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.113.0",
+    "exceljs": "^4.4.0",
     "framer-motion": "^13.1.1",
     "googleapis": "^178.0.0",
     "lucide-react": "^1.39.0",
@@ -23,7 +24,8 @@
     "resend": "^6.25.0",
     "server-only": "^0.0.1",
     "twilio": "^6.1.0",
-    "ua-parser-js": "^2.0.10"
+    "ua-parser-js": "^2.0.10",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

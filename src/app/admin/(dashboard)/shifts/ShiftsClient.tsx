@@ -110,7 +110,7 @@ export function ShiftsClient({ branches, initialShifts, currentUserId, currentUs
         </div>
         <div className="bg-white p-4 rounded-xl border border-line shadow-sm flex items-start gap-4">
           <div className="p-2.5 bg-royal/10 text-royal rounded-lg"><WalletCards size={20} /></div>
-          <div><p className="text-xs font-bold text-ink-soft uppercase tracking-wider">Today's Cash (Closed)</p><p className="text-xl font-bold text-ink leading-none mt-1">{peso(todayCash)}</p></div>
+          <div><p className="text-xs font-bold text-ink-soft uppercase tracking-wider">Today&apos;s Cash (Closed)</p><p className="text-xl font-bold text-ink leading-none mt-1">{peso(todayCash)}</p></div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-line shadow-sm flex items-start gap-4">
           <div className="p-2.5 bg-amber-50 text-amber-600 rounded-lg"><AlertCircle size={20} /></div>
