@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { signOut } from "@/app/admin/actions";
+import { signOut, pingActivity } from "@/app/admin/actions";
 import { createClient } from "@/lib/supabase/client";
 import { 
   LayoutDashboard, CreditCard, CalendarDays, Users, Sparkles, PackageOpen, Crown, Gift, Boxes, 
@@ -115,9 +115,14 @@ export function AdminShell({
     setIsMobileOpen(false);
   }, [pathname]);
 
-  // Inactivity Auto Logout (30 minutes)
+  // Inactivity Auto Logout (30 minutes) and Server Activity Ping
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
+
+    // Ping the server to keep `last_activity_at` fresh every 5 minutes
+    const pingInterval = setInterval(() => {
+      pingActivity().catch(console.error);
+    }, 5 * 60 * 1000);
 
     const resetTimer = () => {
       clearTimeout(timeoutId);
@@ -150,6 +155,7 @@ export function AdminShell({
 
     return () => {
       clearTimeout(timeoutId);
+      clearInterval(pingInterval);
       events.forEach(event => window.removeEventListener(event, handleActivity));
     };
   }, []);

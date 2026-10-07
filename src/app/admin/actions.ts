@@ -105,6 +105,29 @@ export async function signIn(formData: FormData) {
   redirect("/admin");
 }
 
+export async function pingActivity() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const adminClient = createAdminClient();
+    const { data: activeSession } = await adminClient
+      .from("user_sessions")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("status", "ACTIVE")
+      .order("login_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (activeSession) {
+      await adminClient
+        .from("user_sessions")
+        .update({ last_activity_at: new Date().toISOString() })
+        .eq("id", activeSession.id);
+    }
+  }
+}
+
 export async function signOut(reasonOrFormData?: string | FormData) {
   const reason = typeof reasonOrFormData === 'string' ? reasonOrFormData : "USER_LOGOUT";
   const supabase = await createClient();
