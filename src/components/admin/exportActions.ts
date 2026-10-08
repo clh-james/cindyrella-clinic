@@ -67,7 +67,7 @@ export async function fetchAppointmentsForExport() {
       "Appointment Status": a.status || "Unknown",
       "Payment Status": paymentStatus,
       "Payment Method": a.payment_method || "Unpaid",
-      "Assigned Staff": (a.staff as any)?.full_name || "Unassigned",
+      "Assigned Staff": ((a as any).staff as any)?.full_name || "Unassigned",
       "Created At": a.created_at ? new Date(a.created_at).toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "N/A",
       "Notes": cleanNotes
     };
