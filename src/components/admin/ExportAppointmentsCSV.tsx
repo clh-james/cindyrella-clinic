@@ -151,7 +151,7 @@ export function ExportAppointmentsCSV({ appointments }: { appointments?: any[] }
           const r = sheet.getRow(startRow + 1 + rowIndex);
           headers.forEach((h, colIndex) => {
             const cell = r.getCell(colIndex + 1);
-            let val = (row as any)[h];
+            const val = (row as any)[h];
             
             if (h === "Amount Due") {
               cell.value = Number(val) || 0;
