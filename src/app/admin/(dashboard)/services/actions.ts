@@ -17,10 +17,13 @@ export async function upsertTreatment(formData: FormData) {
   const is_active = formData.get("is_active") === "true";
   const sort_order = parseInt(formData.get("sort_order") as string || "0");
 
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
   const supabase = createAdminClient();
 
   const payload = {
     name,
+    slug,
     category,
     duration_minutes,
     session_price,
