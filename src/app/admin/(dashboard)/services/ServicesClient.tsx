@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Plus, Edit2, Trash2, X } from "lucide-react";
+import { useState, useTransition, useMemo, useRef } from "react";
+import { Plus, Edit2, Trash2, X, Search, Image as ImageIcon } from "lucide-react";
 import { upsertTreatment, deleteTreatment } from "./actions";
 import type { Treatment } from "@/lib/supabase/types";
 
@@ -13,22 +13,81 @@ export function ServicesClient({ initialTreatments }: { initialTreatments: Treat
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTreatment, setEditingTreatment] = useState<Treatment | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [removeImage, setRemoveImage] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const filteredTreatments = useMemo(() => {
+    return treatments.filter(t => 
+      t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      t.category.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [treatments, searchQuery]);
 
   const openModal = (t: Treatment | null = null) => {
     setEditingTreatment(t);
     setError(null);
+    setSelectedImage(null);
+    setPreviewUrl(t?.image_url || null);
+    setRemoveImage(false);
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingTreatment(null);
+    setSelectedImage(null);
+    setPreviewUrl(null);
+  };
+
+  const handleFileSelect = (file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be smaller than 5MB");
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError("Only JPG, PNG and WEBP are supported");
+      return;
+    }
+    setSelectedImage(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setRemoveImage(false);
+    setError(null);
+  };
+
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const onDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
+  const onRemoveImage = () => {
+    setSelectedImage(null);
+    setPreviewUrl(null);
+    setRemoveImage(true);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     const formData = new FormData(e.currentTarget);
+    if (selectedImage) formData.append("image", selectedImage);
+    if (removeImage) formData.append("remove_image", "true");
     
     startTransition(async () => {
       const res = await upsertTreatment(formData);
@@ -64,23 +123,45 @@ export function ServicesClient({ initialTreatments }: { initialTreatments: Treat
         </button>
       </div>
 
+      <div className="mt-6">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" size={18} />
+          <input
+            type="text"
+            placeholder="Search treatments..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-xl border-2 border-royal/20 focus:border-royal focus:outline-none focus:ring-0 text-sm text-ink transition-colors"
+          />
+        </div>
+      </div>
+
       {/* MOBILE VIEW (CARDS) */}
       <div className="mt-6 grid gap-4 lg:hidden">
-        {treatments.map((t) => (
+        {filteredTreatments.map((t) => (
           <div key={t.id} className="rounded-xl border border-line bg-white p-4 shadow-sm flex flex-col gap-3 relative">
             <div className="absolute top-4 right-4 flex items-center gap-2">
               <button onClick={() => openModal(t)} className="p-1.5 text-ink-soft hover:text-royal hover:bg-royal/10 rounded-md transition-colors"><Edit2 size={14} /></button>
               <button onClick={() => handleDelete(t.id)} className="p-1.5 text-ink-soft hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={14} /></button>
             </div>
             
-            <div className="flex justify-between items-start gap-2 pr-16">
-              <div>
+            <div className="flex gap-3 items-start pr-16">
+              <div className="w-12 h-12 rounded-lg border border-line bg-pale overflow-hidden shrink-0 flex items-center justify-center">
+                {t.image_url ? (
+                  <img src={t.image_url} alt={t.name} className="w-full h-full object-cover" />
+                ) : (
+                  <ImageIcon size={16} className="text-ink-soft/50" />
+                )}
+              </div>
+              <div className="flex flex-col justify-start">
                 <h3 className="font-semibold text-ink leading-tight text-base">{t.name}</h3>
                 <p className="text-xs text-ink-soft capitalize mt-0.5">{t.category}</p>
+                <div className="mt-1">
+                  <span className={`shrink-0 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${t.is_active ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-700 border border-gray-200'}`}>
+                    {t.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
               </div>
-              <span className={`shrink-0 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${t.is_active ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-700 border border-gray-200'}`}>
-                {t.is_active ? 'Active' : 'Inactive'}
-              </span>
             </div>
             
             <div className="grid grid-cols-2 gap-3 border-t border-line border-dashed pt-3 mt-1">
@@ -108,7 +189,7 @@ export function ServicesClient({ initialTreatments }: { initialTreatments: Treat
             )}
           </div>
         ))}
-        {treatments.length === 0 && (
+        {filteredTreatments.length === 0 && (
           <div className="py-10 text-center text-sm text-ink-soft border border-line rounded-xl bg-white">
             No services found.
           </div>
@@ -117,9 +198,10 @@ export function ServicesClient({ initialTreatments }: { initialTreatments: Treat
 
       {/* DESKTOP VIEW (TABLE) */}
       <div className="mt-6 hidden lg:block overflow-x-auto rounded-2xl border border-line bg-white">
-        <table className="w-full min-w-[800px] border-collapse text-sm">
+        <table className="w-full min-w-[900px] border-collapse text-sm">
           <thead>
             <tr className="bg-pale text-left text-ink border-b border-line">
+              <th className="px-5 py-3 font-medium w-16">Image</th>
               <th className="px-5 py-3 font-medium">Service Name</th>
               <th className="px-5 py-3 font-medium">Category</th>
               <th className="px-5 py-3 font-medium">Duration</th>
@@ -131,8 +213,17 @@ export function ServicesClient({ initialTreatments }: { initialTreatments: Treat
             </tr>
           </thead>
           <tbody>
-            {treatments.map((t) => (
+            {filteredTreatments.map((t) => (
               <tr key={t.id} className="border-b border-line last:border-0 hover:bg-pale/50 transition-colors">
+                <td className="px-5 py-3">
+                  <div className="w-12 h-12 rounded-lg border border-line bg-pale overflow-hidden shrink-0 flex items-center justify-center">
+                    {t.image_url ? (
+                      <img src={t.image_url} alt={t.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon size={16} className="text-ink-soft/50" />
+                    )}
+                  </div>
+                </td>
                 <td className="px-5 py-4 font-medium text-ink">{t.name}</td>
                 <td className="px-5 py-4 text-ink-soft">{t.category}</td>
                 <td className="px-5 py-4 text-ink-soft">{t.duration_minutes ? `${t.duration_minutes} min` : '-'}</td>
@@ -208,9 +299,52 @@ export function ServicesClient({ initialTreatments }: { initialTreatments: Treat
                   <input type="number" step="0.01" name="ten_plus_two_price" defaultValue={editingTreatment?.ten_plus_two_price ?? ""} className="w-full px-3 py-2 border border-line rounded-lg focus:outline-none focus:ring-1 focus:ring-royal" placeholder="0.00" />
                 </div>
 
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1.5">Service Image</label>
+                  
+                  {previewUrl ? (
+                    <div className="relative w-full aspect-[2/1] sm:aspect-video rounded-xl border border-line overflow-hidden bg-pale">
+                      <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                      <button 
+                        type="button" 
+                        onClick={onRemoveImage}
+                        className="absolute top-2 right-2 p-1.5 bg-white/90 text-red-600 rounded-lg hover:bg-white shadow-sm"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div 
+                      className={`w-full border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center transition-colors ${isDragging ? 'border-royal bg-royal/5' : 'border-line hover:border-royal/50'}`}
+                      onDragOver={onDragOver}
+                      onDragLeave={onDragLeave}
+                      onDrop={onDrop}
+                    >
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+                      />
+                      <div className="w-10 h-10 rounded-full bg-pale flex items-center justify-center text-ink-soft mb-3">
+                        <ImageIcon size={20} />
+                      </div>
+                      <p className="text-sm font-medium text-ink">Upload Service Image</p>
+                      <p className="text-xs text-ink-soft mt-1 mb-3">PNG, JPG, WEBP — Max 5MB</p>
+                      <button 
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-2 bg-pale hover:bg-line/50 text-ink font-medium text-xs rounded-lg transition-colors"
+                      >
+                        Choose Image
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <div className="col-span-2 mt-2">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="hidden" name="is_active" value="false" />
                     <input type="checkbox" name="is_active" value="true" defaultChecked={editingTreatment ? editingTreatment.is_active : true} className="w-4 h-4 text-royal border-line rounded focus:ring-royal" />
                     <span className="text-sm font-medium text-ink">Service is Active and bookable</span>
                   </label>
