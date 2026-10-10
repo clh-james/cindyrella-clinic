@@ -59,10 +59,19 @@ export function AddInventoryItem() {
                   <label htmlFor="category" className="mb-1 block text-sm font-medium text-ink">Category *</label>
                   <select required id="category" name="category" className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-royal bg-white">
                     <option value="">Select Category</option>
-                    <option value="Vitamins">Vitamins</option>
-                    <option value="IV Bags">IV Bags</option>
-                    <option value="Consumables">Consumables</option>
-                    <option value="Retail">Retail</option>
+                    <option value="IV Treatment">IV Treatment</option>
+                    <option value="IPL Hair Removal">IPL Hair Removal</option>
+                    <option value="Hair Waxing">Hair Waxing</option>
+                    <option value="Breast Augmentation">Breast Augmentation</option>
+                    <option value="Butt Augmentation">Butt Augmentation</option>
+                    <option value="Nail Care">Nail Care</option>
+                    <option value="Eyelash Extension">Eyelash Extension</option>
+                    <option value="PRP Treatment">PRP Treatment</option>
+                    <option value="Facial & Warts">Facial & Warts</option>
+                    <option value="Contouring & Whitening">Contouring & Whitening</option>
+                    <option value="Piercings">Piercings</option>
+                    <option value="Queen's Intimate Treatment">Queen&apos;s Intimate Treatment</option>
+                    <option value="King's Treatment">King&apos;s Treatment</option>
                   </select>
                 </div>
                 <div>
