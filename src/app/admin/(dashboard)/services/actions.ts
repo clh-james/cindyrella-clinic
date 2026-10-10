@@ -50,7 +50,7 @@ export async function upsertTreatment(formData: FormData) {
     }
   }
 
-  const payload: any = {
+  const payload: Record<string, unknown> = {
     name,
     slug,
     category,
