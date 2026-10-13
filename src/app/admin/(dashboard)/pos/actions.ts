@@ -126,6 +126,28 @@ export async function processPOSRetail(input: {
   const supabase = await createClient();
   const user = await supabase.auth.getUser();
 
+  // 0. Safety & Stock Validation
+  const itemIds = input.items.map(i => i.id);
+  const { data: stockItems } = await supabase
+    .from("inventory_items")
+    .select("id, name, unit, current_stock, is_quarantined")
+    .in("id", itemIds);
+
+  if (stockItems) {
+    const stockMap = new Map(stockItems.map(si => [si.id, si]));
+    for (const item of input.items) {
+      const dbItem = stockMap.get(item.id);
+      if (dbItem) {
+        if (dbItem.is_quarantined) {
+          return { error: `Item "${dbItem.name}" is currently under clinical quarantine and cannot be sold.` };
+        }
+        if (dbItem.current_stock < item.quantity) {
+          return { error: `Insufficient stock for "${dbItem.name}". Available: ${dbItem.current_stock} ${dbItem.unit}, Requested: ${item.quantity} ${dbItem.unit}.` };
+        }
+      }
+    }
+  }
+
   // 1. Create Sale Record
   const referenceNumber = generateReference();
   const { data: sale, error: saleError } = await supabase
@@ -167,6 +189,31 @@ export async function processPOSRetail(input: {
     p_sale_id: sale.id,
     p_user_id: user.data.user?.id
   });
+
+  // 4. Log in inventory_movements for audit trail
+  try {
+    const dStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    for (const item of input.items) {
+      const dbItem = stockItems?.find(si => si.id === item.id);
+      const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+      await supabase.from("inventory_movements").insert({
+        reference_number: `OUT-${dStr}-${rand}`,
+        item_id: item.id,
+        movement_type: "stock_out",
+        quantity: item.quantity,
+        unit: dbItem?.unit || "units",
+        destination_branch_id: input.branchId,
+        previous_quantity: dbItem?.current_stock ?? item.quantity,
+        new_quantity: Math.max(0, (dbItem?.current_stock ?? item.quantity) - item.quantity),
+        reason: "POS Retail Sale",
+        notes: `Sale Reference: ${referenceNumber}`,
+        reference_id: referenceNumber,
+        performed_by: user.data.user?.id
+      });
+    }
+  } catch {
+    // Ignore if inventory_movements table not yet present
+  }
 
   revalidatePath("/admin/inventory");
   

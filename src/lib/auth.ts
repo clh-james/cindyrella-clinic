@@ -5,6 +5,7 @@ export type StaffSession = {
   id: string;
   fullName: string;
   role: string;
+  branchId?: string | null;
 };
 
 export async function requireStaff(): Promise<StaffSession> {
@@ -25,12 +26,20 @@ export async function requireStaff(): Promise<StaffSession> {
 
   const { data: staff } = await supabase
     .from("staff")
-    .select("id, full_name, is_active, roles(name)")
+    .select("id, full_name, is_active, branch_id, roles(name)")
     .eq("id", user.id)
     .maybeSingle();
 
   if (!staff || !staff.is_active) redirect("/admin/login");
 
-  // @ts-expect-error - Supabase type mismatch
-  return { id: staff.id, fullName: staff.full_name, role: staff.roles?.name || "staff" };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rolesObj = staff.roles as any;
+  const roleName = Array.isArray(rolesObj) ? rolesObj[0]?.name : rolesObj?.name;
+
+  return { 
+    id: staff.id, 
+    fullName: staff.full_name, 
+    role: roleName || "staff",
+    branchId: staff.branch_id || null
+  };
 }
