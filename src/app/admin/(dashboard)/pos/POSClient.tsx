@@ -7,20 +7,28 @@ import {
   ShoppingCart, Minus, Plus, CreditCard, Banknote, ScanLine, 
   Loader2, Search, X, CheckCircle2,
   Trash2, AlertTriangle, Package as PackageIcon,
-  BriefcaseMedical, User, History, ReceiptText, Printer
+  BriefcaseMedical, User, History, ReceiptText, Printer, Bluetooth
 } from "lucide-react";
 import { processPOSWalkin, processPOSRetail, getRecentTransactions } from "./actions";
+import { 
+  printViaBluetooth, 
+  isWebBluetoothSupported, 
+  connectBluetoothPrinter,
+  type ReceiptPayload 
+} from "@/lib/bluetooth-printer";
 
 export function POSClient({ 
   treatments, 
   inventory, 
   branches,
-  staffBranchId 
+  staffBranchId,
+  cashierName
 }: { 
   treatments: { id: string; name: string; category: string; session_price: number; image_url?: string }[], 
   inventory: { id: string; name: string; category: string; retail_price?: number; current_stock: number; low_stock_threshold: number; image_url?: string }[], 
-  branches: { id: string; name: string }[],
-  staffBranchId?: string | null 
+  branches: { id: string; name: string; address?: string; phone?: string }[],
+  staffBranchId?: string | null;
+  cashierName?: string;
 }) {
   const [mode, setMode] = useState<"walkin" | "retail">("walkin");
   const [cart, setCart] = useState<{ id: string; name: string; price: number; quantity: number; maxStock?: number }[]>([]);
@@ -53,6 +61,77 @@ export function POSClient({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [transactions, setTransactions] = useState<{ reference_number: string; type: string; date: Date; method: string; amount: number }[]>([]);
+
+  // Thermal Printer & Auto-Print States
+  const [autoPrint, setAutoPrint] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("cindyrella_pos_autoprint");
+      return saved !== null ? saved === "true" : true;
+    }
+    return true;
+  });
+  const [printerName, setPrinterName] = useState<string | null>(null);
+  const [isPrinterConnecting, setIsPrinterConnecting] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printStatus, setPrintStatus] = useState<string | null>(null);
+  const [lastReceiptPayload, setLastReceiptPayload] = useState<ReceiptPayload | null>(null);
+  const [webBluetoothSupported, setWebBluetoothSupported] = useState<boolean>(true);
+
+  useEffect(() => {
+    setWebBluetoothSupported(isWebBluetoothSupported());
+  }, []);
+
+  const handleToggleAutoPrint = (enabled: boolean) => {
+    setAutoPrint(enabled);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("cindyrella_pos_autoprint", String(enabled));
+    }
+  };
+
+  const handleConnectPrinter = async () => {
+    if (!webBluetoothSupported) {
+      alert("Web Bluetooth is not supported in this browser. Please use Chrome or Edge.");
+      return;
+    }
+    setIsPrinterConnecting(true);
+    try {
+      const printer = await connectBluetoothPrinter();
+      setPrinterName(printer.name);
+      setPrintStatus(`Connected to ${printer.name}`);
+      setTimeout(() => setPrintStatus(null), 3000);
+    } catch (err: unknown) {
+      const e = err as { name?: string; message?: string };
+      if (e.name !== "NotFoundError") {
+        alert("Failed to pair Bluetooth Thermal Printer: " + (e.message || "Unknown error"));
+      }
+    } finally {
+      setIsPrinterConnecting(false);
+    }
+  };
+
+  const handlePrintViaBluetooth = async (payloadToPrint?: ReceiptPayload) => {
+    const data = payloadToPrint || lastReceiptPayload;
+    if (!data) return;
+
+    setIsPrinting(true);
+    setPrintStatus("Sending to thermal printer...");
+    try {
+      const printedPrinterName = await printViaBluetooth(data, (percent) => {
+        setPrintStatus(`Printing (${percent}%)...`);
+      });
+      setPrinterName(printedPrinterName);
+      setPrintStatus(`Printed to ${printedPrinterName}`);
+    } catch (err: unknown) {
+      const e = err as { name?: string; message?: string };
+      if (e.name === "NotFoundError") {
+        setPrintStatus("Bluetooth pairing cancelled");
+      } else {
+        setPrintStatus(`Print failed: ${e.message || "Unknown error"}`);
+      }
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   // Dynamic Categories based on mode
   const categories = useMemo(() => {
@@ -197,8 +276,44 @@ export function POSClient({
       setLoading(false);
     } else {
       const changeAmount = paymentMethod === "cash" ? (Number(cashReceived) - total) : 0;
+      const refNumber = res.referenceNumber || "";
+      const branchObj = branches.find(b => b.id === selectedBranch);
+
+      const receiptPayload: ReceiptPayload = {
+        branchName: branchObj?.name ? `${branchObj.name} Branch` : "Makati Branch",
+        branchAddress: branchObj?.address || "Makati City, Metro Manila",
+        branchPhone: branchObj?.phone || "(0917) 000 0001",
+        receiptNo: refNumber,
+        dateStr: new Date().toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+        isAppointment: mode === "walkin",
+        appointmentNo: refNumber,
+        customerName: mode === "walkin" ? (customerName || "Walk-in Customer") : "Walk-in Customer",
+        cashierName: cashierName || "Cashier",
+        items: cart.map(item => ({
+          name: item.name,
+          qty: item.quantity,
+          price: item.price,
+          amount: item.price * item.quantity,
+        })),
+        subtotal,
+        discount: discountAmount,
+        totalAmount: total,
+        paymentMethod,
+        amountPaid: total,
+        change: changeAmount > 0 ? changeAmount : 0,
+        verificationUrl: typeof window !== "undefined" ? `${window.location.origin}/verify/${refNumber}` : undefined,
+      };
+
+      setLastReceiptPayload(receiptPayload);
+
       setSuccessData({
-        referenceNumber: res.referenceNumber || "",
+        referenceNumber: refNumber,
         totalPaid: total,
         paymentMethod,
         change: changeAmount > 0 ? changeAmount : 0,
@@ -206,6 +321,15 @@ export function POSClient({
       });
       setLoading(false);
       setShowPaymentModal(false);
+
+      // Direct thermal receipt auto-print immediately after confirming payment
+      if (autoPrint) {
+        if (webBluetoothSupported && printerName) {
+          handlePrintViaBluetooth(receiptPayload);
+        } else {
+          window.open(`/admin/receipt/${refNumber}?autoprint=true`, "_blank");
+        }
+      }
     }
   };
 
@@ -215,6 +339,8 @@ export function POSClient({
     setCustomerPhone("");
     setSuccessData(null);
     setSearchQuery("");
+    setPrintStatus(null);
+    setLastReceiptPayload(null);
   };
 
   // ----------------------------------------
@@ -254,19 +380,57 @@ export function POSClient({
               </div>
             )}
             
-            <div className="pt-4 grid grid-cols-2 gap-3">
-              <button 
-                onClick={() => window.open(`/admin/receipt/${successData.referenceNumber}`, '_blank')}
-                className="w-full py-3 rounded-xl border border-line bg-white text-ink font-medium hover:bg-pale transition-colors flex items-center justify-center gap-2"
-              >
-                <Printer size={18} />
-                Print Receipt
-              </button>
+            {/* Live Thermal Printing Status Banner */}
+            {printStatus && (
+              <div className={`p-3 rounded-xl border text-xs flex items-center gap-2.5 transition-all ${
+                printStatus.includes("Printed")
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                  : printStatus.includes("Printing") || printStatus.includes("Sending")
+                  ? "bg-blue-50 border-blue-200 text-blue-800"
+                  : "bg-amber-50 border-amber-200 text-amber-800"
+              }`}>
+                {isPrinting ? (
+                  <Loader2 size={15} className="animate-spin text-blue-600 shrink-0" />
+                ) : printStatus.includes("Printed") ? (
+                  <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                ) : (
+                  <Bluetooth size={15} className="text-amber-600 shrink-0" />
+                )}
+                <span className="font-medium truncate flex-1">{printStatus}</span>
+              </div>
+            )}
+            
+            <div className="pt-2 flex flex-col gap-2.5">
+              <div className="grid grid-cols-2 gap-2.5">
+                <button 
+                  onClick={() => handlePrintViaBluetooth()}
+                  disabled={isPrinting}
+                  className="w-full py-3 px-2 rounded-xl bg-royal text-white font-medium hover:bg-royal-deep transition-colors flex items-center justify-center gap-2 text-xs sm:text-sm disabled:opacity-60 shadow-sm"
+                  title="Direct print to Bluetooth Thermal Printer (PT-210)"
+                >
+                  {isPrinting ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Bluetooth size={16} />
+                  )}
+                  <span>{printStatus?.includes("Printed") ? "Reprint (BLE)" : "Print (BLE)"}</span>
+                </button>
+
+                <button 
+                  onClick={() => window.open(`/admin/receipt/${successData.referenceNumber}`, '_blank')}
+                  className="w-full py-3 px-2 rounded-xl border border-line bg-white text-ink font-medium hover:bg-pale transition-colors flex items-center justify-center gap-2 text-xs sm:text-sm shadow-sm"
+                  title="Open formatted web receipt"
+                >
+                  <Printer size={16} />
+                  <span>Browser Print</span>
+                </button>
+              </div>
+
               <button 
                 onClick={resetPOS}
-                className="w-full py-3 rounded-xl bg-royal text-white font-medium hover:bg-royal-deep transition-colors"
+                className="w-full py-3 rounded-xl bg-neutral-900 text-white font-medium hover:bg-black transition-colors text-sm shadow-sm"
               >
-                New Sale
+                Start New Sale
               </button>
             </div>
           </div>
@@ -340,12 +504,49 @@ export function POSClient({
             )}
           </div>
           
-          <div className="p-4 border-t border-line bg-white">
-            {error && <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2"><AlertTriangle size={16}/>{error}</div>}
+          <div className="p-4 border-t border-line bg-white space-y-3">
+            {/* Direct Thermal Receipt Auto-Print Option */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-royal/5 border border-royal/15">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  printerName ? "bg-emerald-100 text-emerald-700" : "bg-royal/10 text-royal"
+                }`}>
+                  <Bluetooth size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                    Auto-print receipt
+                    {printerName ? (
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium">
+                        {printerName}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full font-normal">
+                        PT-210 Thermal
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-ink-soft">
+                    Direct print to POS printer immediately on payment
+                  </p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input 
+                  type="checkbox" 
+                  checked={autoPrint} 
+                  onChange={e => handleToggleAutoPrint(e.target.checked)} 
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-royal"></div>
+              </label>
+            </div>
+
+            {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2"><AlertTriangle size={16}/>{error}</div>}
             <button 
               onClick={processPayment} 
               disabled={loading || !isCashSufficient}
-              className="w-full py-4 rounded-xl bg-royal text-white font-semibold hover:bg-royal-deep transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-4 rounded-xl bg-royal text-white font-semibold hover:bg-royal-deep transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} />}
               CONFIRM PAYMENT
@@ -370,7 +571,26 @@ export function POSClient({
           </h1>
           <p className="hidden sm:block text-xs text-ink-soft">Create and manage transactions</p>
         </div>
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Bluetooth Thermal Printer Connect / Status Button */}
+          <button 
+            onClick={handleConnectPrinter}
+            disabled={isPrinterConnecting}
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 border rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-sm ${
+              printerName
+                ? "bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                : "bg-white border-line text-ink-soft hover:text-royal hover:border-royal hover:bg-pale"
+            }`}
+            title={printerName ? `Thermal Printer connected: ${printerName}` : "Pair Bluetooth Thermal Printer (PT-210)"}
+          >
+            {isPrinterConnecting ? (
+              <Loader2 size={16} className="animate-spin text-royal" />
+            ) : (
+              <Bluetooth size={16} className={printerName ? "text-emerald-600 animate-pulse" : "text-ink-soft"} />
+            )}
+            <span className="hidden md:inline font-mono text-xs">{printerName ? printerName : "PT-210 Printer"}</span>
+          </button>
+
           <button 
             onClick={handleOpenHistory}
             className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-line rounded-lg text-sm font-medium text-ink-soft hover:text-royal hover:border-royal hover:bg-pale transition-colors shadow-sm"

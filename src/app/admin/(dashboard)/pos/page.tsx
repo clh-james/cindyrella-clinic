@@ -13,7 +13,7 @@ export default async function POSPage() {
     supabase.from("treatments").select("*").eq("is_active", true).order("name"),
     supabase.from("inventory_items").select("*").not("retail_price", "is", null).order("name"),
     supabase.from("branches").select("*").eq("is_active", true),
-    supabase.from("staff").select("branch_id").eq("id", user.id).single()
+    supabase.from("staff").select("branch_id, full_name").eq("id", user.id).single()
   ]);
 
   return (
@@ -23,6 +23,7 @@ export default async function POSPage() {
         inventory={inventory ?? []} 
         branches={branches ?? []}
         staffBranchId={staffData?.branch_id ?? null}
+        cashierName={staffData?.full_name ?? user.fullName ?? "Cashier"}
       />
     </div>
   );

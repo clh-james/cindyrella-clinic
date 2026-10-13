@@ -2,14 +2,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Printer, Download, ArrowLeft } from "lucide-react";
+import { Printer, Download, ArrowLeft, Bluetooth, CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
+import { printViaBluetooth, isWebBluetoothSupported } from "@/lib/bluetooth-printer";
 
 export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; data: any }) {
+  const [isBtPrinting, setIsBtPrinting] = useState(false);
+  const [btStatus, setBtStatus] = useState<string>("");
+  const [btSupported, setBtSupported] = useState(true);
+
   useEffect(() => {
-    // Optionally trigger print automatically
-    // window.print();
+    setBtSupported(isWebBluetoothSupported());
   }, []);
 
   const handlePrint = () => {
@@ -93,22 +97,97 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
     setVerificationUrl(`${window.location.origin}/verify/${receiptNo}`);
   }, [receiptNo]);
 
+  // Auto-print fallback trigger if opened with ?autoprint=true
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("autoprint") === "true") {
+        const timer = setTimeout(() => {
+          window.print();
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, []);
+
+  const handleBluetoothPrint = async () => {
+    setIsBtPrinting(true);
+    setBtStatus("Connecting to BLE...");
+    try {
+      const printerName = await printViaBluetooth(
+        {
+          branchName: branch?.name,
+          branchAddress: branch?.address,
+          branchPhone: branch?.phone,
+          receiptNo,
+          dateStr,
+          isAppointment: type === "appointment",
+          appointmentNo: receiptNo,
+          customerName: customer
+            ? `${customer.first_name} ${customer.last_name}`.trim()
+            : "Walk-in Customer",
+          cashierName: staff?.full_name,
+          items,
+          subtotal,
+          discount,
+          totalAmount,
+          paymentMethod,
+          amountPaid: totalAmount,
+          verificationUrl,
+        },
+        (percent) => {
+          setBtStatus(`Printing (${percent}%)...`);
+        }
+      );
+      setBtStatus(`Printed via ${printerName}`);
+      setTimeout(() => setBtStatus(""), 4000);
+    } catch (err: any) {
+      if (err.name !== "NotFoundError") {
+        alert(`Bluetooth Thermal Printer Error: ${err.message}`);
+      }
+      setBtStatus("");
+    } finally {
+      setIsBtPrinting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-neutral-100 flex flex-col font-sans">
 
       {/* SCREEN ONLY CONTROLS */}
-      <div className="print:hidden bg-white border-b border-line p-4 shadow-sm flex items-center justify-between sticky top-0 z-50">
+      <div className="print:hidden bg-white border-b border-line p-4 shadow-sm flex flex-wrap items-center justify-between gap-3 sticky top-0 z-50">
         <Link href="/admin/pos" className="flex items-center gap-2 text-ink-soft hover:text-royal transition-colors text-sm font-medium">
           <ArrowLeft size={16} />
           Back to POS
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {btSupported && (
+            <button
+              onClick={handleBluetoothPrint}
+              disabled={isBtPrinting}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm ${
+                btStatus.startsWith("Printed")
+                  ? "bg-emerald-600 text-white"
+                  : "bg-indigo-600 text-white hover:bg-indigo-700"
+              } disabled:opacity-60`}
+            >
+              {isBtPrinting ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : btStatus.startsWith("Printed") ? (
+                <CheckCircle2 size={16} />
+              ) : (
+                <Bluetooth size={16} />
+              )}
+              <span>{btStatus || "Bluetooth Print (PT-210)"}</span>
+            </button>
+          )}
+
           <button
             onClick={handlePrint}
             className="flex items-center gap-2 bg-royal text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-royal-deep transition-colors shadow-sm"
           >
             <Printer size={16} />
-            Print Receipt
+            Browser Print
           </button>
           <button
             onClick={() => window.alert("PDF download requires a server-side PDF generator like Puppeteer or an API. Printing as PDF is supported via browser dialog.")}
@@ -120,11 +199,28 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
         </div>
       </div>
 
+      {/* GLOBAL PRINT STYLES FOR THERMAL PRINTERS */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: auto;
+            margin: 0mm;
+          }
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        }
+      `}</style>
+
       {/* RECEIPT PREVIEW WRAPPER */}
       <div className="flex-1 flex items-center justify-center p-8 print:p-0 print:block">
 
         {/* RECEIPT PAPER */}
-        <div className="bg-white w-[80mm] max-w-full mx-auto p-4 sm:p-6 print:p-0 shadow-2xl print:shadow-none text-black font-mono text-sm leading-tight">
+        <div className="bg-white w-[80mm] max-w-full print:w-full print:max-w-[80mm] mx-auto p-4 sm:p-6 print:p-2 shadow-2xl print:shadow-none text-black font-mono text-sm leading-tight">
 
           {/* HEADER */}
           <div className="text-center mb-6">
