@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { requireServerPermission } from "@/lib/rbac";
-import { Shield } from "lucide-react";
+import { hasServerPermission } from "@/lib/rbac";
+import { Shield, ShieldAlert } from "lucide-react";
+import Link from "next/link";
 import { RolePermissionsTable } from "./RolePermissionsTable";
 
 export const metadata = { title: "Roles & Permissions — Admin" };
@@ -9,7 +10,30 @@ type Permission = { id: string, key: string, name: string, module: string };
 type Role = { id: string, name: string, description: string, role_permissions: { permission_id: string }[] };
 
 export default async function RolesPage() {
-  await requireServerPermission("users.assign_role");
+  const hasAccess = await hasServerPermission("users.assign_role");
+  if (!hasAccess) {
+    return (
+      <div className="max-w-xl mx-auto my-12 rounded-2xl border border-line bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+          <ShieldAlert size={28} />
+        </div>
+        <h2 className="font-serif text-xl font-semibold text-ink">Access Restricted</h2>
+        <p className="mt-2 text-sm text-ink-soft">
+          Role &amp; Permission Management is restricted to <strong>Super Admin</strong> accounts.
+          Your current account does not have the <code>users.assign_role</code> security permission.
+        </p>
+        <div className="mt-6">
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-2 rounded-xl bg-royal px-5 py-2.5 text-sm font-medium text-white hover:bg-royal-deep transition-colors"
+          >
+            Return to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const supabase = await createClient();
 
   const [{ data: roles }, { data: permissions }] = await Promise.all([
