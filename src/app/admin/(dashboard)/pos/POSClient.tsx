@@ -280,9 +280,9 @@ export function POSClient({
       const branchObj = branches.find(b => b.id === selectedBranch);
 
       const receiptPayload: ReceiptPayload = {
-        branchName: branchObj?.name ? `${branchObj.name} Branch` : "Makati Branch",
-        branchAddress: branchObj?.address || "Makati City, Metro Manila",
-        branchPhone: branchObj?.phone || "(0917) 000 0001",
+        branchName: branchObj?.name ? `${branchObj.name} Branch` : "Davao Branch",
+        branchAddress: branchObj?.address || "Quimpo Blvd., Davao City",
+        branchPhone: branchObj?.phone || "(0930) 224 5668",
         receiptNo: refNumber,
         dateStr: new Date().toLocaleString("en-US", {
           month: "short",

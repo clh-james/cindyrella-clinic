@@ -231,10 +231,10 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
 
             <div className="mt-4 text-xs space-y-0.5">
               <p className="font-bold">{branch?.name ? `${branch.name} Branch` : "Main Branch"}</p>
-              {branch?.address && branch.address.trim().toLowerCase() !== branch?.name?.trim().toLowerCase() && (
+              {branch?.address && (
                 <p>{branch.address}</p>
               )}
-              <p>{branch?.phone || "09302245668"}</p>
+              <p>{branch?.phone || "(0930) 224 5668"}</p>
             </div>
           </div>
 
