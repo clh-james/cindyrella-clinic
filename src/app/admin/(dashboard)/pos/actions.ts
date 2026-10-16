@@ -79,8 +79,8 @@ export async function processPOSWalkin(input: {
       appointment_date: date.toISOString().split('T')[0],
       appointment_time: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
       payment_method: input.paymentMethod,
-      amount_due: input.amountDue,
-      discount_amount: input.discountAmount || 0,
+      amount_due: Math.round(Number(input.amountDue)),
+      discount_amount: Math.round(Number(input.discountAmount || 0)),
       discount_reason: input.discountReason || null,
       status: "completed",
       payment_status: "paid",
@@ -90,7 +90,8 @@ export async function processPOSWalkin(input: {
     .single();
 
   if (appointmentError || !appointment) {
-    return { error: "Failed to create walk-in appointment." };
+    console.error("Failed to create walk-in appointment:", appointmentError);
+    return { error: appointmentError?.message || "Failed to create walk-in appointment." };
   }
 
   // 3. Deduct inventory for all treatments
@@ -154,18 +155,19 @@ export async function processPOSRetail(input: {
     .from("pos_sales")
     .insert({
       reference_number: referenceNumber,
-      total_amount: input.amountDue,
+      total_amount: Math.round(Number(input.amountDue)),
       payment_method: input.paymentMethod,
       created_by: user.data.user?.id,
       branch_id: input.branchId,
-      discount_amount: input.discountAmount || 0,
+      discount_amount: Math.round(Number(input.discountAmount || 0)),
       discount_reason: input.discountReason || null
     })
     .select("id")
     .single();
 
   if (saleError || !sale) {
-    return { error: "Failed to record sale." };
+    console.error("Failed to record retail sale:", saleError);
+    return { error: saleError?.message || "Failed to record sale." };
   }
 
   // 2. Create Sale Items
@@ -173,7 +175,7 @@ export async function processPOSRetail(input: {
     sale_id: sale.id,
     item_id: item.id,
     quantity: item.quantity,
-    price_per_unit: item.price
+    price_per_unit: Math.round(Number(item.price))
   }));
 
   const { error: itemsError } = await supabase

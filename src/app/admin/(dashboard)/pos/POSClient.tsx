@@ -173,13 +173,13 @@ export function POSClient({
   const [discountValue, setDiscountValue] = useState<number | "">("");
   const [discountReason, setDiscountReason] = useState("");
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = Math.round(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0));
   const discountAmount = discountType === "percentage" 
-    ? (subtotal * (Number(discountValue) / 100)) 
+    ? Math.round(subtotal * (Number(discountValue) / 100)) 
     : discountType === "fixed" 
-      ? Number(discountValue) 
+      ? Math.round(Number(discountValue)) 
       : 0;
-  const total = Math.max(0, subtotal - discountAmount);
+  const total = Math.max(0, Math.round(subtotal - discountAmount));
 
   const addToCart = (item: { id: string; name: string; price: number; maxStock?: number }) => {
     if (mode === "walkin") {
@@ -472,12 +472,18 @@ export function POSClient({
                     placeholder="Enter amount..."
                   />
                 </div>
-                <div className="grid grid-cols-4 gap-2">
-                  <button onClick={() => setCashReceived(total)} className="py-2 border border-line rounded-lg text-sm font-medium hover:bg-pale transition-colors text-ink">Exact</button>
-                  <button onClick={() => setCashReceived(Math.ceil(total/500)*500)} className="py-2 border border-line rounded-lg text-sm font-medium hover:bg-pale transition-colors text-ink">₱{Math.ceil(total/500)*500}</button>
-                  <button onClick={() => setCashReceived(Math.ceil(total/1000)*1000)} className="py-2 border border-line rounded-lg text-sm font-medium hover:bg-pale transition-colors text-ink">₱{Math.ceil(total/1000)*1000}</button>
-                  <button onClick={() => setCashReceived(Number(cashReceived) + 1000)} className="py-2 border border-line rounded-lg text-sm font-medium hover:bg-pale transition-colors text-ink">+1k</button>
-                </div>
+                {(() => {
+                  const next500 = Math.ceil(total / 500) * 500;
+                  const nextHigher = Math.ceil(total / 1000) * 1000 <= next500 ? next500 + 500 : Math.ceil(total / 1000) * 1000;
+                  return (
+                    <div className="grid grid-cols-4 gap-2">
+                      <button onClick={() => setCashReceived(total)} className="py-2 border border-line rounded-lg text-sm font-medium hover:bg-pale transition-colors text-ink">Exact</button>
+                      <button onClick={() => setCashReceived(next500)} className="py-2 border border-line rounded-lg text-sm font-medium hover:bg-pale transition-colors text-ink">₱{next500.toLocaleString()}</button>
+                      <button onClick={() => setCashReceived(nextHigher)} className="py-2 border border-line rounded-lg text-sm font-medium hover:bg-pale transition-colors text-ink">₱{nextHigher.toLocaleString()}</button>
+                      <button onClick={() => setCashReceived(Number(cashReceived || total) + 1000)} className="py-2 border border-line rounded-lg text-sm font-medium hover:bg-pale transition-colors text-ink">+1k</button>
+                    </div>
+                  );
+                })()}
                 
                 <div className="flex justify-between items-center p-4 bg-white rounded-xl border border-line mt-4">
                   <span className="font-medium text-ink-soft">Change</span>
