@@ -315,7 +315,7 @@ export function InventoryDashboardView({
             <TrendingUp size={16} className="text-royal" />
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={movementBreakdown} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -345,24 +345,27 @@ export function InventoryDashboardView({
             <BarChart3 size={16} className="text-royal" />
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={categoryChartData.slice(0, 6)}
                 layout="vertical"
-                margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                margin={{ top: 10, right: 25, left: 10, bottom: 10 }}
+                barSize={18}
               >
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                 <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} />
                 <YAxis
                   type="category"
                   dataKey="name"
-                  tick={{ fontSize: 10, fill: "#1e293b" }}
-                  width={90}
+                  tick={{ fontSize: 11, fill: "#334155" }}
+                  width={140}
+                  tickFormatter={(val: string) => (val && val.length > 20 ? `${val.slice(0, 18)}…` : val)}
                 />
                 <Tooltip
-                  formatter={(val) => [`${val} units`, "Stock"]}
-                  contentStyle={{ backgroundColor: "#ffffff", borderRadius: "12px", border: "1px solid #e2e8f0" }}
+                  formatter={(val) => [`${val} units`, "Stock Units"]}
+                  labelFormatter={(label) => `Category: ${label}`}
+                  contentStyle={{ backgroundColor: "#ffffff", borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}
                 />
                 <Bar dataKey="stock" fill="#1e3a8a" radius={[0, 6, 6, 0]} />
               </BarChart>
