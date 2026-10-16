@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { openShift, closeShift, approveVariance, getShiftTransactions, getShiftAuditLogs } from "./actions";
 import { 
   WalletCards, Play, Square, AlertCircle, FileText, Filter, LayoutDashboard, 
   Clock, History, FileSearch, Search, UserCheck, CheckCircle2, ArrowLeft, 
   ExternalLink, Loader2, AlertTriangle, ShieldCheck, Banknote, CreditCard, 
-  ShoppingBag, Stethoscope, RefreshCw, X 
+  RefreshCw, X 
 } from "lucide-react";
 import toast from "react-hot-toast";
 
