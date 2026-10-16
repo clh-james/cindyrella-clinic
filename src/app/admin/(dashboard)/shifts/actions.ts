@@ -64,20 +64,32 @@ export async function closeShift(data: { shiftId: string, actualCash: number, no
 
   const now = new Date().toISOString();
 
-  // Calculate expected cash (Starting Cash + All Cash transactions by this cashier since opened_at)
-  // 1. POS Retail Sales (CASH only)
+  // Calculate expected cash (Starting Cash + All Cash transactions by this cashier/branch since opened_at)
+  // 1. Walk-in Clinic Treatments / Services (appointments paid in cash, completed/paid, not cancelled)
+  const { data: apptSales } = await supabase
+    .from("appointments")
+    .select("amount_due")
+    .eq("branch_id", shift.branch_id)
+    .eq("payment_method", "cash")
+    .eq("payment_status", "paid")
+    .neq("status", "cancelled")
+    .gte("created_at", shift.opened_at)
+    .lte("created_at", now);
+
+  const apptCash = (apptSales || []).reduce((acc, a) => acc + (a.amount_due || 0), 0);
+
+  // 2. POS Retail Sales (CASH only)
   const { data: posSales } = await supabase
     .from("pos_sales")
     .select("total_amount")
-    .eq("created_by", shift.cashier_id)
+    .eq("branch_id", shift.branch_id)
     .eq("payment_method", "cash")
     .gte("created_at", shift.opened_at)
     .lte("created_at", now);
 
   const posCash = (posSales || []).reduce((acc, sale) => acc + (sale.total_amount || 0), 0);
   
-  // Note: in a real implementation we would also query appointments/walkins here if they use a different table.
-  const cashSales = posCash;
+  const cashSales = apptCash + posCash;
   const cashRefunds = 0; // Assuming 0 for now as refunds are not fully implemented
 
   const expectedCash = shift.starting_cash + cashSales - cashRefunds;
