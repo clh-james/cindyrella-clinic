@@ -36,11 +36,11 @@ export async function openShift(data: { startingCash: number, branchId: string }
   // Audit log
   await supabase.from("audit_logs").insert({
     action: "SHIFT_OPENED",
-    entity: "cashier_shifts",
-    entity_id: newShift.id,
-    performed_by: userAuth.user.id,
+    resource_type: "cashier_shifts",
+    resource_id: newShift.id,
+    user_id: userAuth.user.id,
     branch_id: data.branchId,
-    details: { opening_cash: data.startingCash }
+    metadata: { opening_cash: data.startingCash }
   });
 
   revalidatePath("/admin/shifts");
@@ -119,11 +119,11 @@ export async function closeShift(data: { shiftId: string, actualCash: number, no
   // Audit log
   await supabase.from("audit_logs").insert({
     action: status === "closed" ? "SHIFT_CLOSED" : "SHIFT_VARIANCE_CREATED",
-    entity: "cashier_shifts",
-    entity_id: shift.id,
-    performed_by: userAuth.user.id,
+    resource_type: "cashier_shifts",
+    resource_id: shift.id,
+    user_id: userAuth.user.id,
     branch_id: shift.branch_id,
-    details: { expected: expectedCash, actual: data.actualCash, variance: variance, notes: data.notes }
+    metadata: { expected: expectedCash, actual: data.actualCash, variance: variance, notes: data.notes, reason: data.reason }
   });
 
   revalidatePath("/admin/shifts");
@@ -144,13 +144,206 @@ export async function approveVariance(shiftId: string) {
 
   await supabase.from("audit_logs").insert({
     action: "SHIFT_VARIANCE_APPROVED",
-    entity: "cashier_shifts",
-    entity_id: shiftId,
-    performed_by: userAuth.user.id,
+    resource_type: "cashier_shifts",
+    resource_id: shiftId,
+    user_id: userAuth.user.id,
     branch_id: shift.branch_id,
-    details: {}
+    metadata: { approved_variance: shift.variance }
   });
 
   revalidatePath("/admin/shifts");
   return { success: true };
 }
+
+export async function getShiftTransactions(shiftId: string) {
+  const supabase = await createClient();
+
+  const { data: shift, error: shiftErr } = await supabase
+    .from("cashier_shifts")
+    .select("id, branch_id, opened_at, closed_at, cashier_id")
+    .eq("id", shiftId)
+    .single();
+
+  if (shiftErr || !shift) return { error: "Shift not found" };
+
+  // 1. Appointments (clinic treatments)
+  let apptQuery = supabase
+    .from("appointments")
+    .select(`
+      id, reference_number, appointment_date, appointment_time, payment_status, payment_method, amount_due, status, created_at,
+      customers(first_name, last_name, phone),
+      treatments(name)
+    `)
+    .eq("branch_id", shift.branch_id)
+    .gte("created_at", shift.opened_at);
+
+  if (shift.closed_at) {
+    apptQuery = apptQuery.lte("created_at", shift.closed_at);
+  }
+
+  const { data: appts } = await apptQuery;
+
+  // 2. POS Retail Sales
+  let posQuery = supabase
+    .from("pos_sales")
+    .select(`
+      id, reference_number, created_at, payment_method, status, total_amount,
+      customers(first_name, last_name, phone),
+      items:pos_sale_items(quantity, price_per_unit, item:inventory_items(name))
+    `)
+    .eq("branch_id", shift.branch_id)
+    .gte("created_at", shift.opened_at);
+
+  if (shift.closed_at) {
+    posQuery = posQuery.lte("created_at", shift.closed_at);
+  }
+
+  const { data: posSales } = await posQuery;
+
+  // Format into unified transactions
+  const formattedAppts = (appts || []).map((a: any) => ({
+    id: a.id,
+    type: "treatment" as const,
+    reference_number: a.reference_number || "N/A",
+    created_at: a.created_at,
+    customer_name: a.customers ? `${a.customers.first_name || ""} ${a.customers.last_name || ""}`.trim() : "Walk-in Guest",
+    customer_phone: a.customers?.phone || "",
+    description: a.treatments?.name || "Clinic Treatment",
+    payment_method: a.payment_method || "cash",
+    amount: a.amount_due || 0,
+    status: a.payment_status === "voided" || a.status === "cancelled" ? "voided" : a.payment_status || "paid",
+  }));
+
+  const formattedPos = (posSales || []).map((s: any) => ({
+    id: s.id,
+    type: "retail" as const,
+    reference_number: s.reference_number || "N/A",
+    created_at: s.created_at,
+    customer_name: s.customers ? `${s.customers.first_name || ""} ${s.customers.last_name || ""}`.trim() : "Retail Customer",
+    customer_phone: s.customers?.phone || "",
+    description: s.items && s.items.length > 0 
+      ? s.items.map((i: any) => `${i.item?.name || "Product"} (x${i.quantity})`).join(", ")
+      : "POS Retail Sale",
+    payment_method: s.payment_method || "cash",
+    amount: s.total_amount || 0,
+    status: s.status || "completed",
+  }));
+
+  const all = [...formattedAppts, ...formattedPos].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  return { transactions: all };
+}
+
+export async function getShiftAuditLogs(shiftId: string) {
+  const supabase = await createClient();
+
+  // 1. Fetch shift info
+  const { data: shift, error: shiftErr } = await supabase
+    .from("cashier_shifts")
+    .select("*, cashier:cashier_id(id, full_name), branch:branch_id(name)")
+    .eq("id", shiftId)
+    .single();
+
+  if (shiftErr || !shift) return { error: "Shift not found" };
+
+  // 2. Fetch staff for display name resolution
+  const { data: staffList } = await supabase.from("staff").select("id, full_name");
+  const staffMap: Record<string, string> = {};
+  (staffList || []).forEach((s: any) => {
+    staffMap[s.id] = s.full_name;
+  });
+
+  // 3. Fetch explicit audit logs for this shift
+  const { data: rawLogs } = await supabase
+    .from("audit_logs")
+    .select("*")
+    .or(`resource_id.eq.${shift.id},metadata->>shift_id.eq.${shift.id}`)
+    .order("created_at", { ascending: false });
+
+  // 4. Fetch voids that took place in this branch during this shift window
+  let voidQuery = supabase
+    .from("audit_logs")
+    .select("*")
+    .eq("action", "VOID_TRANSACTION")
+    .gte("created_at", shift.opened_at);
+
+  if (shift.closed_at) {
+    voidQuery = voidQuery.lte("created_at", shift.closed_at);
+  }
+
+  const { data: voidLogs } = await voidQuery;
+
+  // Synthesize lifecycle events if missing in audit_logs
+  const timeline: Array<{
+    id: string;
+    action: string;
+    user_name: string;
+    created_at: string;
+    details: any;
+  }> = [];
+
+  // Opening event
+  timeline.push({
+    id: `open-${shift.id}`,
+    action: "SHIFT_OPENED",
+    user_name: shift.cashier?.full_name || staffMap[shift.cashier_id] || "Cashier",
+    created_at: shift.opened_at,
+    details: {
+      opening_cash: shift.starting_cash,
+      branch: shift.branch?.name || "Clinic",
+    },
+  });
+
+  // Void events
+  (voidLogs || []).forEach((v: any) => {
+    timeline.push({
+      id: v.id,
+      action: "VOID_TRANSACTION",
+      user_name: staffMap[v.user_id] || "Staff",
+      created_at: v.created_at,
+      details: {
+        reason: v.metadata?.reason || "No reason specified",
+        target_id: v.resource_id,
+        resource_type: v.resource_type,
+      },
+    });
+  });
+
+  // Explicit logs (avoid duplicates)
+  (rawLogs || []).forEach((l: any) => {
+    if (l.action !== "SHIFT_OPENED") {
+      timeline.push({
+        id: l.id,
+        action: l.action,
+        user_name: staffMap[l.user_id] || "Staff",
+        created_at: l.created_at,
+        details: l.metadata || {},
+      });
+    }
+  });
+
+  // Closing event if closed
+  if (shift.closed_at) {
+    timeline.push({
+      id: `close-${shift.id}`,
+      action: "SHIFT_CLOSED",
+      user_name: staffMap[shift.closed_by || shift.cashier_id] || "Staff",
+      created_at: shift.closed_at,
+      details: {
+        actual_cash: shift.actual_cash,
+        expected_cash: shift.expected_cash,
+        variance: shift.variance,
+        reason: shift.variance_reason,
+        notes: shift.notes,
+      },
+    });
+  }
+
+  // Sort chronological descending
+  timeline.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  return { timeline };
+}
+

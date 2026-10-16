@@ -2,8 +2,14 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { openShift, closeShift, approveVariance } from "./actions";
-import { WalletCards, Play, Square, AlertCircle, FileText, Filter, LayoutDashboard, Clock, History, FileSearch, Search, UserCheck, CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+import { openShift, closeShift, approveVariance, getShiftTransactions, getShiftAuditLogs } from "./actions";
+import { 
+  WalletCards, Play, Square, AlertCircle, FileText, Filter, LayoutDashboard, 
+  Clock, History, FileSearch, Search, UserCheck, CheckCircle2, ArrowLeft, 
+  ExternalLink, Loader2, AlertTriangle, ShieldCheck, Banknote, CreditCard, 
+  ShoppingBag, Stethoscope, RefreshCw, X 
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 const peso = (n: number | null | undefined) => n == null ? "-" : `₱${n.toLocaleString("en-PH")}`;
@@ -19,6 +25,46 @@ export function ShiftsClient({ branches, initialShifts, currentUserId, currentUs
   const [reason, setReason] = useState("");
 
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
+  const [drawerTab, setDrawerTab] = useState<"details" | "transactions" | "audit">("details");
+  const [shiftTransactions, setShiftTransactions] = useState<any[] | null>(null);
+  const [shiftAuditLogs, setShiftAuditLogs] = useState<any[] | null>(null);
+  const [loadingSubdata, setLoadingSubdata] = useState(false);
+  const [txFilter, setTxFilter] = useState("");
+
+  const handleOpenShiftDrawer = (shiftId: string, initialTab: "details" | "transactions" | "audit" = "details") => {
+    setSelectedShiftId(shiftId);
+    setDrawerTab(initialTab);
+    setShiftTransactions(null);
+    setShiftAuditLogs(null);
+    setTxFilter("");
+    if (initialTab === "transactions") {
+      fetchTransactions(shiftId);
+    } else if (initialTab === "audit") {
+      fetchAuditLogs(shiftId);
+    }
+  };
+
+  const fetchTransactions = async (shiftId: string) => {
+    setLoadingSubdata(true);
+    const res = await getShiftTransactions(shiftId);
+    if (res.transactions) {
+      setShiftTransactions(res.transactions);
+    } else {
+      toast.error(res.error || "Failed to load transactions");
+    }
+    setLoadingSubdata(false);
+  };
+
+  const fetchAuditLogs = async (shiftId: string) => {
+    setLoadingSubdata(true);
+    const res = await getShiftAuditLogs(shiftId);
+    if (res.timeline) {
+      setShiftAuditLogs(res.timeline);
+    } else {
+      toast.error(res.error || "Failed to load audit logs");
+    }
+    setLoadingSubdata(false);
+  };
 
   const myOpenShift = initialShifts.find(s => s.cashier_id === currentUserId && s.status === "open");
 
@@ -158,7 +204,7 @@ export function ShiftsClient({ branches, initialShifts, currentUserId, currentUs
             <div className="w-px bg-line hidden md:block"></div>
             
             <div className="flex flex-col justify-end gap-3 md:w-48 shrink-0">
-              <button onClick={() => setSelectedShiftId(myOpenShift.id)} className="w-full py-2 border border-line rounded-lg text-sm font-semibold hover:bg-pale transition-colors text-ink">View Details</button>
+              <button onClick={() => handleOpenShiftDrawer(myOpenShift.id)} className="w-full py-2 border border-line rounded-lg text-sm font-semibold hover:bg-pale transition-colors text-ink">View Details</button>
               <button onClick={() => setCloseShiftId(myOpenShift.id)} className="w-full py-2 bg-ink text-white rounded-lg text-sm font-semibold hover:bg-ink/90 transition-colors flex justify-center items-center gap-2"><Square size={16}/> Close Shift</button>
             </div>
           </div>
@@ -242,7 +288,7 @@ export function ShiftsClient({ branches, initialShifts, currentUserId, currentUs
                   </td>
                   <td className="px-4 py-3">{getStatusBadge(shift.status)}</td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => setSelectedShiftId(shift.id)} className="text-royal font-semibold hover:underline">Details</button>
+                    <button onClick={() => handleOpenShiftDrawer(shift.id)} className="text-royal font-semibold hover:underline">Details</button>
                   </td>
                 </tr>
               ))}
@@ -320,73 +366,454 @@ export function ShiftsClient({ branches, initialShifts, currentUserId, currentUs
         </div>
       )}
 
-      {/* SHIFT DETAILS DRAWER/MODAL */}
+      {/* SHIFT DETAILS DRAWER */}
       {selectedShiftDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-end p-4 bg-ink/40 backdrop-blur-sm sm:p-0">
-          <div className="bg-white shadow-2xl w-full max-w-md h-full sm:h-screen overflow-y-auto animate-in slide-in-from-right duration-300">
-            <div className="p-5 border-b border-line bg-pale/30 flex items-center justify-between sticky top-0 z-10 backdrop-blur-md">
-              <h2 className="font-serif font-bold text-lg text-ink flex items-center gap-2"><FileText className="text-royal" size={20}/> SHIFT DETAILS</h2>
-              <button onClick={() => setSelectedShiftId(null)} className="p-2 text-ink-soft hover:bg-line/50 rounded-full">✕</button>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between"><span className="text-ink-soft">Shift ID</span><span className="font-mono text-xs">{selectedShiftDetails.id}</span></div>
-                <div className="flex justify-between"><span className="text-ink-soft">Cashier</span><span className="font-semibold">{selectedShiftDetails.staff?.full_name}</span></div>
-                <div className="flex justify-between"><span className="text-ink-soft">Branch</span><span className="font-semibold">{selectedShiftDetails.branches?.name}</span></div>
-                <div className="flex justify-between items-center"><span className="text-ink-soft">Status</span>{getStatusBadge(selectedShiftDetails.status)}</div>
-              </div>
-
-              {selectedShiftDetails.status === "variance_review" && currentUserRole !== "CASHIER" && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
-                  <div className="flex items-center gap-2 text-amber-700 font-bold text-sm"><AlertCircle size={16}/> ACTION REQUIRED</div>
-                  <p className="text-sm text-amber-900/80 text-xs">This shift reported a variance of <span className="font-bold">{peso(selectedShiftDetails.variance)}</span>.</p>
-                  <div className="bg-white/50 p-2 rounded text-xs">
-                    <span className="font-semibold text-amber-800">Reason:</span> {selectedShiftDetails.variance_reason}<br/>
-                    <span className="font-semibold text-amber-800">Notes:</span> {selectedShiftDetails.notes || "None"}
-                  </div>
-                  <button onClick={() => handleApprove(selectedShiftDetails.id)} disabled={isPending} className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold disabled:opacity-50">Approve & Close Shift</button>
-                </div>
-              )}
-
-              <div>
-                <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-3 border-b border-line pb-1">OPENING</p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-ink-soft">Opening Cash</span><span className="font-mono">{peso(selectedShiftDetails.starting_cash)}</span></div>
-                  <div className="flex justify-between"><span className="text-ink-soft">Opened</span><span>{new Date(selectedShiftDetails.opened_at).toLocaleString()}</span></div>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-3 border-b border-line pb-1">SALES & ADJUSTMENTS</p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-ink-soft">Cash Sales</span><span className="font-mono text-green-600">+{peso(selectedShiftDetails.cash_sales || 0)}</span></div>
-                  <div className="flex justify-between"><span className="text-ink-soft">Cash Refunds</span><span className="font-mono text-red-500">-{peso(selectedShiftDetails.cash_refunds || 0)}</span></div>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-3 border-b border-line pb-1">RECONCILIATION</p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between font-bold"><span className="text-ink">Expected Cash</span><span className="font-mono text-royal">{peso(selectedShiftDetails.expected_cash)}</span></div>
-                  <div className="flex justify-between font-bold"><span className="text-ink">Actual Cash</span><span className="font-mono">{peso(selectedShiftDetails.actual_cash)}</span></div>
-                  <div className={`flex justify-between font-bold p-2 rounded ${selectedShiftDetails.variance === 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}><span className="">Variance</span><span className="font-mono">{peso(selectedShiftDetails.variance)}</span></div>
-                </div>
-              </div>
-              
-              {selectedShiftDetails.closed_at && (
+          <div className="bg-white shadow-2xl w-full max-w-md sm:max-w-lg h-full sm:h-screen flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
+            {/* DRAWER HEADER */}
+            <div className="p-4 border-b border-line bg-pale/40 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <FileText className="text-royal" size={20}/>
                 <div>
-                  <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-3 border-b border-line pb-1">CLOSING</p>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-ink-soft">Closed</span><span>{new Date(selectedShiftDetails.closed_at).toLocaleString()}</span></div>
+                  <h2 className="font-serif font-bold text-base text-ink">SHIFT DETAILS</h2>
+                  <p className="text-[11px] font-mono text-ink-soft">ID: {selectedShiftDetails.id.slice(0, 18)}...</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedShiftId(null)} 
+                className="p-1.5 text-ink-soft hover:text-ink hover:bg-line/50 rounded-lg transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* SEGMENTED TAB SWITCHER */}
+            <div className="flex border-b border-line bg-pale/20 px-4 shrink-0">
+              <button
+                onClick={() => setDrawerTab("details")}
+                className={`py-2.5 px-3 text-xs font-bold border-b-2 transition-colors ${
+                  drawerTab === "details"
+                    ? "border-royal text-royal"
+                    : "border-transparent text-ink-soft hover:text-ink"
+                }`}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => {
+                  setDrawerTab("transactions");
+                  if (!shiftTransactions) fetchTransactions(selectedShiftDetails.id);
+                }}
+                className={`py-2.5 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+                  drawerTab === "transactions"
+                    ? "border-royal text-royal"
+                    : "border-transparent text-ink-soft hover:text-ink"
+                }`}
+              >
+                <FileSearch size={14} /> Transactions
+                {shiftTransactions && (
+                  <span className="text-[10px] bg-royal/10 text-royal px-1.5 py-0.2 rounded-full font-bold">
+                    {shiftTransactions.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setDrawerTab("audit");
+                  if (!shiftAuditLogs) fetchAuditLogs(selectedShiftDetails.id);
+                }}
+                className={`py-2.5 px-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+                  drawerTab === "audit"
+                    ? "border-royal text-royal"
+                    : "border-transparent text-ink-soft hover:text-ink"
+                }`}
+              >
+                <UserCheck size={14} /> Audit Log
+                {shiftAuditLogs && (
+                  <span className="text-[10px] bg-royal/10 text-royal px-1.5 py-0.2 rounded-full font-bold">
+                    {shiftAuditLogs.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* TAB CONTENT (SCROLLABLE) */}
+            <div className="flex-1 overflow-y-auto p-5">
+              {/* TAB 1: OVERVIEW */}
+              {drawerTab === "details" && (
+                <div className="space-y-5">
+                  <div className="space-y-1.5 text-sm bg-pale/20 p-3.5 rounded-xl border border-line/60">
+                    <div className="flex justify-between items-center"><span className="text-ink-soft text-xs">Cashier</span><span className="font-semibold text-ink">{selectedShiftDetails.staff?.full_name}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-ink-soft text-xs">Branch</span><span className="font-semibold text-ink">{selectedShiftDetails.branches?.name}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-ink-soft text-xs">Status</span>{getStatusBadge(selectedShiftDetails.status)}</div>
+                  </div>
+
+                  {selectedShiftDetails.status === "variance_review" && currentUserRole !== "CASHIER" && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+                      <div className="flex items-center gap-2 text-amber-700 font-bold text-sm"><AlertCircle size={16}/> ACTION REQUIRED</div>
+                      <p className="text-sm text-amber-900/80 text-xs">This shift reported a variance of <span className="font-bold">{peso(selectedShiftDetails.variance)}</span>.</p>
+                      <div className="bg-white/50 p-2 rounded text-xs">
+                        <span className="font-semibold text-amber-800">Reason:</span> {selectedShiftDetails.variance_reason}<br/>
+                        <span className="font-semibold text-amber-800">Notes:</span> {selectedShiftDetails.notes || "None"}
+                      </div>
+                      <button onClick={() => handleApprove(selectedShiftDetails.id)} disabled={isPending} className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold disabled:opacity-50">Approve & Close Shift</button>
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-2.5 border-b border-line pb-1">OPENING</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-ink-soft">Opening Cash</span><span className="font-mono font-medium">{peso(selectedShiftDetails.starting_cash)}</span></div>
+                      <div className="flex justify-between"><span className="text-ink-soft">Opened</span><span className="text-ink">{new Date(selectedShiftDetails.opened_at).toLocaleString()}</span></div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-2.5 border-b border-line pb-1">SALES & ADJUSTMENTS</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-ink-soft">Cash Sales</span><span className="font-mono font-bold text-green-600">+{peso(selectedShiftDetails.cash_sales || 0)}</span></div>
+                      <div className="flex justify-between"><span className="text-ink-soft">Cash Refunds</span><span className="font-mono text-red-500">-{peso(selectedShiftDetails.cash_refunds || 0)}</span></div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-2.5 border-b border-line pb-1">RECONCILIATION</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between font-bold">
+                        <span className="text-ink">Expected Cash</span>
+                        <span className="font-mono text-royal flex items-center gap-1.5">
+                          {peso(selectedShiftDetails.expected_cash ?? ((selectedShiftDetails.starting_cash || 0) + (selectedShiftDetails.cash_sales || 0) - (selectedShiftDetails.cash_refunds || 0)))}
+                          {selectedShiftDetails.status === "open" && (
+                            <span className="text-[10px] px-1.5 py-0.2 bg-royal/10 text-royal font-semibold rounded tracking-wider uppercase">Live</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between font-bold">
+                        <span className="text-ink">Actual Cash</span>
+                        <span className="font-mono">
+                          {selectedShiftDetails.status === "open" ? (
+                            <span className="text-xs font-normal text-ink-soft italic">Pending close</span>
+                          ) : (
+                            peso(selectedShiftDetails.actual_cash)
+                          )}
+                        </span>
+                      </div>
+                      <div className={`flex justify-between font-bold p-2.5 rounded-lg ${
+                        selectedShiftDetails.status === "open"
+                          ? "bg-pale/50 text-ink-soft"
+                          : selectedShiftDetails.variance === 0
+                          ? "bg-green-50 text-green-700"
+                          : "bg-red-50 text-red-700"
+                      }`}>
+                        <span>Variance</span>
+                        <span className="font-mono">
+                          {selectedShiftDetails.status === "open" ? (
+                            <span className="text-xs font-normal italic">Pending close</span>
+                          ) : (
+                            peso(selectedShiftDetails.variance)
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {selectedShiftDetails.closed_at && (
+                    <div>
+                      <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-2.5 border-b border-line pb-1">CLOSING</p>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="text-ink-soft">Closed</span><span>{new Date(selectedShiftDetails.closed_at).toLocaleString()}</span></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* BOTTOM ACTION BUTTONS */}
+                  <div className="pt-2 flex gap-2.5">
+                    <button 
+                      onClick={() => {
+                        setDrawerTab("transactions");
+                        if (!shiftTransactions) fetchTransactions(selectedShiftDetails.id);
+                      }} 
+                      className="flex-1 py-2.5 border border-line rounded-xl text-sm font-semibold hover:bg-royal/5 hover:border-royal text-ink flex items-center justify-center gap-2 transition-all shadow-sm"
+                    >
+                      <FileSearch size={16} className="text-royal"/> Transactions
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setDrawerTab("audit");
+                        if (!shiftAuditLogs) fetchAuditLogs(selectedShiftDetails.id);
+                      }} 
+                      className="flex-1 py-2.5 border border-line rounded-xl text-sm font-semibold hover:bg-royal/5 hover:border-royal text-ink flex items-center justify-center gap-2 transition-all shadow-sm"
+                    >
+                      <UserCheck size={16} className="text-royal"/> Audit Log
+                    </button>
                   </div>
                 </div>
               )}
-              
-              <div className="pt-4 flex gap-2">
-                 <button className="flex-1 py-2.5 border border-line rounded-xl text-sm font-semibold hover:bg-pale text-ink flex items-center justify-center gap-2"><FileSearch size={16}/> Transactions</button>
-                 <button className="flex-1 py-2.5 border border-line rounded-xl text-sm font-semibold hover:bg-pale text-ink flex items-center justify-center gap-2"><UserCheck size={16}/> Audit Log</button>
-              </div>
+
+              {/* TAB 2: TRANSACTIONS */}
+              {drawerTab === "transactions" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <button 
+                      onClick={() => setDrawerTab("details")} 
+                      className="text-xs text-ink-soft hover:text-ink font-semibold flex items-center gap-1.5 px-2 py-1 rounded hover:bg-pale transition-colors"
+                    >
+                      <ArrowLeft size={14}/> Back to Overview
+                    </button>
+                    <button 
+                      onClick={() => fetchTransactions(selectedShiftDetails.id)} 
+                      disabled={loadingSubdata} 
+                      className="text-xs text-royal font-semibold hover:underline flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <RefreshCw size={12} className={loadingSubdata ? "animate-spin" : ""}/> Refresh
+                    </button>
+                  </div>
+
+                  {loadingSubdata ? (
+                    <div className="py-16 text-center text-ink-soft space-y-2">
+                      <Loader2 size={24} className="animate-spin mx-auto text-royal" />
+                      <p className="text-xs">Loading shift transactions...</p>
+                    </div>
+                  ) : !shiftTransactions || shiftTransactions.length === 0 ? (
+                    <div className="py-12 text-center text-ink-soft space-y-2 bg-pale/30 rounded-xl border border-line">
+                      <FileSearch size={32} className="mx-auto text-ink-soft/40" />
+                      <p className="text-sm font-medium text-ink">No transactions recorded yet</p>
+                      <p className="text-xs">Transactions processed during this shift will appear here.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* STATS SUMMARY BAR */}
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="p-2.5 bg-pale/40 border border-line rounded-lg">
+                          <p className="text-[10px] text-ink-soft uppercase font-bold tracking-wider">Total Orders</p>
+                          <p className="text-sm font-bold text-ink font-mono mt-0.5">{shiftTransactions.length}</p>
+                        </div>
+                        <div className="p-2.5 bg-green-50 border border-green-200/60 rounded-lg">
+                          <p className="text-[10px] text-green-700 uppercase font-bold tracking-wider">Cash Total</p>
+                          <p className="text-sm font-bold text-green-700 font-mono mt-0.5">
+                            {peso(
+                              shiftTransactions
+                                .filter(t => t.payment_method?.toLowerCase() === "cash" && t.status !== "voided")
+                                .reduce((sum, t) => sum + (t.amount || 0), 0)
+                            )}
+                          </p>
+                        </div>
+                        <div className="p-2.5 bg-royal/10 border border-royal/20 rounded-lg">
+                          <p className="text-[10px] text-royal uppercase font-bold tracking-wider">Gross Total</p>
+                          <p className="text-sm font-bold text-royal font-mono mt-0.5">
+                            {peso(
+                              shiftTransactions
+                                .filter(t => t.status !== "voided")
+                                .reduce((sum, t) => sum + (t.amount || 0), 0)
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* FILTER INPUT */}
+                      <div className="relative">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                        <input
+                          type="text"
+                          placeholder="Search ref, customer, or service..."
+                          value={txFilter}
+                          onChange={e => setTxFilter(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-line rounded-lg outline-none focus:border-royal"
+                        />
+                      </div>
+
+                      {/* TRANSACTIONS LIST */}
+                      <div className="space-y-2.5">
+                        {shiftTransactions
+                          .filter(t => {
+                            if (!txFilter) return true;
+                            const term = txFilter.toLowerCase();
+                            return (
+                              t.reference_number?.toLowerCase().includes(term) ||
+                              t.customer_name?.toLowerCase().includes(term) ||
+                              t.description?.toLowerCase().includes(term) ||
+                              t.payment_method?.toLowerCase().includes(term)
+                            );
+                          })
+                          .map((tx: any) => {
+                            const isVoided = tx.status === "voided" || tx.status === "cancelled";
+                            return (
+                              <div 
+                                key={tx.id} 
+                                className={`p-3 rounded-xl border transition-all ${
+                                  isVoided 
+                                    ? "bg-red-50/40 border-red-200" 
+                                    : "bg-white border-line hover:border-royal/40 shadow-sm"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-mono text-xs font-bold text-ink">
+                                        {tx.reference_number}
+                                      </span>
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${
+                                        isVoided 
+                                          ? "bg-red-100 text-red-700" 
+                                          : "bg-green-100 text-green-700"
+                                      }`}>
+                                        {isVoided ? "VOIDED" : "PAID"}
+                                      </span>
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold bg-pale text-ink-soft">
+                                        {tx.type === "retail" ? "Retail" : "Treatment"}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs font-semibold text-ink mt-1">
+                                      {tx.customer_name}
+                                    </p>
+                                    <p className="text-[11px] text-ink-soft line-clamp-1">
+                                      {tx.description}
+                                    </p>
+                                  </div>
+
+                                  <div className="text-right shrink-0">
+                                    <p className={`font-mono font-bold text-sm ${isVoided ? "line-through text-red-500" : "text-ink"}`}>
+                                      {peso(tx.amount)}
+                                    </p>
+                                    <span className="inline-flex items-center gap-1 text-[10px] uppercase font-semibold text-ink-soft mt-0.5">
+                                      {tx.payment_method === "cash" ? (
+                                        <Banknote size={11} className="text-green-600" />
+                                      ) : (
+                                        <CreditCard size={11} className="text-royal" />
+                                      )}
+                                      {tx.payment_method || "cash"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="mt-2.5 pt-2 border-t border-line/60 flex items-center justify-between text-[11px]">
+                                  <span className="text-ink-soft">
+                                    {new Date(tx.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                  <Link 
+                                    href={`/admin/receipt/${tx.reference_number}`} 
+                                    target="_blank" 
+                                    className="text-royal font-semibold hover:underline flex items-center gap-1"
+                                  >
+                                    View Receipt <ExternalLink size={11} />
+                                  </Link>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 3: AUDIT LOG */}
+              {drawerTab === "audit" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <button 
+                      onClick={() => setDrawerTab("details")} 
+                      className="text-xs text-ink-soft hover:text-ink font-semibold flex items-center gap-1.5 px-2 py-1 rounded hover:bg-pale transition-colors"
+                    >
+                      <ArrowLeft size={14}/> Back to Overview
+                    </button>
+                    <button 
+                      onClick={() => fetchAuditLogs(selectedShiftDetails.id)} 
+                      disabled={loadingSubdata} 
+                      className="text-xs text-royal font-semibold hover:underline flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <RefreshCw size={12} className={loadingSubdata ? "animate-spin" : ""}/> Refresh
+                    </button>
+                  </div>
+
+                  {loadingSubdata ? (
+                    <div className="py-16 text-center text-ink-soft space-y-2">
+                      <Loader2 size={24} className="animate-spin mx-auto text-royal" />
+                      <p className="text-xs">Loading audit logs...</p>
+                    </div>
+                  ) : !shiftAuditLogs || shiftAuditLogs.length === 0 ? (
+                    <div className="py-12 text-center text-ink-soft space-y-2 bg-pale/30 rounded-xl border border-line">
+                      <UserCheck size={32} className="mx-auto text-ink-soft/40" />
+                      <p className="text-sm font-medium text-ink">No audit entries yet</p>
+                    </div>
+                  ) : (
+                    <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-line">
+                      {shiftAuditLogs.map((item: any) => {
+                        let icon = <Clock size={12} className="text-ink-soft" />;
+                        let badgeBg = "bg-pale text-ink";
+                        let title = item.action;
+
+                        if (item.action === "SHIFT_OPENED") {
+                          icon = <Play size={12} className="text-green-600 fill-green-600" />;
+                          badgeBg = "bg-green-100 text-green-700";
+                          title = "Shift Opened";
+                        } else if (item.action === "SHIFT_CLOSED") {
+                          icon = <Square size={12} className="text-blue-600 fill-blue-600" />;
+                          badgeBg = "bg-blue-100 text-blue-700";
+                          title = "Shift Closed";
+                        } else if (item.action === "VOID_TRANSACTION") {
+                          icon = <AlertTriangle size={12} className="text-red-600" />;
+                          badgeBg = "bg-red-100 text-red-700";
+                          title = "Transaction Voided";
+                        } else if (item.action.includes("VARIANCE")) {
+                          icon = <ShieldCheck size={12} className="text-purple-600" />;
+                          badgeBg = "bg-purple-100 text-purple-700";
+                          title = "Variance Action";
+                        }
+
+                        return (
+                          <div key={item.id} className="relative group">
+                            {/* TIMELINE DOT */}
+                            <div className="absolute -left-6 top-1.5 w-5 h-5 rounded-full bg-white border border-line flex items-center justify-center shadow-xs">
+                              {icon}
+                            </div>
+
+                            <div className="bg-pale/30 p-3 rounded-xl border border-line space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${badgeBg}`}>
+                                  {title}
+                                </span>
+                                <span className="text-[11px] text-ink-soft">
+                                  {new Date(item.created_at).toLocaleString([], { 
+                                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                                  })}
+                                </span>
+                              </div>
+
+                              <p className="text-xs text-ink font-medium">
+                                By <span className="font-semibold text-royal">{item.user_name}</span>
+                              </p>
+
+                              {item.details && Object.keys(item.details).length > 0 && (
+                                <div className="text-[11px] bg-white/70 p-2 rounded-lg border border-line/40 space-y-0.5 font-mono text-ink-soft">
+                                  {item.details.opening_cash != null && (
+                                    <div>Opening Cash: <span className="font-bold text-ink">{peso(item.details.opening_cash)}</span></div>
+                                  )}
+                                  {item.details.actual_cash != null && (
+                                    <div>Actual Cash: <span className="font-bold text-ink">{peso(item.details.actual_cash)}</span></div>
+                                  )}
+                                  {item.details.variance != null && (
+                                    <div>Variance: <span className="font-bold text-ink">{peso(item.details.variance)}</span></div>
+                                  )}
+                                  {item.details.reason && (
+                                    <div className="text-amber-800 font-sans">Reason: {item.details.reason}</div>
+                                  )}
+                                  {item.details.notes && (
+                                    <div className="text-ink-soft font-sans italic">Notes: &ldquo;{item.details.notes}&rdquo;</div>
+                                  )}
+                                  {item.details.branch && (
+                                    <div>Branch: {item.details.branch}</div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

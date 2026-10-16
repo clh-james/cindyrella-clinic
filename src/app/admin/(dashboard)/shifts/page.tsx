@@ -41,10 +41,12 @@ export default async function ShiftsPage() {
     const apptCash = (apptSales || []).reduce((sum, a) => sum + (a.amount_due || 0), 0);
     const posCash = (posSales || []).reduce((sum, s) => sum + (s.total_amount || 0), 0);
     const liveCashSales = apptCash + posCash;
+    const liveExpectedCash = (shift.starting_cash || 0) + liveCashSales - (shift.cash_refunds || 0);
 
     return {
       ...shift,
       cash_sales: liveCashSales,
+      expected_cash: liveExpectedCash,
     };
   }));
 
