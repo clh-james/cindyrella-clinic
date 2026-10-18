@@ -20,6 +20,35 @@ export async function signIn(formData: FormData) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error || !data.user) {
+    try {
+      const adminClient = createAdminClient();
+      const reqHeaders = await headers();
+      const userAgentStr = reqHeaders.get("user-agent") || "";
+      let ipAddressStr = reqHeaders.get("x-forwarded-for") || reqHeaders.get("x-real-ip");
+      if (ipAddressStr && ipAddressStr.includes(",")) ipAddressStr = ipAddressStr.split(",")[0].trim();
+      if (!ipAddressStr || ipAddressStr === "Unknown" || ipAddressStr === "::1") ipAddressStr = "127.0.0.1";
+
+      const parser = new UAParser(userAgentStr);
+      const browser = parser.getBrowser();
+      const os = parser.getOS();
+      const device = parser.getDevice();
+
+      await adminClient.from("auth_events").insert({
+        event_type: "LOGIN_FAILED",
+        outcome: "FAILURE",
+        reason_code: "INVALID_CREDENTIALS",
+        description: `Failed login attempt for email: ${email}`,
+        ip_address: ipAddressStr,
+        user_agent: userAgentStr,
+        device_type: device.type || "Desktop",
+        browser: browser.name ? `${browser.name} ${browser.version || ""}` : "Unknown",
+        operating_system: os.name ? `${os.name} ${os.version || ""}` : "Unknown",
+        metadata: { attempted_email: email },
+      });
+    } catch (logErr) {
+      console.error("Failed to log failed auth event:", logErr);
+    }
+
     return { error: "Incorrect email or password." };
   }
 

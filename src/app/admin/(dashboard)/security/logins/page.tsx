@@ -6,12 +6,18 @@ export default async function LoginActivityPage() {
   const user = await requireStaff();
   const supabase = createAdminClient();
 
-  // Fetch login sessions
-  const { data: sessions } = await supabase
+  const isSuperAdmin = user.role === "super_admin";
+  let sessionsQuery = supabase
     .from("user_sessions")
     .select("*")
     .order("login_at", { ascending: false })
     .limit(500);
+
+  if (!isSuperAdmin && user.branchId) {
+    sessionsQuery = sessionsQuery.eq("branch_id", user.branchId);
+  }
+
+  const { data: sessions } = await sessionsQuery;
 
   // Fetch staff
   const { data: staff } = await supabase

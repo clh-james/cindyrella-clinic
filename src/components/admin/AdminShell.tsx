@@ -11,7 +11,7 @@ import {
   LayoutDashboard, CreditCard, CalendarDays, Users, Sparkles, PackageOpen, Crown, Gift, Boxes, 
   ReceiptText, WalletCards, Banknote, BarChart3, UserRoundCog, ShieldCheck, 
   Images, Megaphone, Bell, ScrollText, Building2, Settings,
-  ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity, Clock, CheckCircle2
+  ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity, Clock, CheckCircle2, CalendarCheck
 } from "lucide-react";
 import { Can, usePermissions } from "@/components/rbac/Can";
 import { NotificationCenter } from "./NotificationCenter";
@@ -57,6 +57,9 @@ const NAVIGATION_GROUPS = [
     name: "PEOPLE",
     items: [
       { name: "Staff", href: "/admin/staff", icon: UserRoundCog, permission: "staff.view" },
+      { name: "Staff Attendance", href: "/admin/attendance/clock", icon: Clock, permission: "attendance.self_record" },
+      { name: "Daily Attendance", href: "/admin/attendance", icon: CalendarCheck, permission: "attendance.view" },
+      { name: "Login Activity", href: "/admin/security/logins", icon: Activity, permission: "security.view_login_activity" },
       { name: "Payroll", href: "/admin/payroll", icon: Banknote, permission: "payroll.view" },
       { name: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck, permission: "users.assign_role" },
     ]
@@ -71,7 +74,6 @@ const NAVIGATION_GROUPS = [
   {
     name: "SECURITY",
     items: [
-      { name: "Login Activity", href: "/admin/security/logins", icon: Activity, permission: "security.view_login_activity" },
       { name: "Active Sessions", href: "/admin/security/sessions", icon: Monitor, permission: "security.view_active_sessions" },
       { name: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText, permission: "audit_logs.view" },
     ]
