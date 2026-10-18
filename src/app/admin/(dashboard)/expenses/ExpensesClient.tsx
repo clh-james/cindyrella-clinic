@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import {
   Receipt,
   Plus,
@@ -230,6 +231,14 @@ export function ExpensesClient({
 
         {/* Action Buttons with consistent heights and clear primary button */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            href="/admin/bills"
+            className="h-10 px-3.5 text-xs font-bold rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 shadow-sm flex items-center gap-2 transition-colors"
+          >
+            <Clock className="w-4 h-4 text-rose-600" />
+            Bills Due & Reminders
+          </Link>
+
           <button
             onClick={() => setActiveTab(activeTab === "reports" ? "all" : "reports")}
             className={`h-10 px-3.5 text-xs font-semibold rounded-xl border shadow-sm flex items-center gap-2 transition-colors focus:ring-2 focus:ring-slate-300 ${
@@ -368,10 +377,23 @@ export function ExpensesClient({
           { id: "all", label: "All Expenses", icon: Receipt },
           { id: "approvals", label: "Approvals Queue", icon: Clock, count: pendingApprovals.length },
           { id: "reimbursements", label: "Reimbursements", icon: UserCheck, count: pendingReimbursements.length },
+          { id: "bills", label: "Bills Due & Reminders ↗", icon: Clock, href: "/admin/bills" },
           { id: "reports", label: "Financial Reports & Exports", icon: TrendingDown },
         ].map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
+          if (tab.href) {
+            return (
+              <Link
+                key={tab.id}
+                href={tab.href}
+                className="h-11 px-4 text-xs font-bold flex items-center gap-2 border-b-2 border-transparent text-rose-600 hover:text-rose-800 hover:bg-rose-50/50 whitespace-nowrap transition-all"
+              >
+                <Icon className="w-4 h-4 text-rose-600" />
+                {tab.label}
+              </Link>
+            );
+          }
           return (
             <button
               key={tab.id}

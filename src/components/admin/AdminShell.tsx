@@ -11,9 +11,10 @@ import {
   LayoutDashboard, CreditCard, CalendarDays, Users, Sparkles, PackageOpen, Crown, Gift, Boxes, 
   ReceiptText, WalletCards, Banknote, BarChart3, UserRoundCog, ShieldCheck, 
   Images, Megaphone, Bell, ScrollText, Building2, Settings,
-  ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity
+  ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity, Clock, CheckCircle2
 } from "lucide-react";
 import { Can, usePermissions } from "@/components/rbac/Can";
+import { NotificationCenter } from "./NotificationCenter";
 
 // Navigation definition
 const NAVIGATION_GROUPS = [
@@ -47,6 +48,8 @@ const NAVIGATION_GROUPS = [
       { name: "Transactions", href: "/admin/transactions", icon: ReceiptText, permission: "transactions.view" },
       { name: "Cashier / Shifts", href: "/admin/shifts", icon: WalletCards, permission: "cashier.view" },
       { name: "Expenses", href: "/admin/expenses", icon: Banknote, permission: "expenses.view" },
+      { name: "Bills Due", href: "/admin/bills", icon: Clock, permission: "expenses.view", badge: "bills" },
+      { name: "Approvals", href: "/admin/approvals", icon: CheckCircle2, permission: "approvals.view", badge: "approvals" },
       { name: "Reports", href: "/admin/reports", icon: BarChart3, permission: "reports.view" },
     ]
   },
@@ -103,7 +106,10 @@ export function AdminShell({
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   
   // Badges data
-  const [badges, setBadges] = useState<Record<string, number>>({ appointments: 0, inventory: 0 });
+  const [badges, setBadges] = useState<Record<string, number>>({ appointments: 0, inventory: 0, bills: 0, approvals: 0 });
+  
+  // In-app notifications
+  const [notifications, setNotifications] = useState<any[]>([]);
   
   // Branches
   const [branches, setBranches] = useState<any[]>([]);
@@ -130,7 +136,7 @@ export function AdminShell({
       timeoutId = setTimeout(async () => {
         try {
           await signOut("AUTO_LOGOUT_INACTIVITY");
-        } catch (error) {
+        } catch {
           // Next.js redirect throws an error, which is expected
         }
       }, 30 * 60 * 1000);
@@ -198,10 +204,50 @@ export function AdminShell({
         .select("*", { count: "exact", head: true })
         .lt("current_stock", 10);
         
+      // Badges: Bills Due
+      const todayStr = new Date().toISOString().slice(0, 10);
+      let billsCount = 0;
+      try {
+        const { count } = await supabase
+          .from("bills")
+          .select("*", { count: "exact", head: true })
+          .not("status", "in", '("paid","cancelled")')
+          .lte("due_date", todayStr);
+        billsCount = count || 0;
+      } catch {
+        // Table might be initializing
+      }
+
+      // Badges: Approvals
+      let appvCount = 0;
+      try {
+        const { count } = await supabase
+          .from("bills")
+          .select("*", { count: "exact", head: true })
+          .eq("approval_status", "pending");
+        appvCount = count || 0;
+      } catch {
+        // Table might be initializing
+      }
+
       setBadges({
         appointments: apptCount || 0,
         inventory: invCount || 0,
+        bills: billsCount,
+        approvals: appvCount,
       });
+
+      // Fetch Staff Notifications
+      try {
+        const { data: notifs } = await supabase
+          .from("staff_notifications")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(20);
+        if (notifs) setNotifications(notifs);
+      } catch {
+        // Table might be initializing
+      }
     }
     fetchData();
   }, [supabase]);
@@ -499,12 +545,19 @@ export function AdminShell({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="relative p-2 text-ink-soft">
-              <Bell size={20} />
-              {badges.appointments > 0 && (
-                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
-              )}
-            </div>
+            <NotificationCenter initialNotifications={notifications} />
+          </div>
+        </header>
+
+        {/* Desktop Header Bar with In-App Notifications */}
+        <header className="hidden md:flex h-12 shrink-0 items-center justify-between border-b border-line/60 bg-white/60 backdrop-blur-md px-8 sticky top-0 z-20">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-ink-soft uppercase tracking-wider">
+              Operations & Facility Overheads
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <NotificationCenter initialNotifications={notifications} />
           </div>
         </header>
 
