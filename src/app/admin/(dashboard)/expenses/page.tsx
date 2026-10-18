@@ -3,12 +3,7 @@ import { hasServerPermission } from "@/lib/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { ExpensesClient } from "./ExpensesClient";
-import {
-  ExpenseItem,
-  ExpenseCategory,
-  PettyCashFund,
-  BranchInfo,
-} from "./types";
+import { ExpenseItem, ExpenseCategory, PettyCashFund } from "./types";
 
 export const metadata = {
   title: "Clinic Expenses — Cindyrella Admin",
@@ -16,20 +11,38 @@ export const metadata = {
 };
 
 const DEFAULT_CATEGORIES: ExpenseCategory[] = [
-  { id: "cat-1", name: "Clinical Supplies & Consumables", color: "#0284C7", is_active: true },
-  { id: "cat-2", name: "Utilities & High-Speed Internet", color: "#D97706", is_active: true },
-  { id: "cat-3", name: "Rent & Facility Maintenance", color: "#4F46E5", is_active: true },
-  { id: "cat-4", name: "Petty Cash Disbursements", color: "#10B981", is_active: true },
-  { id: "cat-5", name: "Marketing & Promotions", color: "#EC4899", is_active: true },
-  { id: "cat-6", name: "Professional & Doctor Fees", color: "#8B5CF6", is_active: true },
-  { id: "cat-7", name: "Staff Welfare & Meals", color: "#F59E0B", is_active: true },
-  { id: "cat-8", name: "Office & POS Supplies", color: "#64748B", is_active: true },
-  { id: "cat-9", name: "Equipment Repairs & Maintenance", color: "#DC2626", is_active: true },
-  { id: "cat-10", name: "Miscellaneous Operating Costs", color: "#6B7280", is_active: true },
+  { id: "cat-1", name: "Rent", color: "#4F46E5", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-2", name: "Electricity", color: "#D97706", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-3", name: "Water", color: "#0284C7", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-4", name: "Internet and Telephone", color: "#2563EB", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-5", name: "Clinic Supplies", color: "#0D9488", requires_receipt: true, requires_approval: false, is_active: true },
+  { id: "cat-6", name: "Retail Supplies", color: "#7C3AED", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-7", name: "Medical and Treatment Supplies", color: "#DC2626", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-8", name: "Equipment", color: "#9333EA", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-9", name: "Equipment Maintenance", color: "#EA580C", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-10", name: "Repairs", color: "#C026D3", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-11", name: "Cleaning Supplies", color: "#16A34A", requires_receipt: false, requires_approval: false, is_active: true },
+  { id: "cat-12", name: "Marketing and Advertising", color: "#EC4899", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-13", name: "Employee Transportation", color: "#059669", requires_receipt: true, requires_approval: false, is_active: true },
+  { id: "cat-14", name: "Staff Meals", color: "#F59E0B", requires_receipt: false, requires_approval: false, is_active: true },
+  { id: "cat-15", name: "Office Supplies", color: "#64748B", requires_receipt: false, requires_approval: false, is_active: true },
+  { id: "cat-16", name: "Software Subscriptions", color: "#3B82F6", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-17", name: "Professional Services", color: "#8B5CF6", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-18", name: "Government Fees and Permits", color: "#0891B2", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-19", name: "Bank Charges", color: "#6B7280", requires_receipt: false, requires_approval: false, is_active: true },
+  { id: "cat-20", name: "Payroll-Related Expenses", color: "#F97316", requires_receipt: false, requires_approval: true, is_active: true },
+  { id: "cat-21", name: "Petty Cash", color: "#10B981", requires_receipt: true, requires_approval: false, is_active: true },
+  { id: "cat-22", name: "Employee Reimbursement", color: "#84CC16", requires_receipt: true, requires_approval: true, is_active: true },
+  { id: "cat-23", name: "Other Expenses", color: "#78716C", requires_receipt: false, requires_approval: false, is_active: true },
 ];
 
-export default async function ExpensesPage() {
+export default async function ExpensesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const currentStaff = await requireStaff();
+  const params = await searchParams;
 
   const isSuperAdmin = currentStaff.role === "super_admin";
   const isAdmin = currentStaff.role === "admin";
@@ -57,7 +70,7 @@ export default async function ExpensesPage() {
     .select("id, name")
     .order("name", { ascending: true });
 
-  const branches: BranchInfo[] = (branchesData || []).map((b) => ({
+  const branches = (branchesData || []).map((b) => ({
     id: b.id,
     name: b.name,
   }));
@@ -73,16 +86,33 @@ export default async function ExpensesPage() {
       ? DEFAULT_CATEGORIES
       : categoriesData;
 
-  // 3. Fetch Expenses
+  // 3. Fetch Staff List (for reimbursement assignee and requester names)
+  const { data: staffRows } = await supabase
+    .from("staff")
+    .select("id, full_name, branch_id")
+    .eq("is_active", true)
+    .order("full_name", { ascending: true });
+
+  const staffList = (staffRows || []).map((s) => ({
+    id: s.id,
+    full_name: s.full_name,
+    branch_id: s.branch_id,
+  }));
+
+  // 4. Fetch Expenses with payments and attachments
   let expQuery = supabase
     .from("expenses")
     .select(
       `
       *,
-      category:expense_categories(id, name, color),
+      category:expense_categories(id, name, color, requires_receipt, requires_approval),
       branch:branches(id, name),
-      creator:staff!expenses_created_by_fkey(id, full_name),
-      approver:staff!expenses_approved_by_fkey(id, full_name)
+      creator:staff!expenses_requested_by_fkey(id, full_name),
+      approver:staff!expenses_approved_by_fkey(id, full_name),
+      reimbursement_emp:staff!expenses_employee_id_fkey(id, full_name),
+      payments:expense_payments(*),
+      attachments:expense_attachments(*),
+      audit_logs:expense_audit_logs(*)
     `
     )
     .order("expense_date", { ascending: false })
@@ -95,48 +125,45 @@ export default async function ExpensesPage() {
 
   const { data: expensesData, error: expError } = await expQuery;
 
-  // Fallback demo/mock expense if table doesn't have rows yet
   let expenses: ExpenseItem[] = [];
   if (!expError && expensesData && expensesData.length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expenses = expensesData.map((e: any) => ({
-      ...e,
-      category: Array.isArray(e.category) ? e.category[0] : e.category,
-      branch: Array.isArray(e.branch) ? e.branch[0] : e.branch,
-      creator: Array.isArray(e.creator) ? e.creator[0] : e.creator,
-      approver: Array.isArray(e.approver) ? e.approver[0] : e.approver,
-    }));
-  } else if (!expError && (!expensesData || expensesData.length === 0)) {
-    // Initial seeded sample
-    const nowStr = new Date().toISOString().slice(0, 10);
-    expenses = [
-      {
-        id: "exp-sample-1",
-        expense_number: "EXP-202610-SAMPLE1",
-        branch_id: currentStaff.branchId || branches[0]?.id || null,
-        category_id: categories[0]?.id || "cat-1",
-        title: "Clinical Sterile Gloves & Syringe Consumables",
-        description: "5 boxes nitrile gloves, 2 boxes sterile 1ml syringes for aesthetic treatments",
-        amount: 3250.0,
-        expense_date: nowStr,
-        payment_method: "cash",
-        reference_number: "OR-88412",
-        vendor_or_payee: "Medline Medical Supplies",
-        receipt_url: null,
-        status: "approved",
-        is_petty_cash: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        category: categories[0] || null,
-        branch: branches[0] ? { id: branches[0].id, name: branches[0].name } : null,
-        creator: { id: currentStaff.id, full_name: currentStaff.fullName },
-        approver: { id: currentStaff.id, full_name: "Super Admin" },
-        approved_at: new Date().toISOString(),
-      },
-    ];
+    expenses = expensesData.map((e: any) => {
+      const categoryObj = Array.isArray(e.category) ? e.category[0] : e.category;
+      const branchObj = Array.isArray(e.branch) ? e.branch[0] : e.branch;
+      const creatorObj = Array.isArray(e.creator) ? e.creator[0] : e.creator;
+      const approverObj = Array.isArray(e.approver) ? e.approver[0] : e.approver;
+      const empObj = Array.isArray(e.reimbursement_emp) ? e.reimbursement_emp[0] : e.reimbursement_emp;
+
+      const paymentsList = Array.isArray(e.payments) ? e.payments : [];
+      const totalPaid = paymentsList
+        .filter((p: { is_reversed: boolean; amount: number }) => !p.is_reversed)
+        .reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0);
+
+      const targetTotal = Number(e.approved_amount || e.total_amount);
+      const balance = Math.max(0, targetTotal - totalPaid);
+
+      return {
+        ...e,
+        amount_before_tax: Number(e.amount_before_tax || e.total_amount || 0),
+        tax_amount: Number(e.tax_amount || 0),
+        total_amount: Number(e.total_amount || 0),
+        approved_amount: e.approved_amount ? Number(e.approved_amount) : null,
+        total_paid: totalPaid,
+        outstanding_balance: balance,
+        category: categoryObj,
+        branch_name: branchObj?.name || "Main Clinic",
+        requested_by_name: creatorObj?.full_name || "Staff Member",
+        approved_by_name: approverObj?.full_name || null,
+        employee_name: empObj?.full_name || null,
+        payments: paymentsList,
+        attachments: Array.isArray(e.attachments) ? e.attachments : [],
+        audit_logs: Array.isArray(e.audit_logs) ? e.audit_logs : [],
+      };
+    });
   }
 
-  // 4. Fetch Petty Cash Funds
+  // 5. Fetch Petty Cash Funds
   const { data: fundsData } = await supabase
     .from("petty_cash_funds")
     .select("*, branch:branches(id, name)");
@@ -146,7 +173,9 @@ export default async function ExpensesPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     pettyCashFunds = fundsData.map((f: any) => ({
       ...f,
-      branch: Array.isArray(f.branch) ? f.branch[0] : f.branch,
+      current_balance: Number(f.current_balance),
+      target_float: Number(f.target_float),
+      branch_name: (Array.isArray(f.branch) ? f.branch[0] : f.branch)?.name || "Branch",
     }));
   } else {
     pettyCashFunds = branches.map((b) => ({
@@ -155,7 +184,7 @@ export default async function ExpensesPage() {
       current_balance: 5000.0,
       target_float: 5000.0,
       last_replenished_at: new Date().toISOString(),
-      branch: { id: b.id, name: b.name },
+      branch_name: b.name,
     }));
   }
 
@@ -165,9 +194,13 @@ export default async function ExpensesPage() {
       categories={categories}
       pettyCashFunds={pettyCashFunds}
       branches={branches}
+      staffList={staffList}
       currentStaffBranchId={currentStaff.branchId}
+      currentStaffId={currentStaff.id}
+      isSuperAdmin={isSuperAdmin}
       canApprove={canApprove}
       canManageCategories={canManageCategories}
+      initialTab={params.tab || "all"}
     />
   );
 }

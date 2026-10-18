@@ -93,7 +93,23 @@ export async function closeShift(data: { shiftId: string, actualCash: number, no
   const cashSales = apptCash + posCash;
   const cashRefunds = 0; // Assuming 0 for now as refunds are not fully implemented
 
-  const expectedCash = shift.starting_cash + cashSales - cashRefunds;
+  // 3. Physical Cash Disbursements / Operating Expenses paid from drawer during this shift
+  let cashDisbursements = 0;
+  try {
+    const { data: drawerExpenses } = await supabase
+      .from("expense_payments")
+      .select("amount")
+      .eq("shift_id", shift.id)
+      .eq("payment_method", "cashier_drawer")
+      .eq("is_reversed", false);
+
+    cashDisbursements = (drawerExpenses || []).reduce((acc: number, p: { amount: number }) => acc + (Number(p.amount) || 0), 0);
+  } catch {
+    // If expense_payments not yet populated
+    cashDisbursements = Number(shift.cash_disbursements || 0);
+  }
+
+  const expectedCash = shift.starting_cash + cashSales - cashRefunds - cashDisbursements;
   const variance = data.actualCash - expectedCash;
   const status = variance === 0 ? "closed" : "variance_review";
 
@@ -109,7 +125,8 @@ export async function closeShift(data: { shiftId: string, actualCash: number, no
       notes: data.notes,
       variance_reason: data.reason,
       cash_sales: cashSales,
-      cash_refunds: cashRefunds
+      cash_refunds: cashRefunds,
+      cash_disbursements: cashDisbursements,
     })
     .eq("id", data.shiftId);
 

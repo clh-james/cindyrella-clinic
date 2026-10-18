@@ -1,26 +1,35 @@
 "use client";
 
 import { useState } from "react";
-import { X, Wallet, Plus } from "lucide-react";
-import { PettyCashFund, BranchInfo } from "@/app/admin/(dashboard)/expenses/types";
+import {
+  X,
+  Coins,
+  ArrowUpRight,
+  Loader2,
+  Building2,
+  Calendar,
+  AlertCircle,
+} from "lucide-react";
+import { PettyCashFund } from "@/app/admin/(dashboard)/expenses/types";
 import { replenishPettyCash } from "@/app/admin/(dashboard)/expenses/actions";
-import { formatPHP } from "@/lib/payroll/philippine-tax";
 import toast from "react-hot-toast";
 
 interface PettyCashModalProps {
   funds: PettyCashFund[];
-  branches: BranchInfo[];
+  branches: { id: string; name: string }[];
   defaultBranchId?: string;
+  isSuperAdmin?: boolean;
   onClose: () => void;
-  onUpdated: () => void;
+  onRefresh: () => void;
 }
 
 export function PettyCashModal({
   funds,
   branches,
   defaultBranchId,
+  isSuperAdmin = false,
   onClose,
-  onUpdated,
+  onRefresh,
 }: PettyCashModalProps) {
   const [selectedBranchId, setSelectedBranchId] = useState(
     defaultBranchId || branches[0]?.id || ""
@@ -29,162 +38,176 @@ export function PettyCashModal({
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const formatPHP = (val?: number | null) =>
+    `₱${(val || 0).toLocaleString("en-PH", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+
+  const currentFund = funds.find((f) => f.branch_id === selectedBranchId);
+
   const handleReplenish = async (e: React.FormEvent) => {
     e.preventDefault();
-    const val = parseFloat(amount);
-    if (!val || val <= 0) {
-      toast.error("Please enter a valid top-up amount");
+    const addAmt = parseFloat(amount);
+    if (!addAmt || addAmt <= 0) {
+      toast.error("Please enter a valid replenishment amount");
       return;
     }
 
     setLoading(true);
     try {
-      const res = await replenishPettyCash(selectedBranchId, val, notes);
+      const res = await replenishPettyCash(selectedBranchId, addAmt, notes);
       if (res.success) {
-        toast.success(`Petty cash topped up by ${formatPHP(val)}!`);
+        toast.success(`Successfully replenished ${formatPHP(addAmt)}!`);
         setAmount("");
         setNotes("");
-        onUpdated();
+        onRefresh();
       } else {
-        toast.error(res.error || "Replenishment failed");
+        toast.error(res.error || "Failed to replenish petty cash");
       }
     } catch {
-      toast.error("Failed to update petty cash fund");
+      toast.error("Failed to replenish");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-      <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 sm:p-8 shadow-2xl space-y-6">
-        <div className="flex items-center justify-between border-b border-line pb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-800/40">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700">
-              <Wallet size={20} />
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <Coins className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold font-serif text-ink">Branch Petty Cash Drawer</h2>
-              <p className="text-xs text-ink-soft">
-                Manage emergency clinic cash on hand, receipts, and float replenishment
+              <h2 className="text-base font-bold text-stone-900 dark:text-stone-100">Branch Petty Cash Float</h2>
+              <p className="text-xs text-stone-500 dark:text-stone-400">
+                Track and replenish emergency cash drawer floats
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl border border-line p-2 text-ink-soft hover:bg-pale transition-colors"
+            aria-label="Close modal"
+            className="p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg transition-colors"
           >
-            <X size={18} />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Current Balances Grid */}
-        <div className="space-y-3">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft block">
-            Current Drawer Balances
-          </span>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {branches.map((b) => {
-              const fund = funds.find((f) => f.branch_id === b.id);
-              const bal = fund ? Number(fund.current_balance) : 5000;
-              const isLow = bal < 1500;
-
-              return (
-                <div
-                  key={b.id}
-                  className={`rounded-2xl border p-4 space-y-2 transition-all ${
-                    isLow
-                      ? "border-amber-300 bg-amber-50/50"
-                      : "border-line bg-pale/30"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-ink">{b.name}</span>
-                    {isLow && (
-                      <span className="text-[9px] font-bold text-amber-800 bg-amber-100 rounded-full px-2 py-0.5 uppercase">
-                        Low Float
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <span className="text-xl font-bold font-mono text-ink block">
-                      {formatPHP(bal)}
-                    </span>
-                    <span className="text-[10px] text-ink-soft">
-                      Target Float: {formatPHP(fund ? Number(fund.target_float) : 5000)}
-                    </span>
-                  </div>
-                  {fund?.last_replenished_at && (
-                    <p className="text-[10px] text-ink-soft pt-1 border-t border-line/50">
-                      Last top-up: {new Date(fund.last_replenished_at).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Replenish Form */}
-        <form
-          onSubmit={handleReplenish}
-          className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-4 text-xs"
-        >
-          <div className="flex items-center gap-1.5 font-bold text-emerald-900">
-            <Plus size={15} className="text-emerald-700" />
-            <span>Replenish / Top Up Petty Cash Fund</span>
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Branch Selector */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5 flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5" /> Select Branch Float
+            </label>
+            <select
+              disabled={!isSuperAdmin && branches.length <= 1}
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Current Balance Card */}
+          <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/50 dark:bg-emerald-950/20 flex items-center justify-between">
             <div>
-              <label className="block font-semibold text-ink mb-1">Target Branch</label>
-              <select
-                value={selectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
-                className="w-full rounded-xl border border-line bg-white p-2.5 text-xs text-ink font-medium"
-              >
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
+              <span className="text-xs font-medium text-emerald-800 dark:text-emerald-300 block">
+                Current Petty Cash Balance
+              </span>
+              <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400 font-mono">
+                {formatPHP(currentFund?.current_balance ?? 5000)}
+              </span>
+              <p className="text-[11px] text-stone-500 mt-0.5">
+                Target Float: {formatPHP(currentFund?.target_float ?? 5000)}
+              </p>
             </div>
+            {currentFund?.last_replenished_at && (
+              <div className="text-right text-[11px] text-stone-500">
+                <span className="flex items-center gap-1 justify-end">
+                  <Calendar className="w-3 h-3 text-stone-400" /> Last Replenished:
+                </span>
+                <span className="font-medium text-stone-700 dark:text-stone-300">
+                  {new Date(currentFund.last_replenished_at).toLocaleDateString()}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Replenish Form */}
+          <form onSubmit={handleReplenish} className="space-y-4 pt-2 border-t border-stone-200 dark:border-stone-800">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">
+              Replenish Drawer Float
+            </h3>
 
             <div>
-              <label className="block font-semibold text-ink mb-1">Top-Up Amount (₱) *</label>
+              <label className="block text-xs font-semibold text-stone-600 dark:text-stone-300 mb-1">
+                Replenishment Cash Amount (₱) *
+              </label>
               <input
                 type="number"
-                step="50"
-                min="50"
+                step="0.01"
+                min="0.01"
+                required
+                placeholder="e.g. 5000.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="5000.00"
-                required
-                className="w-full rounded-xl border border-line bg-white p-2.5 font-mono font-bold text-ink"
+                className="w-full px-3 py-2 text-sm font-semibold rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block font-semibold text-ink mb-1">Source / Check Reference Notes</label>
-            <input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Bank Cash Withdrawal Ref #91823"
-              className="w-full rounded-xl border border-line bg-white p-2.5 text-xs text-ink"
-            />
-          </div>
+            <div>
+              <label className="block text-xs font-semibold text-stone-600 dark:text-stone-300 mb-1">
+                Cash Withdrawal Reference / Auditor Notes
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. BDO ATM withdrawal slip #44091, manager emergency float top-up"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
 
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-stone-100 dark:bg-stone-800/40 text-xs text-stone-500">
+              <AlertCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+              <span>
+                Replenishments are recorded into the system audit trail and immediately increment the available petty cash float for this branch.
+              </span>
+            </div>
+
+            <div className="flex items-center justify-end pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUpRight className="w-3.5 h-3.5" />}
+                Replenish Float
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-800/40 flex items-center justify-end">
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-emerald-600 py-2.5 font-bold text-white hover:bg-emerald-700 shadow-sm disabled:opacity-50 transition-colors"
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-medium rounded-xl border border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
           >
-            {loading ? "Updating Fund..." : "Confirm Replenishment"}
+            Close
           </button>
-        </form>
+        </div>
       </div>
     </div>
   );

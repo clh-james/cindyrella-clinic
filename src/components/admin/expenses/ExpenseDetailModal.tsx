@@ -3,42 +3,91 @@
 import { useState } from "react";
 import {
   X,
-  CheckCircle2,
+  Calendar,
+  Building2,
+  DollarSign,
+  User,
+  CheckCircle,
   XCircle,
+  FileText,
+  Clock,
   ExternalLink,
+  Loader2,
   Trash2,
-  ShieldCheck,
-  AlertCircle,
+  AlertTriangle,
+  Receipt,
+  PlusCircle,
+  CornerDownLeft,
+  Upload,
 } from "lucide-react";
-import { ExpenseItem } from "@/app/admin/(dashboard)/expenses/types";
-import { approveExpense, rejectExpense, deleteExpense } from "@/app/admin/(dashboard)/expenses/actions";
-import { formatPHP } from "@/lib/payroll/philippine-tax";
+import { ExpenseItem, ExpensePaymentMethod } from "@/app/admin/(dashboard)/expenses/types";
+import {
+  approveExpense,
+  rejectExpense,
+  deleteExpense,
+  recordPayment,
+  reversePayment,
+} from "@/app/admin/(dashboard)/expenses/actions";
 import toast from "react-hot-toast";
 
 interface ExpenseDetailModalProps {
   expense: ExpenseItem;
   canApprove: boolean;
+  currentStaffId?: string;
+  isSuperAdmin?: boolean;
   onClose: () => void;
-  onUpdated: () => void;
+  onRefresh: () => void;
 }
 
 export function ExpenseDetailModal({
   expense,
   canApprove,
+  currentStaffId,
+  isSuperAdmin = false,
   onClose,
-  onUpdated,
+  onRefresh,
 }: ExpenseDetailModalProps) {
-  const [loading, setLoading] = useState(false);
-  const [isRejectOpen, setIsRejectOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [loadingAction, setLoadingAction] = useState(false);
+
+  // Partial Payment State
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState<ExpensePaymentMethod>("cash");
+  const [payAccount, setPayAccount] = useState("");
+  const [payRef, setPayRef] = useState("");
+  const [payNotes, setPayNotes] = useState("");
+
+  // Reversal State
+  const [reversingPaymentId, setReversingPaymentId] = useState<string | null>(null);
+  const [reversalReason, setReversalReason] = useState("");
+
+  const formatPHP = (val?: number | null) =>
+    `₱${(val || 0).toLocaleString("en-PH", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+
+  const isRequester =
+    currentStaffId &&
+    (expense.requested_by === currentStaffId || expense.employee_id === currentStaffId);
+  const canPerformApproval = canApprove && (isSuperAdmin || !isRequester);
+
+  // Outstanding Balance
+  const totalPayable = expense.approved_amount || expense.total_amount;
+  const totalPaid = (expense.payments || [])
+    .filter((p) => !p.is_reversed)
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const outstandingBalance = Math.max(0, Math.round((totalPayable - totalPaid) * 100) / 100);
 
   const handleApprove = async () => {
-    setLoading(true);
+    setLoadingAction(true);
     try {
-      const res = await approveExpense(expense.id);
+      const res = await approveExpense(expense.id, expense.total_amount);
       if (res.success) {
-        toast.success("Expense approved for clinic ledger!");
-        onUpdated();
+        toast.success("Expense successfully approved!");
+        onRefresh();
         onClose();
       } else {
         toast.error(res.error || "Approval failed");
@@ -46,292 +95,622 @@ export function ExpenseDetailModal({
     } catch {
       toast.error("Failed to approve expense");
     } finally {
-      setLoading(false);
+      setLoadingAction(false);
     }
   };
 
-  const handleReject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rejectionReason.trim()) {
-      toast.error("Please enter a reason for rejecting this disbursement");
+  const handleReject = async () => {
+    if (!rejectReason.trim()) {
+      toast.error("Please state the reason for rejection");
       return;
     }
-    setLoading(true);
+    setLoadingAction(true);
     try {
-      const res = await rejectExpense(expense.id, rejectionReason);
+      const res = await rejectExpense(expense.id, rejectReason.trim());
       if (res.success) {
         toast.success("Expense rejected");
-        onUpdated();
+        onRefresh();
         onClose();
       } else {
-        toast.error(res.error || "Failed to reject expense");
+        toast.error(res.error || "Rejection failed");
       }
     } catch {
-      toast.error("Failed to reject expense");
+      toast.error("Failed to reject");
     } finally {
-      setLoading(false);
+      setLoadingAction(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to permanently delete this expense record?")) return;
-    setLoading(true);
+    if (!confirm("Are you sure you want to delete this expense record?")) return;
+    setLoadingAction(true);
     try {
       const res = await deleteExpense(expense.id);
       if (res.success) {
         toast.success("Expense deleted");
-        onUpdated();
+        onRefresh();
         onClose();
       } else {
-        toast.error(res.error || "Failed to delete expense");
+        toast.error(res.error || "Failed to delete");
       }
     } catch {
-      toast.error("Failed to delete expense");
+      toast.error("Failed to delete");
     } finally {
-      setLoading(false);
+      setLoadingAction(false);
+    }
+  };
+
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amountNum = parseFloat(payAmount);
+    if (!amountNum || amountNum <= 0) {
+      toast.error("Please enter a valid payment amount");
+      return;
+    }
+    if (amountNum > outstandingBalance + 0.01) {
+      toast.error(`Cannot exceed outstanding balance of ${formatPHP(outstandingBalance)}`);
+      return;
+    }
+
+    setLoadingAction(true);
+    try {
+      const res = await recordPayment({
+        expenseId: expense.id,
+        amount: amountNum,
+        paymentMethod: payMethod,
+        paymentAccount: payAccount,
+        referenceNumber: payRef,
+        notes: payNotes,
+      });
+
+      if (res.success) {
+        toast.success("Payment recorded successfully!");
+        setShowPaymentForm(false);
+        setPayAmount("");
+        onRefresh();
+      } else {
+        toast.error(res.error || "Payment recording failed");
+      }
+    } catch {
+      toast.error("Failed to record payment");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const handleReversePayment = async (paymentId: string) => {
+    if (!reversalReason.trim()) {
+      toast.error("Please provide a reason for payment reversal");
+      return;
+    }
+    setLoadingAction(true);
+    try {
+      const res = await reversePayment(paymentId, reversalReason.trim());
+      if (res.success) {
+        toast.success("Payment successfully reversed");
+        setReversingPaymentId(null);
+        setReversalReason("");
+        onRefresh();
+      } else {
+        toast.error(res.error || "Reversal failed");
+      }
+    } catch {
+      toast.error("Failed to reverse payment");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const getStatusBadge = () => {
+    switch (expense.approval_status) {
+      case "approved":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+            <CheckCircle className="w-3.5 h-3.5" /> Approved
+          </span>
+        );
+      case "rejected":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+            <XCircle className="w-3.5 h-3.5" /> Rejected
+          </span>
+        );
+      case "payment_pending":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300 dark:border-blue-800">
+            <Clock className="w-3.5 h-3.5" /> Approved / Payment Pending
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+            <Clock className="w-3.5 h-3.5" /> Pending Approval
+          </span>
+        );
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-      <div className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-6 sm:p-8 shadow-2xl space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between border-b border-line pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold text-royal">
-                {expense.expense_number}
-              </span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                  expense.status === "approved"
-                    ? "bg-emerald-100 text-emerald-800"
-                    : expense.status === "rejected"
-                    ? "bg-red-100 text-red-800"
-                    : "bg-amber-100 text-amber-800"
-                }`}
-              >
-                {expense.status}
-              </span>
-              {expense.is_petty_cash && (
-                <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                  Petty Cash
-                </span>
-              )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-800/40">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-stone-200 dark:bg-stone-700 text-stone-800 dark:text-stone-200">
+              <Receipt className="w-5 h-5" />
             </div>
-            <h2 className="text-lg font-bold font-serif text-ink mt-1">{expense.title}</h2>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-stone-900 dark:text-stone-100 font-mono">
+                  {expense.expense_number}
+                </h2>
+                {getStatusBadge()}
+                <span className="text-xs px-2 py-0.5 rounded font-medium bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 border border-stone-200 dark:border-stone-700">
+                  {expense.payment_status.toUpperCase()}
+                </span>
+              </div>
+              <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                Recorded on {expense.expense_date} {expense.branch_name ? `• ${expense.branch_name}` : ""}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl border border-line p-2 text-ink-soft hover:bg-pale transition-colors"
+            aria-label="Close modal"
+            className="p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg transition-colors"
           >
-            <X size={18} />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Amount Display */}
-        <div className="rounded-2xl bg-pale/40 border border-line p-4 flex items-center justify-between">
+        {/* Modal Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Section 1: EXPENSE DETAILS */}
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft block">
-              Disbursed Amount
-            </span>
-            <span className="text-2xl font-bold font-mono text-ink">
-              {formatPHP(expense.amount)}
-            </span>
-          </div>
-          <div className="text-right">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft block">
-              Payment Method
-            </span>
-            <span className="text-xs font-bold text-ink capitalize">
-              {expense.payment_method.replace("_", " ")}
-            </span>
-          </div>
-        </div>
-
-        {/* Metadata Grid */}
-        <div className="grid grid-cols-2 gap-4 text-xs">
-          <div className="space-y-1">
-            <span className="text-ink-soft block text-[11px]">Vendor / Payee:</span>
-            <span className="font-semibold text-ink block">{expense.vendor_or_payee}</span>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-ink-soft block text-[11px]">Category:</span>
-            <span
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-semibold text-white text-[11px]"
-              style={{ backgroundColor: expense.category?.color || "#4F46E5" }}
-            >
-              {expense.category?.name || "General"}
-            </span>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-ink-soft block text-[11px]">Branch:</span>
-            <span className="font-medium text-ink">{expense.branch?.name || "Main Branch"}</span>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-ink-soft block text-[11px]">Expense Date:</span>
-            <span className="font-medium text-ink">{expense.expense_date}</span>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-ink-soft block text-[11px]">Official Receipt / Ref:</span>
-            <span className="font-mono text-ink">{expense.reference_number || "None"}</span>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-ink-soft block text-[11px]">Recorded By:</span>
-            <span className="font-medium text-ink">{expense.creator?.full_name || "Staff"}</span>
-          </div>
-        </div>
-
-        {/* Description */}
-        {expense.description && (
-          <div className="rounded-xl border border-line bg-white p-3 text-xs">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft block mb-1">
-              Itemization & Notes
-            </span>
-            <p className="text-ink leading-relaxed">{expense.description}</p>
-          </div>
-        )}
-
-        {/* Rejection notice */}
-        {expense.status === "rejected" && expense.rejection_reason && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 space-y-1">
-            <div className="flex items-center gap-1.5 font-bold">
-              <AlertCircle size={14} /> Rejection Reason
-            </div>
-            <p>{expense.rejection_reason}</p>
-          </div>
-        )}
-
-        {/* Approval info */}
-        {expense.status === "approved" && expense.approved_at && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-xs text-emerald-800 flex items-center justify-between">
-            <div className="flex items-center gap-1.5 font-semibold">
-              <ShieldCheck size={16} className="text-emerald-600" />
-              <span>Approved by {expense.approver?.full_name || "Manager"}</span>
-            </div>
-            <span className="text-[10px] font-mono text-emerald-700">
-              {new Date(expense.approved_at).toLocaleDateString()}
-            </span>
-          </div>
-        )}
-
-        {/* Receipt Attachment View */}
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft block mb-2">
-            Official Receipt Attachment
-          </span>
-          {expense.receipt_url ? (
-            <div className="rounded-2xl border border-line p-3 bg-pale/20 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-ink">Attached Document</span>
-                <a
-                  href={expense.receipt_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-royal font-semibold hover:underline"
-                >
-                  Open in New Tab <ExternalLink size={12} />
-                </a>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-3">Expense Details</h3>
+            <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/30 border border-stone-200 dark:border-stone-800 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-stone-900 dark:text-stone-100">{expense.title}</h4>
+                  <p className="text-xs text-stone-500 mt-0.5">{expense.description || "No detailed description provided."}</p>
+                </div>
+                {expense.category && (
+                  <span
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white shadow-sm"
+                    style={{ backgroundColor: expense.category.color }}
+                  >
+                    {expense.category.name}
+                  </span>
+                )}
               </div>
-              <div className="overflow-hidden rounded-xl border border-line bg-white max-h-56 flex items-center justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={expense.receipt_url}
-                  alt="Receipt Scan"
-                  className="max-h-56 w-auto object-contain"
-                  onError={(e) => {
-                    // Fallback if PDF or not direct image
-                    (e.target as HTMLElement).style.display = "none";
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
+                <div>
+                  <span className="text-stone-400 block mb-0.5">Payee / Vendor</span>
+                  <span className="font-semibold text-stone-800 dark:text-stone-200">{expense.vendor_or_payee}</span>
+                </div>
+                <div>
+                  <span className="text-stone-400 block mb-0.5">OR / Invoice #</span>
+                  <span className="font-semibold text-stone-800 dark:text-stone-200">
+                    {expense.reference_number || "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-stone-400 block mb-0.5">Branch</span>
+                  <span className="font-semibold text-stone-800 dark:text-stone-200 flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5 text-stone-400" />
+                    {expense.branch_name || "Main Clinic"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-stone-400 block mb-0.5">Expense Date</span>
+                  <span className="font-semibold text-stone-800 dark:text-stone-200 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                    {expense.expense_date}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: FINANCIAL DETAILS */}
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-3">Financial Details</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-stone-800/40 border border-stone-200 dark:border-stone-800">
+                <span className="text-[11px] text-stone-400 block mb-1">Amount Before Tax</span>
+                <span className="text-sm font-semibold text-stone-800 dark:text-stone-200">
+                  {formatPHP(expense.amount_before_tax)}
+                </span>
+              </div>
+              <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-stone-800/40 border border-stone-200 dark:border-stone-800">
+                <span className="text-[11px] text-stone-400 block mb-1">Tax / VAT Amount</span>
+                <span className="text-sm font-semibold text-stone-800 dark:text-stone-200">
+                  {formatPHP(expense.tax_amount)}
+                </span>
+              </div>
+              <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-stone-800/40 border border-stone-200 dark:border-stone-800">
+                <span className="text-[11px] text-stone-400 block mb-1">Total Amount</span>
+                <span className="text-base font-bold text-stone-900 dark:text-stone-100">
+                  {formatPHP(expense.total_amount)}
+                </span>
+              </div>
+              <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-stone-800/40 border border-stone-200 dark:border-stone-800">
+                <span className="text-[11px] text-stone-400 block mb-1">Approved Amount</span>
+                <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                  {formatPHP(expense.approved_amount || expense.total_amount)}
+                </span>
+              </div>
+              <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30">
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block mb-1">Total Paid</span>
+                <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                  {formatPHP(totalPaid)}
+                </span>
+              </div>
+              <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/30">
+                <span className="text-[11px] text-rose-600 dark:text-rose-400 block mb-1">Outstanding Balance</span>
+                <span className="text-sm font-bold text-rose-700 dark:text-rose-300">
+                  {formatPHP(outstandingBalance)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: APPROVAL HISTORY & ACTIONS */}
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-3">Approval History</h3>
+            <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/30 border border-stone-200 dark:border-stone-800 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <span className="text-stone-400 block mb-0.5">Requested By</span>
+                  <span className="font-semibold text-stone-800 dark:text-stone-200 flex items-center gap-1">
+                    <User className="w-3.5 h-3.5 text-stone-400" />
+                    {expense.requested_by_name || "Staff Member"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-stone-400 block mb-0.5">Approved By</span>
+                  <span className="font-semibold text-stone-800 dark:text-stone-200">
+                    {expense.approved_by_name || (expense.approval_status === "approved" ? "System / Admin" : "—")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-stone-400 block mb-0.5">Approval Date</span>
+                  <span className="font-semibold text-stone-800 dark:text-stone-200">
+                    {expense.approved_at ? new Date(expense.approved_at).toLocaleDateString() : "—"}
+                  </span>
+                </div>
+              </div>
+
+              {expense.rejection_reason && (
+                <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-xs text-rose-800 dark:text-rose-300">
+                  <span className="font-bold">Rejection Reason:</span> {expense.rejection_reason}
+                </div>
+              )}
+
+              {/* Action Buttons for Pending Approval */}
+              {expense.approval_status === "pending" && (
+                <div className="pt-3 border-t border-stone-200 dark:border-stone-700/60 flex flex-wrap items-center justify-between gap-3">
+                  {canPerformApproval ? (
+                    rejecting ? (
+                      <div className="w-full space-y-2">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Provide detailed rejection reason..."
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          className="w-full px-3 py-2 text-xs rounded-lg border border-rose-300 dark:border-rose-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                        />
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={loadingAction}
+                            onClick={handleReject}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 flex items-center gap-1.5"
+                          >
+                            {loadingAction && <Loader2 className="w-3 h-3 animate-spin" />}
+                            Confirm Rejection
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRejecting(false)}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-stone-300 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-100"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2.5">
+                        <button
+                          type="button"
+                          disabled={loadingAction}
+                          onClick={handleApprove}
+                          className="px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-1.5 transition-colors"
+                        >
+                          {loadingAction && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                          <CheckCircle className="w-4 h-4" /> Approve Expense
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRejecting(true)}
+                          className="px-4 py-2 text-xs font-semibold rounded-xl bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-900/50 dark:text-rose-300 flex items-center gap-1.5 transition-colors"
+                        >
+                          <XCircle className="w-4 h-4" /> Reject with Reason
+                        </button>
+                      </div>
+                    )
+                  ) : (
+                    <p className="text-xs text-stone-500 italic flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                      {isRequester
+                        ? "Separation of duties: You cannot approve your own expense request."
+                        : "Manager or Admin approval required."}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Section 4: PAYMENT HISTORY & RECORDING */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400">Payment History</h3>
+              {outstandingBalance > 0 && !showPaymentForm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPayAmount(outstandingBalance.toString());
+                    setShowPaymentForm(true);
                   }}
-                />
-              </div>
+                  className="px-3 py-1 text-xs font-semibold rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/30 dark:border dark:border-rose-800/40 dark:text-rose-300 flex items-center gap-1.5 transition-colors"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" /> Record Payment
+                </button>
+              )}
             </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-line p-4 text-center text-xs text-ink-soft">
-              No receipt document uploaded for this expense.
+
+            {/* Record Payment Form */}
+            {showPaymentForm && (
+              <form
+                onSubmit={handleRecordPayment}
+                className="mb-4 p-4 rounded-xl border border-rose-200 dark:border-rose-800/60 bg-rose-50/40 dark:bg-rose-950/20 space-y-3 animate-in fade-in duration-150"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-rose-700 dark:text-rose-300">
+                    Record Disbursement (Balance: {formatPHP(outstandingBalance)})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPaymentForm(false)}
+                    className="text-stone-400 hover:text-stone-600 text-xs"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-stone-600 dark:text-stone-300 mb-1">
+                      Payment Amount (₱) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max={outstandingBalance + 0.01}
+                      required
+                      value={payAmount}
+                      onChange={(e) => setPayAmount(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-stone-600 dark:text-stone-300 mb-1">
+                      Payment Method *
+                    </label>
+                    <select
+                      value={payMethod}
+                      onChange={(e) => setPayMethod(e.target.value as ExpensePaymentMethod)}
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                    >
+                      <option value="cash">Cash (Direct)</option>
+                      <option value="petty_cash">Petty Cash Float</option>
+                      <option value="cashier_drawer">Cashier Shift Drawer</option>
+                      <option value="gcash">GCash</option>
+                      <option value="maya">Maya</option>
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="credit_card">Company Card</option>
+                      <option value="cheque">Cheque</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-stone-600 dark:text-stone-300 mb-1">
+                      Account / Cash Source
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Petty Cash Box, BDO"
+                      value={payAccount}
+                      onChange={(e) => setPayAccount(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="submit"
+                    disabled={loadingAction}
+                    className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 shadow-sm flex items-center gap-1.5"
+                  >
+                    {loadingAction && <Loader2 className="w-3 h-3 animate-spin" />}
+                    Confirm Payment
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Payments Table */}
+            {expense.payments && expense.payments.length > 0 ? (
+              <div className="border border-stone-200 dark:border-stone-800 rounded-xl overflow-hidden text-xs">
+                <table className="w-full text-left">
+                  <thead className="bg-stone-50 dark:bg-stone-800/60 text-stone-500 font-semibold border-b border-stone-200 dark:border-stone-800">
+                    <tr>
+                      <th className="p-3">Payment #</th>
+                      <th className="p-3">Date</th>
+                      <th className="p-3">Method</th>
+                      <th className="p-3">Account</th>
+                      <th className="p-3 text-right">Amount</th>
+                      <th className="p-3 text-center">Status</th>
+                      {isSuperAdmin && <th className="p-3 text-right">Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-200 dark:divide-stone-800">
+                    {expense.payments.map((p) => (
+                      <tr key={p.id} className={p.is_reversed ? "opacity-50 line-through bg-stone-50/50" : ""}>
+                        <td className="p-3 font-mono font-medium">{p.payment_number}</td>
+                        <td className="p-3">{p.payment_date}</td>
+                        <td className="p-3 font-medium capitalize">{p.payment_method.replace("_", " ")}</td>
+                        <td className="p-3 text-stone-500">{p.payment_account || "—"}</td>
+                        <td className="p-3 text-right font-bold">{formatPHP(p.amount)}</td>
+                        <td className="p-3 text-center">
+                          {p.is_reversed ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-rose-100 text-rose-700">Reversed</span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700">Valid</span>
+                          )}
+                        </td>
+                        {isSuperAdmin && (
+                          <td className="p-3 text-right">
+                            {!p.is_reversed && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const reason = prompt("Enter payment reversal reason:");
+                                  if (reason) {
+                                    setReversalReason(reason);
+                                    handleReversePayment(p.id);
+                                  }
+                                }}
+                                className="text-rose-600 hover:underline text-[11px]"
+                              >
+                                Reverse
+                              </button>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-xs text-stone-400 italic p-3 rounded-lg border border-stone-200 dark:border-stone-800 text-center">
+                No payment transactions recorded yet.
+              </p>
+            )}
+          </div>
+
+          {/* Section 5: ATTACHMENTS */}
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-3">Receipts & Invoices</h3>
+            {expense.receipt_url || (expense.attachments && expense.attachments.length > 0) ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {expense.receipt_url && (
+                  <div className="p-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-800/30 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 truncate">
+                      <FileText className="w-4 h-4 text-rose-500 shrink-0" />
+                      <span className="text-xs font-medium text-stone-800 dark:text-stone-200 truncate">
+                        Primary Receipt Voucher
+                      </span>
+                    </div>
+                    <a
+                      href={expense.receipt_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-stone-200 dark:bg-stone-700 text-stone-800 dark:text-stone-200 hover:bg-stone-300 flex items-center gap-1 shrink-0"
+                    >
+                      View <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                )}
+                {expense.attachments?.map((att) => (
+                  <div
+                    key={att.id}
+                    className="p-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-800/30 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2.5 truncate">
+                      <FileText className="w-4 h-4 text-stone-400 shrink-0" />
+                      <span className="text-xs font-medium text-stone-800 dark:text-stone-200 truncate">
+                        {att.file_name}
+                      </span>
+                    </div>
+                    <a
+                      href={att.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-stone-200 dark:bg-stone-700 text-stone-800 dark:text-stone-200 hover:bg-stone-300 flex items-center gap-1 shrink-0"
+                    >
+                      View <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-stone-400 italic p-3 rounded-lg border border-stone-200 dark:border-stone-800 text-center">
+                No receipt attachments uploaded for this expense.
+              </p>
+            )}
+          </div>
+
+          {/* Section 6: AUDIT TIMELINE */}
+          {expense.audit_logs && expense.audit_logs.length > 0 && (
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-3">Audit Timeline</h3>
+              <div className="space-y-2 border-l-2 border-stone-200 dark:border-stone-800 ml-3 pl-4 text-xs">
+                {expense.audit_logs.map((log) => (
+                  <div key={log.id} className="relative">
+                    <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-white dark:border-stone-900" />
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-stone-800 dark:text-stone-200">{log.action}</span>
+                      <span className="text-[11px] text-stone-400">
+                        {new Date(log.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-stone-500 dark:text-stone-400 mt-0.5">{log.notes || "Recorded in system"}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Reject Dialog Form */}
-        {isRejectOpen ? (
-          <form onSubmit={handleReject} className="rounded-2xl border border-red-200 bg-red-50/50 p-4 space-y-3 text-xs">
-            <h4 className="font-bold text-red-900">Return / Reject Expense</h4>
-            <p className="text-[11px] text-red-800">
-              State the reason for rejecting this disbursement (e.g. invalid receipt, missing OR, unapproved purchase).
-            </p>
-            <input
-              type="text"
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="Documented rejection reason..."
-              required
-              className="w-full rounded-xl border border-line bg-white p-2.5 text-xs text-ink"
-            />
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsRejectOpen(false)}
-                className="rounded-xl border border-line bg-white px-3 py-1.5 font-medium text-ink-soft"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="rounded-xl bg-red-600 px-4 py-1.5 font-bold text-white hover:bg-red-700 shadow-sm"
-              >
-                Confirm Rejection
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="flex items-center justify-between border-t border-line pt-4">
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={loading}
-              className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50/50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100 transition-colors"
-            >
-              <Trash2 size={14} /> Delete
-            </button>
-
-            <div className="flex items-center gap-2">
-              {expense.status === "pending" && canApprove && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setIsRejectOpen(true)}
-                    disabled={loading}
-                    className="flex items-center gap-1.5 rounded-xl border border-line px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    <XCircle size={14} /> Reject
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleApprove}
-                    disabled={loading}
-                    className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors"
-                  >
-                    <CheckCircle2 size={14} /> Approve Expense
-                  </button>
-                </>
+        {/* Modal Footer */}
+        <div className="px-6 py-4 border-t border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-800/40 flex items-center justify-between">
+          <div>
+            {(expense.approval_status === "draft" || expense.approval_status === "rejected") &&
+              expense.payment_status === "unpaid" && (
+                <button
+                  type="button"
+                  disabled={loadingAction}
+                  onClick={handleDelete}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-1.5 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete Record
+                </button>
               )}
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl border border-line bg-pale/40 px-4 py-2 text-xs font-semibold text-ink hover:bg-pale transition-colors"
-              >
-                Close
-              </button>
-            </div>
           </div>
-        )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-medium rounded-xl border border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );

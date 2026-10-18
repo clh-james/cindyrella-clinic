@@ -1,26 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 import {
   X,
   UploadCloud,
   Loader2,
   CheckCircle2,
   ExternalLink,
+  AlertCircle,
+  Receipt,
+  FileText,
+  DollarSign,
+  Building2,
+  Layers,
+  Calendar,
+  Wallet,
+  UserCheck,
 } from "lucide-react";
 import {
   ExpenseCategory,
-  BranchInfo,
   ExpensePaymentMethod,
   ExpenseFormData,
 } from "@/app/admin/(dashboard)/expenses/types";
-import { recordExpense, uploadReceiptFile } from "@/app/admin/(dashboard)/expenses/actions";
+import { recordExpense } from "@/app/admin/(dashboard)/expenses/actions";
 import toast from "react-hot-toast";
 
 interface RecordExpenseModalProps {
   categories: ExpenseCategory[];
-  branches: BranchInfo[];
+  branches: { id: string; name: string }[];
   defaultBranchId?: string;
+  isSuperAdmin?: boolean;
+  staffList?: { id: string; full_name: string }[];
   onClose: () => void;
   onSaved: () => void;
   onOpenNewCategory: () => void;
@@ -30,41 +40,116 @@ export function RecordExpenseModal({
   categories,
   branches,
   defaultBranchId,
+  isSuperAdmin = false,
+  staffList = [],
   onClose,
   onSaved,
   onOpenNewCategory,
 }: RecordExpenseModalProps) {
+  const fileInputId = useId();
   const [title, setTitle] = useState("");
   const [categoryId, setCategoryId] = useState(categories[0]?.id || "");
   const [branchId, setBranchId] = useState(defaultBranchId || branches[0]?.id || "");
-  const [amount, setAmount] = useState("");
+  const [amountBeforeTax, setAmountBeforeTax] = useState("");
+  const [taxAmount, setTaxAmount] = useState("0");
+  const [totalAmount, setTotalAmount] = useState("");
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 10));
   const [paymentMethod, setPaymentMethod] = useState<ExpensePaymentMethod>("cash");
+  const [paymentAccount, setPaymentAccount] = useState("");
+  const [recordImmediatePayment, setRecordImmediatePayment] = useState(false);
   const [vendorOrPayee, setVendorOrPayee] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [description, setDescription] = useState("");
   const [isPettyCash, setIsPettyCash] = useState(false);
+  const [isReimbursement, setIsReimbursement] = useState(false);
+  const [reimbursementEmployeeId, setReimbursementEmployeeId] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
+  const [receiptFileName, setReceiptFileName] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [notes, setNotes] = useState("");
+
+  const activeCategory = categories.find((c) => c.id === categoryId);
+
+  // Auto-sync totals
+  const handleAmountBeforeTaxChange = (val: string) => {
+    setAmountBeforeTax(val);
+    const before = parseFloat(val) || 0;
+    const tax = parseFloat(taxAmount) || 0;
+    setTotalAmount((before + tax).toFixed(2));
+  };
+
+  const handleTaxChange = (val: string) => {
+    setTaxAmount(val);
+    const before = parseFloat(amountBeforeTax) || 0;
+    const tax = parseFloat(val) || 0;
+    setTotalAmount((before + tax).toFixed(2));
+  };
+
+  const applyVat12 = () => {
+    const before = parseFloat(amountBeforeTax) || 0;
+    const vat = Math.round(before * 0.12 * 100) / 100;
+    setTaxAmount(vat.toString());
+    setTotalAmount((before + vat).toFixed(2));
+  };
+
+  const clearTax = () => {
+    setTaxAmount("0");
+    const before = parseFloat(amountBeforeTax) || 0;
+    setTotalAmount(before.toFixed(2));
+  };
+
+  const handlePaymentMethodChange = (method: ExpensePaymentMethod) => {
+    setPaymentMethod(method);
+    if (method === "petty_cash") {
+      setIsPettyCash(true);
+      setRecordImmediatePayment(true);
+      setPaymentAccount("Branch Petty Cash Float");
+    } else if (method === "cashier_drawer") {
+      setIsPettyCash(false);
+      setRecordImmediatePayment(true);
+      setPaymentAccount("Active Cashier Register Drawer");
+    } else {
+      setIsPettyCash(false);
+    }
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File exceeds maximum allowed size of 10MB");
+      return;
+    }
+
     setIsUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await uploadReceiptFile(fd);
-      if (res.success && res.url) {
-        setReceiptUrl(res.url);
-        toast.success("Receipt voucher uploaded!");
-      } else {
-        toast.error(res.error || "Failed to upload receipt");
-      }
+      // Direct base64 or upload through server
+      const reader = new FileReader();
+      reader.onload = async () => {
+        // Upload via upload API
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/admin/expenses/upload", {
+          method: "POST",
+          body: fd,
+        });
+        const json = await res.json();
+        if (json.success && json.url) {
+          setReceiptUrl(json.url);
+          setReceiptFileName(file.name);
+          toast.success("Receipt voucher uploaded!");
+        } else {
+          // Fallback
+          setReceiptUrl(reader.result as string);
+          setReceiptFileName(file.name);
+          toast.success("Receipt attached!");
+        }
+      };
+      reader.readAsDataURL(file);
     } catch {
-      toast.error("Upload failed");
+      toast.error("Failed to attach receipt");
     } finally {
       setIsUploading(false);
     }
@@ -72,148 +157,109 @@ export function RecordExpenseModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || parseFloat(amount) <= 0) {
-      toast.error("Please enter a valid expense amount");
+    const finalTotal = parseFloat(totalAmount) || 0;
+    if (finalTotal <= 0) {
+      toast.error("Please enter a valid expense total greater than ₱0.00");
       return;
     }
     if (!vendorOrPayee.trim()) {
       toast.error("Please provide the vendor or payee name");
       return;
     }
+    if (activeCategory?.requires_receipt && !receiptUrl) {
+      toast.error(`Receipt attachment is required for "${activeCategory.name}".`);
+      return;
+    }
 
     setLoading(true);
     try {
       const payload: ExpenseFormData = {
-        title,
+        title: title.trim() || `${activeCategory?.name || "Expense"} - ${vendorOrPayee.trim()}`,
         category_id: categoryId,
         branch_id: branchId,
-        amount: parseFloat(amount),
+        amount_before_tax: parseFloat(amountBeforeTax) || finalTotal,
+        tax_amount: parseFloat(taxAmount) || 0,
+        total_amount: finalTotal,
         expense_date: expenseDate,
         payment_method: paymentMethod,
-        vendor_or_payee: vendorOrPayee,
-        reference_number: referenceNumber,
-        description,
+        payment_account: paymentAccount,
+        record_immediate_payment: recordImmediatePayment,
+        vendor_or_payee: vendorOrPayee.trim(),
+        reference_number: referenceNumber.trim() || undefined,
+        description: description.trim() || undefined,
         is_petty_cash: isPettyCash || paymentMethod === "petty_cash",
-        receipt_url: receiptUrl,
+        is_reimbursement: isReimbursement,
+        employee_id: isReimbursement ? reimbursementEmployeeId : undefined,
+        receipt_url: receiptUrl || undefined,
+        notes: notes.trim() || undefined,
       };
 
       const res = await recordExpense(payload);
       if (res.success) {
-        toast.success(`Expense ${res.expenseNumber} recorded!`);
+        toast.success(`Expense ${res.expenseNumber || "recorded"} successfully!`);
         onSaved();
         onClose();
       } else {
         toast.error(res.error || "Failed to record expense");
       }
     } catch {
-      toast.error("An error occurred while saving expense");
+      toast.error("An unexpected error occurred while saving.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-      <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 sm:p-8 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-line pb-4">
-          <div>
-            <h2 className="text-lg font-bold font-serif text-ink">Record Clinic Expense</h2>
-            <p className="text-xs text-ink-soft">
-              Log operational disbursements, petty cash vouchers, utilities, and clinic consumables
-            </p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-800/40">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+              <Receipt className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-stone-900 dark:text-stone-100">Record Clinic Expense</h2>
+              <p className="text-xs text-stone-500 dark:text-stone-400">
+                Log disbursements, petty cash, clinic overheads & vendor invoices
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl border border-line p-2 text-ink-soft hover:bg-pale transition-colors"
+            aria-label="Close modal"
+            className="p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg transition-colors"
           >
-            <X size={18} />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-5 text-xs">
-          {/* Title & Payee */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-semibold text-ink mb-1.5">
-                Expense Title / Purpose *
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Syringes & Cannula Disposables Restock"
-                required
-                className="w-full rounded-xl border border-line px-3.5 py-2.5 text-xs text-ink font-medium focus:border-royal focus:outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-ink mb-1.5">
-                Vendor / Payee / Supplier *
-              </label>
-              <input
-                type="text"
-                value={vendorOrPayee}
-                onChange={(e) => setVendorOrPayee(e.target.value)}
-                placeholder="e.g. Medispec Pharma / Meralco"
-                required
-                className="w-full rounded-xl border border-line px-3.5 py-2.5 text-xs text-ink font-medium focus:border-royal focus:outline-hidden"
-              />
-            </div>
-          </div>
-
-          {/* Amount, Category & Branch */}
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Top Row: Date, Branch, Category */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block font-semibold text-ink mb-1.5">Amount (₱) *</label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-ink-soft">
-                  ₱
-                </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  required
-                  className="w-full rounded-xl border border-line pl-8 pr-3.5 py-2.5 text-xs font-mono font-bold text-ink focus:border-royal focus:outline-hidden"
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="font-semibold text-ink">Expense Category *</label>
-                <button
-                  type="button"
-                  onClick={onOpenNewCategory}
-                  className="text-[10px] text-royal font-bold hover:underline"
-                >
-                  + New
-                </button>
-              </div>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" /> Date *
+              </label>
+              <input
+                type="date"
                 required
-                className="w-full rounded-xl border border-line bg-white px-3 py-2.5 text-xs font-medium text-ink focus:border-royal focus:outline-hidden"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+                value={expenseDate}
+                onChange={(e) => setExpenseDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
             </div>
 
             <div>
-              <label className="block font-semibold text-ink mb-1.5">Branch</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5" /> Branch *
+              </label>
               <select
+                disabled={!isSuperAdmin && branches.length <= 1}
                 value={branchId}
                 onChange={(e) => setBranchId(e.target.value)}
-                className="w-full rounded-xl border border-line bg-white px-3 py-2.5 text-xs font-medium text-ink focus:border-royal focus:outline-hidden"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:opacity-75 disabled:cursor-not-allowed"
               >
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
@@ -222,148 +268,383 @@ export function RecordExpenseModal({
                 ))}
               </select>
             </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5" /> Category *
+                </label>
+                <button
+                  type="button"
+                  onClick={onOpenNewCategory}
+                  className="text-[11px] font-medium text-rose-600 hover:text-rose-700 dark:text-rose-400 underline"
+                >
+                  + Manage
+                </button>
+              </div>
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.requires_receipt ? "★ (Receipt req)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Payment Method, Date, Reference Number */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Category Notice Banner if receipt or approval required */}
+          {activeCategory && (
+            <div className="p-3 rounded-xl bg-stone-100 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 text-xs text-stone-600 dark:text-stone-300 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activeCategory.color }} />
+                <span className="font-medium text-stone-900 dark:text-stone-100">{activeCategory.name}</span>
+                <span className="text-stone-400">•</span>
+                <span className="truncate max-w-xs">{activeCategory.description || "Clinic operational category"}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {activeCategory.requires_receipt && (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                    Receipt Required
+                  </span>
+                )}
+                {activeCategory.requires_approval && (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">
+                    Approval Required
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Payee / Vendor & Title */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block font-semibold text-ink mb-1.5">Payment Method</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
+                Vendor / Payee Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Meralco, Medline Supplies, PLDT, Landlord"
+                value={vendorOrPayee}
+                onChange={(e) => setVendorOrPayee(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
+                Expense Title / Purpose *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Clinic Electricity Bill October 2026"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+          </div>
+
+          {/* Amount Calculation: Before Tax, Tax, Total */}
+          <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/40 border border-stone-200 dark:border-stone-700 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-emerald-500" /> Financial Details & Taxes
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={applyVat12}
+                  className="px-2 py-0.5 rounded text-[11px] font-medium bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-300"
+                >
+                  Apply 12% VAT
+                </button>
+                <button
+                  type="button"
+                  onClick={clearTax}
+                  className="px-2 py-0.5 rounded text-[11px] font-medium bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-300"
+                >
+                  VAT Exempt (0%)
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-stone-500 dark:text-stone-400 mb-1">
+                  Amount Before Tax (₱)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={amountBeforeTax}
+                  onChange={(e) => handleAmountBeforeTaxChange(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-stone-500 dark:text-stone-400 mb-1">
+                  Tax / VAT Amount (₱)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={taxAmount}
+                  onChange={(e) => handleTaxChange(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-stone-800 dark:text-stone-200 mb-1">
+                  Total Amount (₱) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  placeholder="0.00"
+                  value={totalAmount}
+                  onChange={(e) => setTotalAmount(e.target.value)}
+                  className="w-full px-3 py-2 text-sm font-bold rounded-lg border border-rose-300 dark:border-rose-700 bg-white dark:bg-stone-800 text-rose-600 dark:text-rose-400 focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Method & Cash Source */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5 flex items-center gap-1.5">
+                <Wallet className="w-3.5 h-3.5" /> Payment Method *
+              </label>
               <select
                 value={paymentMethod}
-                onChange={(e) => {
-                  const m = e.target.value as ExpensePaymentMethod;
-                  setPaymentMethod(m);
-                  if (m === "petty_cash") setIsPettyCash(true);
-                }}
-                className="w-full rounded-xl border border-line bg-white px-3 py-2.5 text-xs font-medium text-ink focus:border-royal focus:outline-hidden"
+                onChange={(e) => handlePaymentMethodChange(e.target.value as ExpensePaymentMethod)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
               >
-                <option value="cash">Cash on Hand</option>
-                <option value="petty_cash">Branch Petty Cash Drawer</option>
-                <option value="bank_transfer">Clinic Bank Transfer</option>
-                <option value="gcash">GCash / Maya e-Wallet</option>
-                <option value="credit_card">Clinic Corporate Card</option>
-                <option value="check">Bank Check</option>
+                <option value="cash">Cash (Direct)</option>
+                <option value="petty_cash">Petty Cash Float (Drawer)</option>
+                <option value="cashier_drawer">Cashier Shift Drawer (Disbursement)</option>
+                <option value="gcash">GCash</option>
+                <option value="maya">Maya</option>
+                <option value="bank_transfer">Bank Transfer (BDO / BPI)</option>
+                <option value="credit_card">Company Credit Card</option>
+                <option value="cheque">Company Cheque</option>
+                <option value="other">Other / Accounts Payable</option>
               </select>
             </div>
 
             <div>
-              <label className="block font-semibold text-ink mb-1.5">Expense Date *</label>
-              <input
-                type="date"
-                value={expenseDate}
-                onChange={(e) => setExpenseDate(e.target.value)}
-                required
-                className="w-full rounded-xl border border-line bg-white px-3 py-2.5 text-xs font-medium text-ink focus:border-royal focus:outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-ink mb-1.5">
-                Official Receipt / Invoice #
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
+                Paid From Account / Cash Source
               </label>
               <input
                 type="text"
+                placeholder="e.g. BDO Checking 1092, Cashier Drawer 1, Petty Cash Box"
+                value={paymentAccount}
+                onChange={(e) => setPaymentAccount(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+          </div>
+
+          {/* Cashier Drawer Shift Notice */}
+          {paymentMethod === "cashier_drawer" && (
+            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300">
+              <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">Cashier Shift Integration</p>
+                <p className="mt-0.5">
+                  This cash-out will be automatically recorded and deducted from the current active shift for this branch, keeping drawer reconciliation accurate.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* OR / Invoice Number & Immediate Payment Checkbox */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
+                Official Receipt (OR) / Invoice #
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. OR-2026-99120, SI-55102"
                 value={referenceNumber}
                 onChange={(e) => setReferenceNumber(e.target.value)}
-                placeholder="OR # / Invoice # / Ref"
-                className="w-full rounded-xl border border-line px-3.5 py-2.5 text-xs font-mono text-ink focus:border-royal focus:outline-hidden"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
               />
+            </div>
+
+            <div className="pt-5 flex items-center">
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={recordImmediatePayment}
+                  onChange={(e) => setRecordImmediatePayment(e.target.checked)}
+                  className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-stone-300 dark:border-stone-600"
+                />
+                <span className="text-xs font-medium text-stone-700 dark:text-stone-300">
+                  Mark as Paid / Immediate Disbursement
+                </span>
+              </label>
             </div>
           </div>
 
-          {/* Petty Cash Flag */}
-          <div className="rounded-2xl bg-emerald-50/60 border border-emerald-200 p-3 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="font-bold text-emerald-900 block text-xs">
-                Deduct from Branch Petty Cash Drawer
-              </span>
-              <p className="text-[11px] text-emerald-800">
-                Automatically adjusts the active petty cash float for this branch upon recording.
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
+          {/* Staff Reimbursement Option */}
+          <div className="p-3.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50/50 dark:bg-stone-800/30 space-y-3">
+            <label className="flex items-center gap-2.5 cursor-pointer">
               <input
                 type="checkbox"
-                checked={isPettyCash || paymentMethod === "petty_cash"}
-                onChange={(e) => setIsPettyCash(e.target.checked)}
-                className="rounded border-line text-emerald-600 focus:ring-0 h-4 w-4"
+                checked={isReimbursement}
+                onChange={(e) => setIsReimbursement(e.target.checked)}
+                className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-stone-300 dark:border-stone-600"
               />
+              <span className="text-xs font-semibold text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-rose-500" />
+                This is an Employee Out-of-Pocket Reimbursement Request
+              </span>
             </label>
-          </div>
 
-          {/* Description */}
-          <div>
-            <label className="block font-semibold text-ink mb-1.5">Notes & Items Itemization</label>
-            <textarea
-              rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. 5 boxes sterile gloves, 100 pcs 1ml syringes, 2 gallons 70% alcohol"
-              className="w-full rounded-xl border border-line p-3 text-xs text-ink focus:border-royal focus:outline-hidden"
-            />
-          </div>
-
-          {/* Receipt Upload / Attachment */}
-          <div className="rounded-2xl border-2 border-dashed border-line p-4 text-center">
-            {receiptUrl ? (
-              <div className="flex items-center justify-between rounded-xl bg-pale/40 p-3 text-xs">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-600" />
-                  <span className="font-semibold text-ink">Receipt Attached</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <a
-                    href={receiptUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 font-semibold text-royal hover:underline"
-                  >
-                    View Attachment <ExternalLink size={12} />
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => setReceiptUrl("")}
-                    className="text-red-500 font-semibold hover:underline ml-2"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ) : (
+            {isReimbursement && (
               <div>
-                <UploadCloud size={24} className="mx-auto text-ink-soft mb-1" />
-                <label className="block font-semibold text-ink cursor-pointer hover:text-royal">
-                  <span>{isUploading ? "Uploading receipt image..." : "Upload Official Receipt or Voucher Photo"}</span>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={handleFileUpload}
-                    disabled={isUploading}
-                    className="hidden"
-                  />
+                <label className="block text-[11px] font-semibold text-stone-500 dark:text-stone-400 mb-1">
+                  Select Staff Member to Reimburse
                 </label>
-                <p className="text-[11px] text-ink-soft mt-0.5">PNG, JPG, or PDF up to 10MB</p>
-                {isUploading && <Loader2 size={16} className="animate-spin mx-auto mt-2 text-royal" />}
+                <select
+                  value={reimbursementEmployeeId}
+                  onChange={(e) => setReimbursementEmployeeId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                >
+                  <option value="">-- Current Logged-in Staff Member --</option>
+                  {staffList.map((st) => (
+                    <option key={st.id} value={st.id}>
+                      {st.full_name}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 border-t border-line pt-5">
+          {/* Receipt / Invoice Upload Section */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5 flex items-center justify-between">
+              <span>Receipt / Invoice Attachment {activeCategory?.requires_receipt && "*"}</span>
+              <span className="text-[11px] font-normal text-stone-400">JPG, PNG, PDF up to 10MB</span>
+            </label>
+
+            {receiptUrl ? (
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300">
+                <div className="flex items-center gap-2.5 truncate">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <div className="truncate">
+                    <p className="text-xs font-semibold truncate">{receiptFileName || "Receipt Attached"}</p>
+                    <a
+                      href={receiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-emerald-600 dark:text-emerald-400 underline flex items-center gap-1 mt-0.5"
+                    >
+                      View attached file <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReceiptUrl("");
+                    setReceiptFileName("");
+                  }}
+                  className="text-xs text-stone-400 hover:text-red-500 px-2 py-1 rounded"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className="relative border-2 border-dashed border-stone-300 dark:border-stone-700 hover:border-rose-400 dark:hover:border-rose-500 rounded-xl p-4 transition-colors text-center cursor-pointer bg-stone-50/50 dark:bg-stone-800/20">
+                <input
+                  id={fileInputId}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  onChange={handleFileUpload}
+                  disabled={isUploading}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="flex flex-col items-center justify-center gap-1.5">
+                  {isUploading ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
+                  ) : (
+                    <UploadCloud className="w-6 h-6 text-stone-400" />
+                  )}
+                  <p className="text-xs font-medium text-stone-700 dark:text-stone-300">
+                    {isUploading ? "Uploading file..." : "Click or drag & drop receipt file here"}
+                  </p>
+                  <p className="text-[10px] text-stone-400">Official receipt photo, tax invoice, or vendor PDF</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Description & Internal Notes */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5" /> Description / Items
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Itemized items, quantities, or clinic purpose..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
+                Internal Auditor Notes
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Optional notes for managers, cash reconciliation, or CPA..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+          </div>
+
+          {/* Modal Footer */}
+          <div className="pt-3 border-t border-stone-200 dark:border-stone-800 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="rounded-xl border border-line px-4 py-2 text-xs font-semibold text-ink-soft hover:bg-pale transition-colors"
+              className="px-4 py-2 text-xs font-medium rounded-xl border border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || isUploading}
-              className="flex items-center gap-1.5 rounded-xl bg-royal px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-royal/90 disabled:opacity-50 transition-colors"
+              className="px-5 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-md shadow-rose-500/20 flex items-center gap-2 transition-all disabled:opacity-50"
             >
-              {loading ? "Saving Expense..." : "Record Expense"}
+              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Save & Record Expense
             </button>
           </div>
         </form>

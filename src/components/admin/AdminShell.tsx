@@ -46,8 +46,8 @@ const NAVIGATION_GROUPS = [
     items: [
       { name: "Transactions", href: "/admin/transactions", icon: ReceiptText, permission: "transactions.view" },
       { name: "Cashier / Shifts", href: "/admin/shifts", icon: WalletCards, permission: "cashier.view" },
-      { name: "Approvals", href: "#", icon: ClipboardCheck, permission: "approvals.view", unimplemented: true },
       { name: "Expenses", href: "/admin/expenses", icon: Banknote, permission: "expenses.view" },
+      { name: "Expense Approvals", href: "/admin/expenses?tab=approvals", icon: ClipboardCheck, permission: "expenses.approve" },
       { name: "Reports", href: "/admin/reports", icon: BarChart3, permission: "reports.view" },
     ]
   },
