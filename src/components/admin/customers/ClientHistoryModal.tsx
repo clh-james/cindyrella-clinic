@@ -811,7 +811,7 @@ export function ClientHistoryModal({
                     {(clientFile.posTransactions || []).map((tx) => (
                       <tr key={tx.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-2 px-3 font-mono font-bold text-slate-900">{tx.reference_number}</td>
-                        <td className="py-2 px-3 text-slate-600">{new Date(tx.transaction_date).toLocaleString("en-PH")}</td>
+                        <td className="py-2 px-3 text-slate-600">{new Date(tx.transaction_date || tx.created_at || new Date().toISOString()).toLocaleString("en-PH")}</td>
                         <td className="py-2 px-3 text-slate-600">{tx.branch_name}</td>
                         <td className="py-2 px-3 text-slate-700">
                           {tx.items.length > 0

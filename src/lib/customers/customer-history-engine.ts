@@ -129,17 +129,19 @@ export function buildUnifiedPaymentHistory(params: {
     total_amount: number;
     payment_method: string;
     status: string;
-    created_at: string;
+    created_at?: string;
+    transaction_date?: string;
     branch_name?: string | null;
     shift_id?: string | null;
   }>;
   appointments: Array<{
     id: string;
     reference_number: string;
-    amount_due: number;
-    payment_method: string;
-    payment_status: string;
-    created_at: string;
+    amount_due?: number;
+    payment_method?: string;
+    payment_status?: string;
+    created_at?: string;
+    appointment_date?: string;
     branch_name?: string | null;
   }>;
 }): UnifiedPaymentRecord[] {
@@ -190,7 +192,7 @@ export function buildUnifiedPaymentHistory(params: {
     unified.push({
       id: `pos_${pos.id}`,
       source: "pos_sale",
-      payment_date: pos.created_at,
+      payment_date: pos.created_at || pos.transaction_date || new Date().toISOString(),
       payment_reference: pos.reference_number || "POS-SALE",
       transaction_reference: pos.reference_number || null,
       application_reference: null,
@@ -221,12 +223,12 @@ export function buildUnifiedPaymentHistory(params: {
     unified.push({
       id: `appt_${appt.id}`,
       source: "appointment",
-      payment_date: appt.created_at,
+      payment_date: appt.created_at || appt.appointment_date || new Date().toISOString(),
       payment_reference: appt.reference_number || "APPT-PAY",
       transaction_reference: appt.reference_number || null,
       application_reference: null,
       installment_number: null,
-      amount_paid: roundCurrency(Number(appt.amount_due)),
+      amount_paid: roundCurrency(Number(appt.amount_due || 0)),
       payment_method: appt.payment_method || "cash",
       branch_name: appt.branch_name || "Main Clinic",
       received_by_name: null,
@@ -399,6 +401,7 @@ export function buildClientActivityTimeline(params: {
   payments: UnifiedPaymentRecord[];
   appointments: ClientAppointmentItem[];
   packages: CustomerPackage[];
+  posSales?: any[];
 }): ClientActivityTimelineItem[] {
   const timeline: ClientActivityTimelineItem[] = [];
 
@@ -575,7 +578,9 @@ export function buildCompleteClientFile(params: {
   posSales?: any[];
   posItems?: (ClientPOSItem & { sale_reference: string; date: string; branch_name: string })[];
   packageRedemptions?: PackageRedemption[];
+  redemptions?: PackageRedemption[];
   refundsAdjustments?: ClientRefundAdjustment[];
+  refunds?: ClientRefundAdjustment[];
   receipts?: ClientReceiptDocument[];
   warnings?: DataQualityWarning[];
   date_range?: { from?: string; to?: string };
@@ -616,15 +621,15 @@ export function buildCompleteClientFile(params: {
       tx.items.map((it) => ({
         ...it,
         sale_reference: tx.reference_number,
-        date: tx.transaction_date,
+        date: tx.transaction_date || tx.created_at || new Date().toISOString(),
         branch_name: tx.branch_name,
       }))
     );
 
   // Derive Refunds and Adjustments if not passed
   const refundsAdjustments: ClientRefundAdjustment[] =
-    params.refundsAdjustments || [];
-  if (!params.refundsAdjustments) {
+    params.refundsAdjustments || params.refunds || [];
+  if (!params.refundsAdjustments && !params.refunds) {
     for (const p of params.payments) {
       if (p.status === "reversed" || p.status === "refunded" || p.status === "voided") {
         refundsAdjustments.push({
@@ -648,7 +653,7 @@ export function buildCompleteClientFile(params: {
           id: tx.id,
           reference_number: `ADJ-${tx.reference_number}`,
           original_reference: tx.reference_number,
-          date: tx.transaction_date,
+          date: tx.transaction_date || tx.created_at || new Date().toISOString(),
           branch_name: tx.branch_name,
           adjustment_type: tx.status === "voided" ? "void" : "refund",
           original_amount: tx.total_amount,
@@ -669,7 +674,7 @@ export function buildCompleteClientFile(params: {
         receipt_number: tx.receipt_number || tx.reference_number,
         document_type: "POS Sale Receipt",
         related_reference: tx.reference_number,
-        date: tx.transaction_date,
+        date: tx.transaction_date || tx.created_at || new Date().toISOString(),
         branch_name: tx.branch_name,
         amount: tx.total_amount,
         receipt_url: `/admin/receipt/${tx.reference_number}`,
@@ -677,7 +682,7 @@ export function buildCompleteClientFile(params: {
       });
     }
     for (const a of params.appointments) {
-      if (a.amount_due > 0) {
+      if (typeof a.amount_due === "number" && a.amount_due > 0) {
         receipts.push({
           receipt_number: a.reference_number,
           document_type: "Appointment Receipt",
@@ -707,8 +712,8 @@ export function buildCompleteClientFile(params: {
   }
 
   // Derive Package Redemptions
-  const packageRedemptions: PackageRedemption[] = params.packageRedemptions || [];
-  if (!params.packageRedemptions) {
+  const packageRedemptions: PackageRedemption[] = params.packageRedemptions || params.redemptions || [];
+  if (!params.packageRedemptions && !params.redemptions) {
     for (const pkg of params.packages) {
       const redeemedCount = Math.max(0, pkg.total_sessions - pkg.sessions_remaining);
       if (redeemedCount > 0) {
@@ -716,7 +721,7 @@ export function buildCompleteClientFile(params: {
           package_name: pkg.package_name,
           appointment_reference: `RED-${pkg.id.slice(0, 6)}`,
           treatment_name: pkg.treatment_name || pkg.package_name,
-          date: pkg.start_date,
+          date: pkg.start_date || undefined,
           branch_name: pkg.branch_name || "Main Clinic",
           sessions_deducted: redeemedCount,
         });

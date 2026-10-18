@@ -508,6 +508,7 @@ async function runTests() {
     reference_number: "POS-REF-SHARED-01",
     total_amount: 5000,
     payment_method: "cash",
+    branch_name: "Davao Branch",
     status: "completed",
     created_at: "2026-10-01T10:00:00Z",
     items: [],

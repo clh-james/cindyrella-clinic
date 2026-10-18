@@ -167,7 +167,7 @@ export interface CustomerPackage {
   total_sessions: number;
   sessions_remaining: number;
   price_paid: number;
-  start_date: string;
+  start_date?: string | null;
   expiry_date?: string | null;
   expires_at?: string | null;
   status: "active" | "fully_redeemed" | "expired" | "cancelled";
@@ -215,7 +215,8 @@ export interface ClientPOSItem {
   pos_sale_id?: string;
   sku?: string | null;
   quantity: number;
-  price_per_unit: number;
+  price_per_unit?: number;
+  unit_price?: number;
   subtotal: number;
 }
 
@@ -327,7 +328,7 @@ export interface ClientAppointmentItem {
   cancellation_reason?: string | null;
   payment_method?: string;
   payment_status?: string;
-  amount_due: number;
+  amount_due?: number;
   notes?: string | null;
   created_at: string;
 }

@@ -144,7 +144,7 @@ export function generateClientFileExcel(fileData: CompleteClientFile): Blob {
       ? fileData.posTransactions.map((tx) => ({
           "Transaction Ref": tx.reference_number,
           "Receipt Number": tx.receipt_number || tx.reference_number,
-          "Date & Time": new Date(tx.transaction_date).toLocaleString("en-PH"),
+          "Date & Time": new Date(tx.transaction_date || tx.created_at || new Date().toISOString()).toLocaleString("en-PH"),
           Branch: tx.branch_name,
           Cashier: tx.cashier_name || "Assigned Cashier",
           "Gross Amount (₱)": tx.total_amount,

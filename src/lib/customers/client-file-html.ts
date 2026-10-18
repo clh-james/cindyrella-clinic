@@ -491,7 +491,7 @@ export function generateClientFilePrintableHTML(fileData: CompleteClientFile): s
           (tx) => `
         <tr>
           <td><strong>${tx.reference_number}</strong></td>
-          <td>${new Date(tx.transaction_date).toLocaleString("en-PH")}</td>
+          <td>${new Date(tx.transaction_date || tx.created_at || new Date().toISOString()).toLocaleString("en-PH")}</td>
           <td>${tx.branch_name}</td>
           <td>${tx.cashier_name || "Assigned Cashier"}</td>
           <td>${tx.items.length > 0 ? tx.items.map((i) => `${i.quantity}x ${i.item_name}`).join(", ") : "Retail Sale"}</td>
