@@ -19,6 +19,9 @@ import {
   RotateCcw,
   RefreshCw,
   Plus,
+  ShoppingBag,
+  Files,
+  ExternalLink,
 } from "lucide-react";
 import type {
   CompleteClientFile,
@@ -38,6 +41,16 @@ interface ClientHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   clientFile: CompleteClientFile;
+  initialTab?:
+    | "overview"
+    | "installments"
+    | "payments"
+    | "pos"
+    | "appointments"
+    | "packages"
+    | "refunds"
+    | "documents"
+    | "timeline";
   canApprove?: boolean;
   canPay?: boolean;
   onRefresh?: () => void;
@@ -47,6 +60,7 @@ export function ClientHistoryModal({
   isOpen,
   onClose,
   clientFile,
+  initialTab = "overview",
   canPay = true,
   onRefresh,
 }: ClientHistoryModalProps) {
@@ -54,11 +68,13 @@ export function ClientHistoryModal({
     | "overview"
     | "installments"
     | "payments"
+    | "pos"
     | "appointments"
     | "packages"
-    | "timeline"
+    | "refunds"
     | "documents"
-  >("overview");
+    | "timeline"
+  >(initialTab);
 
   const [selectedApp, setSelectedApp] = useState<InstallmentApplication | null>(null);
   const [showNewAppModal, setShowNewAppModal] = useState(false);
@@ -259,14 +275,14 @@ export function ClientHistoryModal({
           </div>
         </div>
 
-        {/* TOP FINANCIAL KPI SUMMARY CARDS */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-4 bg-slate-50 border-b border-slate-200">
+        {/* TOP FINANCIAL KPI SUMMARY CARDS (6 CARDS) */}
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5 p-4 bg-slate-50 border-b border-slate-200">
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Total Contract Value</span>
+            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Total Contract</span>
             <p className="font-mono text-base sm:text-lg font-bold text-slate-900 mt-0.5">
               {formatPHP(summary.total_contract_value)}
             </p>
-            <span className="text-[10px] text-slate-500">{summary.active_applications_count} Active Contracts</span>
+            <span className="text-[10px] text-slate-500">{summary.active_applications_count} Active Plans</span>
           </div>
 
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
@@ -274,44 +290,55 @@ export function ClientHistoryModal({
             <p className="font-mono text-base sm:text-lg font-bold text-emerald-700 mt-0.5">
               {formatPHP(summary.total_valid_payments)}
             </p>
-            <span className="text-[10px] text-emerald-600">{summary.paid_installments_count} Paid Installments</span>
+            <span className="text-[10px] text-emerald-600">{summary.paid_installments_count} Paid Sched</span>
           </div>
 
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[10px] uppercase font-bold text-rose-600 tracking-wider">Outstanding Balance</span>
+            <span className="text-[10px] uppercase font-bold text-rose-600 tracking-wider">Outstanding</span>
             <p className="font-mono text-base sm:text-lg font-bold text-rose-700 mt-0.5">
               {formatPHP(summary.total_outstanding_balance)}
             </p>
-            <span className="text-[10px] text-rose-600">{summary.remaining_installments_count} Installments Due</span>
+            <span className="text-[10px] text-rose-600">{summary.remaining_installments_count} Remaining</span>
           </div>
 
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[10px] uppercase font-bold text-amber-600 tracking-wider">Overdue Balance</span>
+            <span className="text-[10px] uppercase font-bold text-amber-600 tracking-wider">Overdue</span>
             <p className="font-mono text-base sm:text-lg font-bold text-amber-700 mt-0.5">
               {formatPHP(summary.overdue_balance)}
             </p>
             <span className="text-[10px] text-amber-600">Past Due Date</span>
           </div>
 
-          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs col-span-2 sm:col-span-1">
-            <span className="text-[10px] uppercase font-bold text-indigo-600 tracking-wider">Next Due Date</span>
-            <p className="font-mono text-sm sm:text-base font-bold text-indigo-900 mt-0.5 truncate">
-              {summary.next_due_date || "None Pending"}
+          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+            <span className="text-[10px] uppercase font-bold text-indigo-600 tracking-wider">Active Apps</span>
+            <p className="font-mono text-base sm:text-lg font-bold text-indigo-900 mt-0.5">
+              {summary.active_applications_count}
             </p>
-            <span className="text-[10px] text-indigo-600 font-mono">
-              {summary.next_scheduled_amount ? formatPHP(summary.next_scheduled_amount) : "-"}
+            <span className="text-[10px] text-indigo-600 truncate block">
+              {summary.next_due_date ? `Due ${summary.next_due_date}` : "Up to date"}
             </span>
+          </div>
+
+          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+            <span className="text-[10px] uppercase font-bold text-purple-600 tracking-wider">Last Visit</span>
+            <p className="font-mono text-xs sm:text-sm font-bold text-purple-900 mt-0.5 truncate">
+              {summary.last_visit_date || "N/A"}
+            </p>
+            <span className="text-[10px] text-purple-600 block">Clinic Activity</span>
           </div>
         </div>
 
-        {/* NAVIGATION TABS */}
+        {/* NAVIGATION TABS (9 TABS) */}
         <div className="flex border-b border-slate-200 px-6 bg-white overflow-x-auto gap-1">
           {[
             { id: "overview", label: "Overview", icon: User },
             { id: "installments", label: `Installments (${clientFile.applications.length})`, icon: CreditCard },
             { id: "payments", label: `Payments (${clientFile.payments.length})`, icon: Receipt },
+            { id: "pos", label: `POS Sales (${clientFile.posTransactions?.length || 0})`, icon: ShoppingBag },
             { id: "appointments", label: `Appointments (${clientFile.appointments.length})`, icon: Calendar },
             { id: "packages", label: `Packages (${clientFile.packages.length})`, icon: Sparkles },
+            { id: "refunds", label: `Refunds & Voids (${clientFile.refundsAdjustments?.length || 0})`, icon: RotateCcw },
+            { id: "documents", label: `Receipts & Docs (${clientFile.receipts?.length || 0})`, icon: Files },
             { id: "timeline", label: `Activity (${clientFile.timeline.length})`, icon: Clock },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -756,6 +783,188 @@ export function ClientHistoryModal({
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: POS TRANSACTIONS */}
+          {activeTab === "pos" && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-slate-800 font-serif">
+                Point of Sale Merchandise Transactions
+              </h3>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
+                    <tr>
+                      <th className="py-2.5 px-3 text-left">Txn Ref</th>
+                      <th className="py-2.5 px-3 text-left">Date &amp; Time</th>
+                      <th className="py-2.5 px-3 text-left">Branch</th>
+                      <th className="py-2.5 px-3 text-left">Items Purchased</th>
+                      <th className="py-2.5 px-3 text-right">Total</th>
+                      <th className="py-2.5 px-3 text-left">Method</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-center">Receipt</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(clientFile.posTransactions || []).map((tx) => (
+                      <tr key={tx.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-2 px-3 font-mono font-bold text-slate-900">{tx.reference_number}</td>
+                        <td className="py-2 px-3 text-slate-600">{new Date(tx.transaction_date).toLocaleString("en-PH")}</td>
+                        <td className="py-2 px-3 text-slate-600">{tx.branch_name}</td>
+                        <td className="py-2 px-3 text-slate-700">
+                          {tx.items.length > 0
+                            ? tx.items.map((i) => `${i.quantity}x ${i.item_name}`).join(", ")
+                            : "Retail Purchase"}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">
+                          {formatPHP(tx.total_amount)}
+                        </td>
+                        <td className="py-2 px-3 uppercase text-slate-600">{tx.payment_method}</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            tx.status === "completed" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                          }`}>
+                            {tx.status}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <button
+                            onClick={() => window.open(`/admin/receipt/${tx.reference_number}`, "_blank")}
+                            className="text-rose-700 hover:text-rose-900 font-semibold inline-flex items-center gap-1"
+                          >
+                            View <ExternalLink size={10} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {(!clientFile.posTransactions || clientFile.posTransactions.length === 0) && (
+                      <tr>
+                        <td colSpan={8} className="py-8 text-center text-slate-400">
+                          No retail POS merchandise sales recorded for this client.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: REFUNDS & ADJUSTMENTS */}
+          {activeTab === "refunds" && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-slate-800 font-serif">
+                Refunds, Voids &amp; Financial Adjustments
+              </h3>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
+                    <tr>
+                      <th className="py-2.5 px-3 text-left">Adjustment Ref</th>
+                      <th className="py-2.5 px-3 text-left">Original Ref</th>
+                      <th className="py-2.5 px-3 text-left">Date</th>
+                      <th className="py-2.5 px-3 text-left">Branch</th>
+                      <th className="py-2.5 px-3 text-left">Type</th>
+                      <th className="py-2.5 px-3 text-right">Original Amount</th>
+                      <th className="py-2.5 px-3 text-right">Adjustment</th>
+                      <th className="py-2.5 px-3 text-left">Reason</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(clientFile.refundsAdjustments || []).map((r) => (
+                      <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-2 px-3 font-mono font-bold text-slate-900">{r.reference_number}</td>
+                        <td className="py-2 px-3 font-mono text-slate-600">{r.original_reference}</td>
+                        <td className="py-2 px-3 text-slate-600">{new Date(r.date).toLocaleString("en-PH")}</td>
+                        <td className="py-2 px-3 text-slate-600">{r.branch_name}</td>
+                        <td className="py-2 px-3 uppercase text-rose-700 font-bold">{r.adjustment_type}</td>
+                        <td className="py-2 px-3 text-right font-mono text-slate-600">{formatPHP(r.original_amount)}</td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-rose-700">
+                          {formatPHP(r.adjustment_amount)}
+                        </td>
+                        <td className="py-2 px-3 text-slate-700">{r.reason}</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">
+                            {r.approval_status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {(!clientFile.refundsAdjustments || clientFile.refundsAdjustments.length === 0) && (
+                      <tr>
+                        <td colSpan={9} className="py-8 text-center text-slate-400">
+                          No payment reversals, refunds, or financial voids recorded.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: RECEIPTS & DOCUMENTS INDEX */}
+          {activeTab === "documents" && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-slate-800 font-serif">
+                Official Receipts &amp; Verified Documents
+              </h3>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
+                    <tr>
+                      <th className="py-2.5 px-3 text-left">Receipt / Doc #</th>
+                      <th className="py-2.5 px-3 text-left">Document Type</th>
+                      <th className="py-2.5 px-3 text-left">Related Reference</th>
+                      <th className="py-2.5 px-3 text-left">Date</th>
+                      <th className="py-2.5 px-3 text-left">Branch</th>
+                      <th className="py-2.5 px-3 text-right">Amount</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(clientFile.receipts || []).map((rcpt, i) => (
+                      <tr key={i} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-2 px-3 font-mono font-bold text-slate-900">{rcpt.receipt_number}</td>
+                        <td className="py-2 px-3 text-slate-700">{rcpt.document_type}</td>
+                        <td className="py-2 px-3 font-mono text-slate-600">{rcpt.related_reference}</td>
+                        <td className="py-2 px-3 text-slate-600">{new Date(rcpt.date).toLocaleDateString("en-PH")}</td>
+                        <td className="py-2 px-3 text-slate-600">{rcpt.branch_name}</td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">
+                          {formatPHP(rcpt.amount)}
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            {rcpt.status}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          {rcpt.receipt_url ? (
+                            <button
+                              onClick={() => window.open(rcpt.receipt_url!, "_blank")}
+                              className="text-rose-700 hover:text-rose-900 font-semibold inline-flex items-center gap-1"
+                            >
+                              Open <ExternalLink size={10} />
+                            </button>
+                          ) : (
+                            <span className="text-slate-400">On file</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {(!clientFile.receipts || clientFile.receipts.length === 0) && (
+                      <tr>
+                        <td colSpan={8} className="py-8 text-center text-slate-400">
+                          No official receipts recorded.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

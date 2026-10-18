@@ -206,9 +206,80 @@ export interface ClientActivityTimelineItem {
   actor_name?: string | null;
 }
 
+export interface ClientPOSItem {
+  id?: string;
+  item_name: string;
+  sku?: string | null;
+  quantity: number;
+  price_per_unit: number;
+  subtotal: number;
+}
+
+export interface ClientPOSTransaction {
+  id: string;
+  reference_number: string;
+  receipt_number?: string | null;
+  transaction_date: string;
+  branch_name: string;
+  cashier_name?: string | null;
+  items: ClientPOSItem[];
+  total_amount: number;
+  discount_amount: number;
+  discount_reason?: string | null;
+  payment_method: string;
+  status: string;
+  refunded_amount: number;
+  void_reason?: string | null;
+}
+
+export interface ClientRefundAdjustment {
+  id: string;
+  reference_number: string;
+  original_reference: string;
+  date: string;
+  branch_name: string;
+  adjustment_type: "refund" | "void" | "reversal";
+  original_amount: number;
+  adjustment_amount: number;
+  reason: string;
+  approval_status: string;
+  processed_by?: string | null;
+  receipt_url?: string | null;
+}
+
+export interface ClientReceiptDocument {
+  receipt_number: string;
+  document_type: "POS Sale Receipt" | "Appointment Receipt" | "Installment Receipt" | "Contract Document";
+  related_reference: string;
+  date: string;
+  branch_name: string;
+  amount: number;
+  receipt_url?: string | null;
+  status: string;
+}
+
+export interface PackageRedemption {
+  package_name: string;
+  appointment_reference: string;
+  treatment_name: string;
+  date: string;
+  branch_name: string;
+  sessions_deducted: number;
+}
+
+export interface DataQualityWarning {
+  issue_type: string;
+  description: string;
+  severity: "low" | "medium" | "high";
+  recommended_action: string;
+}
+
 export interface ClientFinancialSummary {
   total_contract_value: number;
+  total_pos_sales: number;
+  total_installment_contract_value: number;
   total_valid_payments: number;
+  total_refunds: number;
   total_refunded_reversed: number;
   total_outstanding_balance: number;
   overdue_balance: number;
@@ -217,6 +288,11 @@ export interface ClientFinancialSummary {
   paid_installments_count: number;
   remaining_installments_count: number;
   active_applications_count: number;
+  pos_transactions_count: number;
+  appointments_count: number;
+  completed_treatments_count: number;
+  active_packages_count: number;
+  last_visit_date: string | null;
 }
 
 export interface ClientAppointmentItem {
@@ -240,10 +316,17 @@ export interface CompleteClientFile {
   applications: InstallmentApplication[];
   schedules: InstallmentSchedule[];
   payments: UnifiedPaymentRecord[];
+  posTransactions: ClientPOSTransaction[];
+  posItems: (ClientPOSItem & { sale_reference: string; date: string; branch_name: string })[];
   appointments: ClientAppointmentItem[];
   packages: CustomerPackage[];
+  packageRedemptions: PackageRedemption[];
+  refundsAdjustments: ClientRefundAdjustment[];
+  receipts: ClientReceiptDocument[];
   timeline: ClientActivityTimelineItem[];
+  warnings: DataQualityWarning[];
   generated_at: string;
   generated_by: string;
   branch_scope: string;
+  date_range?: { from?: string; to?: string };
 }

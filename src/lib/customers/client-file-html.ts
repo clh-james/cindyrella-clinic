@@ -1,6 +1,6 @@
 // ==============================================================================
 // Cindyrella Aesthetic & Wellness / Clinic & Spa Management System
-// High-Fidelity Printable PDF / HTML Template for Complete Client History
+// High-Fidelity Printable PDF / HTML Template for Complete Client File
 // ==============================================================================
 
 import type { CompleteClientFile } from "@/app/admin/(dashboard)/customers/types";
@@ -17,7 +17,7 @@ export function generateClientFilePrintableHTML(fileData: CompleteClientFile): s
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Client History — ${client.full_name || client.first_name} (${client.customer_code || client.id})</title>
+  <title>Client File — ${client.full_name || client.first_name} (${client.customer_code || client.id})</title>
   <style>
     @page {
       size: A4 portrait;
@@ -47,7 +47,7 @@ export function generateClientFilePrintableHTML(fileData: CompleteClientFile): s
     }
 
     .brand-title {
-      font-size: 16pt;
+      font-size: 15pt;
       font-weight: 700;
       color: #800020;
       letter-spacing: 0.5px;
@@ -78,12 +78,12 @@ export function generateClientFilePrintableHTML(fileData: CompleteClientFile): s
     }
 
     .section-title {
-      font-size: 10.5pt;
+      font-size: 10pt;
       font-weight: 700;
       color: #800020;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1.5px solid #e2e8f0;
       padding-bottom: 4px;
-      margin-top: 18px;
+      margin-top: 20px;
       margin-bottom: 8px;
       text-transform: uppercase;
       letter-spacing: 0.3px;
@@ -102,46 +102,55 @@ export function generateClientFilePrintableHTML(fileData: CompleteClientFile): s
     }
 
     .profile-label {
-      font-weight: 600;
-      color: #4a5568;
       width: 18%;
+      color: #718096;
+      font-weight: 600;
     }
 
     .profile-value {
-      color: #1a202c;
       width: 32%;
+      color: #1a202c;
     }
 
-    .kpi-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+    .summary-grid {
+      width: 100%;
+      border-collapse: collapse;
       margin-bottom: 14px;
     }
 
-    .kpi-card {
-      flex: 1 1 18%;
-      background: #f7fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 4px;
-      padding: 8px;
-      text-align: center;
-      page-break-inside: avoid;
+    .summary-card-td {
+      padding: 6px;
+      width: 25%;
     }
 
-    .kpi-label {
+    .summary-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: #f8fafc;
+    }
+
+    .summary-card-label {
       font-size: 7.5pt;
-      color: #718096;
+      color: #64748b;
       text-transform: uppercase;
       font-weight: 600;
+      letter-spacing: 0.3px;
     }
 
-    .kpi-val {
-      font-size: 11pt;
+    .summary-card-val {
+      font-size: 12pt;
       font-weight: 700;
-      color: #800020;
-      margin-top: 2px;
-      font-family: monospace;
+      color: #0f172a;
+      margin-top: 3px;
+    }
+
+    .summary-card-highlight {
+      border-color: #fecdd3;
+      background: #fff1f2;
+    }
+    .summary-card-highlight .summary-card-val {
+      color: #9f1239;
     }
 
     table.data-table {
@@ -163,7 +172,7 @@ export function generateClientFilePrintableHTML(fileData: CompleteClientFile): s
     table.data-table th {
       background-color: #edf2f7;
       color: #2d3748;
-      font-size: 8pt;
+      font-size: 7.5pt;
       font-weight: 600;
       text-align: left;
       padding: 5px 6px;
@@ -218,9 +227,9 @@ export function generateClientFilePrintableHTML(fileData: CompleteClientFile): s
     }
 
     .footer-stamp {
-      margin-top: 25px;
-      padding-top: 12px;
-      border-top: 1px solid #e2e8f0;
+      margin-top: 30px;
+      padding-top: 14px;
+      border-top: 1px solid #cbd5e0;
       display: flex;
       justify-content: space-between;
       font-size: 8pt;
@@ -229,12 +238,13 @@ export function generateClientFilePrintableHTML(fileData: CompleteClientFile): s
     }
 
     .sign-block {
-      width: 200px;
+      width: 220px;
       text-align: center;
-      border-top: 1px solid #718096;
+      border-top: 1px solid #4a5568;
       padding-top: 4px;
-      margin-top: 35px;
+      margin-top: 40px;
       font-size: 8pt;
+      color: #2d3748;
     }
 
     @media print {
@@ -253,7 +263,7 @@ export function generateClientFilePrintableHTML(fileData: CompleteClientFile): s
   <!-- Top Action Bar for Screen view -->
   <div class="no-print" style="background: #2d3748; color: white; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
     <div>
-      <span style="font-weight: 600;">Cindyrella Client Statement Viewer</span> &mdash; ${client.full_name || client.first_name} (${client.customer_code || client.id})
+      <span style="font-weight: 600;">Cindyrella Client File Viewer</span> &mdash; ${client.full_name || client.first_name} (${client.customer_code || client.id})
     </div>
     <div>
       <button onclick="window.print()" style="background: #800020; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-weight: 600; margin-right: 8px;">Print / Save to PDF</button>
@@ -269,15 +279,16 @@ export function generateClientFilePrintableHTML(fileData: CompleteClientFile): s
         <div class="brand-subtitle">Clinic &amp; Spa Management System &bull; Davao &bull; Makati &bull; Cebu</div>
       </td>
       <td class="doc-badge">
-        <div class="doc-badge-title">COMPLETE CLIENT ACCOUNT HISTORY</div>
+        <div class="doc-badge-title">COMPLETE CLIENT FILE AND ACCOUNT HISTORY</div>
+        <div style="font-size: 8pt; color: #800020; font-weight: 600;">COMPLETE CLIENT ACCOUNT HISTORY</div>
         <div class="doc-meta">Generated: ${new Date(fileData.generated_at).toLocaleString("en-PH")}</div>
         <div class="doc-meta">Authorized Scope: ${fileData.branch_scope}</div>
       </td>
     </tr>
   </table>
 
-  <!-- SECTION 1: CLIENT INFORMATION -->
-  <div class="section-title">1. Client Profile</div>
+  <!-- SECTION A: CLIENT INFORMATION -->
+  <div class="section-title">SECTION A &mdash; Client Profile</div>
   <table class="profile-grid">
     <tr>
       <td class="profile-label">Client Code / ID:</td>
@@ -298,271 +309,451 @@ export function generateClientFilePrintableHTML(fileData: CompleteClientFile): s
       <td class="profile-value">${new Date(client.created_at).toLocaleDateString("en-PH")}</td>
     </tr>
     <tr>
-      <td class="profile-label">Email:</td>
+      <td class="profile-label">Email Address:</td>
       <td class="profile-value">${client.email || "N/A"}</td>
       <td class="profile-label">Loyalty Points:</td>
-      <td class="profile-value"><strong>${client.loyalty_points || 0} pts</strong></td>
+      <td class="profile-value">${client.loyalty_points || 0} pts</td>
     </tr>
     <tr>
       <td class="profile-label">Complete Address:</td>
-      <td class="profile-value" colspan="3">${client.address || "N/A"}</td>
+      <td class="profile-value">${client.address || "N/A"}</td>
+      <td class="profile-label">Emergency Contact:</td>
+      <td class="profile-value">${client.emergency_contact || "N/A"}</td>
     </tr>
     <tr>
-      <td class="profile-label">Medical Alerts:</td>
-      <td class="profile-value" colspan="3" style="color: #c53030;">${client.medical_conditions || client.allergies ? `${client.medical_conditions || ""} ${client.allergies ? `| Allergies: ${client.allergies}` : ""}` : "None reported"}</td>
+      <td class="profile-label">Medical Conditions:</td>
+      <td class="profile-value">${client.medical_conditions || "None reported"}</td>
+      <td class="profile-label">Known Allergies:</td>
+      <td class="profile-value">${client.allergies || "None reported"}</td>
     </tr>
   </table>
 
-  <!-- SECTION 2: FINANCIAL SUMMARY -->
-  <div class="section-title">2. Account Summary &amp; Balances</div>
-  <div class="kpi-container">
-    <div class="kpi-card">
-      <div class="kpi-label">Total Contract Value</div>
-      <div class="kpi-val">${formatPHP(summary.total_contract_value)}</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Total Valid Collections</div>
-      <div class="kpi-val" style="color: #276749;">${formatPHP(summary.total_valid_payments)}</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Outstanding Balance</div>
-      <div class="kpi-val" style="color: #c53030;">${formatPHP(summary.total_outstanding_balance)}</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Overdue Balance</div>
-      <div class="kpi-val" style="color: #e53e3e;">${formatPHP(summary.overdue_balance)}</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Refunds / Reversals</div>
-      <div class="kpi-val" style="color: #718096;">${formatPHP(summary.total_refunded_reversed)}</div>
-    </div>
-  </div>
+  <!-- SECTION B: ACCOUNT SUMMARY & BALANCES -->
+  <div class="section-title">SECTION B &mdash; Account Summary &amp; Balances</div>
+  <table class="summary-grid">
+    <tr>
+      <td class="summary-card-td">
+        <div class="summary-card">
+          <div class="summary-card-label">Total Contract Value</div>
+          <div class="summary-card-val">${formatPHP(summary.total_contract_value)}</div>
+        </div>
+      </td>
+      <td class="summary-card-td">
+        <div class="summary-card">
+          <div class="summary-card-label">Total Valid Collections</div>
+          <div class="summary-card-val" style="color: #166534;">${formatPHP(summary.total_valid_payments)}</div>
+        </div>
+      </td>
+      <td class="summary-card-td">
+        <div class="summary-card">
+          <div class="summary-card-label">Outstanding Balance</div>
+          <div class="summary-card-val" style="color: #800020;">${formatPHP(summary.total_outstanding_balance)}</div>
+        </div>
+      </td>
+      <td class="summary-card-td">
+        <div class="summary-card ${summary.overdue_balance > 0 ? "summary-card-highlight" : ""}">
+          <div class="summary-card-label">Overdue Balance</div>
+          <div class="summary-card-val">${formatPHP(summary.overdue_balance)}</div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td class="summary-card-td">
+        <div class="summary-card">
+          <div class="summary-card-label">Active Contracts</div>
+          <div class="summary-card-val" style="font-size: 11pt;">${summary.active_applications_count} active</div>
+        </div>
+      </td>
+      <td class="summary-card-td">
+        <div class="summary-card">
+          <div class="summary-card-label">Total Refunds / Reversals</div>
+          <div class="summary-card-val" style="font-size: 11pt; color: #7f1d1d;">${formatPHP(summary.total_refunded_reversed)}</div>
+        </div>
+      </td>
+      <td class="summary-card-td">
+        <div class="summary-card">
+          <div class="summary-card-label">Next Due Date</div>
+          <div class="summary-card-val" style="font-size: 11pt;">${summary.next_due_date ? `${summary.next_due_date} (${formatPHP(summary.next_scheduled_amount || 0)})` : "None"}</div>
+        </div>
+      </td>
+      <td class="summary-card-td">
+        <div class="summary-card">
+          <div class="summary-card-label">Installment Progress</div>
+          <div class="summary-card-val" style="font-size: 11pt;">${summary.paid_installments_count} paid / ${summary.remaining_installments_count} remaining</div>
+        </div>
+      </td>
+    </tr>
+  </table>
 
-  <!-- SECTION 3: INSTALLMENT APPLICATIONS -->
-  <div class="section-title">3. Installment Applications &amp; Contracts</div>
+  <!-- SECTION C: INSTALLMENT APPLICATION HISTORY -->
+  <div class="section-title">SECTION C &mdash; Installment Application History</div>
   ${
-    fileData.applications.length > 0
-      ? `<table class="data-table">
-          <thead>
-            <tr>
-              <th>Application #</th>
-              <th>Contract Date</th>
-              <th>Service / Package</th>
-              <th>Branch</th>
-              <th style="text-align: right;">Contract Value</th>
-              <th style="text-align: right;">Down Payment</th>
-              <th>Terms</th>
-              <th style="text-align: right;">Outstanding</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${fileData.applications
-              .map(
-                (app) => `<tr>
-                <td><strong>${app.application_number}</strong></td>
-                <td>${app.contract_start_date}</td>
-                <td>${app.service_package_name}</td>
-                <td>${app.branch_name || "Main Clinic"}</td>
-                <td style="text-align: right; font-family: monospace;">${formatPHP(app.original_contract_amount)}</td>
-                <td style="text-align: right; font-family: monospace;">${formatPHP(app.down_payment_received)}</td>
-                <td>${app.number_of_installments}x ${app.frequency}</td>
-                <td style="text-align: right; font-family: monospace; font-weight: 600; color: ${app.outstanding_balance && app.outstanding_balance > 0 ? "#c53030" : "#22543d"};">${formatPHP(app.outstanding_balance)}</td>
-                <td><span class="status-badge status-${app.status}">${app.status.toUpperCase()}</span></td>
-              </tr>`
-              )
-              .join("")}
-          </tbody>
-        </table>`
-      : `<div class="empty-note">No installment applications on record for this client.</div>`
+    fileData.applications.length === 0
+      ? '<div class="empty-note">No installment applications found for this client.</div>'
+      : `
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Application #</th>
+        <th>Start Date</th>
+        <th>Branch</th>
+        <th>Service / Treatment</th>
+        <th style="text-align: right;">Contract (₱)</th>
+        <th style="text-align: right;">Down Payment</th>
+        <th>Term / Freq</th>
+        <th style="text-align: right;">Valid Paid</th>
+        <th style="text-align: right;">Balance (₱)</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${fileData.applications
+        .map(
+          (app) => `
+        <tr>
+          <td><strong>${app.application_number}</strong></td>
+          <td>${app.contract_start_date}</td>
+          <td>${app.branch_name || "Main Clinic"}</td>
+          <td>${app.service_package_name}</td>
+          <td style="text-align: right;"><strong>${formatPHP(app.original_contract_amount)}</strong></td>
+          <td style="text-align: right;">${formatPHP(app.down_payment_received)}</td>
+          <td>${app.number_of_installments}x (${app.frequency})</td>
+          <td style="text-align: right; color: #166534;">${formatPHP(app.valid_payments_total || 0)}</td>
+          <td style="text-align: right; font-weight: 700; color: #800020;">${formatPHP(app.outstanding_balance || 0)}</td>
+          <td><span class="status-badge status-${app.status}">${app.status.toUpperCase()}</span></td>
+        </tr>`
+        )
+        .join("")}
+    </tbody>
+  </table>`
   }
 
-  <!-- SECTION 4: INSTALLMENT PAYMENT SCHEDULES -->
-  <div class="section-title">4. Installment Payment Schedules</div>
+  <!-- SECTION D: INSTALLMENT PAYMENT SCHEDULE -->
+  <div class="section-title">SECTION D &mdash; Installment Payment Schedule</div>
   ${
-    fileData.schedules.length > 0
-      ? `<table class="data-table">
-          <thead>
-            <tr>
-              <th>Inst #</th>
-              <th>Due Date</th>
-              <th style="text-align: right;">Scheduled Amount</th>
-              <th style="text-align: right;">Amount Paid</th>
-              <th style="text-align: right;">Remaining</th>
-              <th>Payment Date</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${fileData.schedules
-              .map(
-                (s) => `<tr>
-                <td>#${s.installment_number}</td>
-                <td>${s.due_date}</td>
-                <td style="text-align: right; font-family: monospace;">${formatPHP(s.scheduled_amount)}</td>
-                <td style="text-align: right; font-family: monospace; color: #22543d;">${formatPHP(s.amount_paid)}</td>
-                <td style="text-align: right; font-family: monospace; font-weight: 600; color: ${s.remaining_amount > 0 ? "#c53030" : "#718096"};">${formatPHP(s.remaining_amount)}</td>
-                <td>${s.payment_date || "Pending"}</td>
-                <td><span class="status-badge status-${s.status}">${s.status.replace(/_/g, " ").toUpperCase()}</span></td>
-              </tr>`
-              )
-              .join("")}
-          </tbody>
-        </table>`
-      : `<div class="empty-note">No scheduled installments recorded.</div>`
+    fileData.schedules.length === 0
+      ? '<div class="empty-note">No scheduled installment payments recorded.</div>'
+      : `
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width: 40px;">#</th>
+        <th>Due Date</th>
+        <th style="text-align: right;">Scheduled Amount</th>
+        <th style="text-align: right;">Amount Paid</th>
+        <th style="text-align: right;">Remaining Balance</th>
+        <th>Payment Date</th>
+        <th>Status</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${fileData.schedules
+        .map(
+          (s) => `
+        <tr>
+          <td style="text-align: center;"><strong>${s.installment_number}</strong></td>
+          <td>${s.due_date}</td>
+          <td style="text-align: right;">${formatPHP(s.scheduled_amount)}</td>
+          <td style="text-align: right; color: #166534;">${formatPHP(s.amount_paid)}</td>
+          <td style="text-align: right; font-weight: 600;">${formatPHP(s.remaining_amount)}</td>
+          <td>${s.payment_date || "&mdash;"}</td>
+          <td><span class="status-badge status-${s.status}">${s.status.replace(/_/g, " ").toUpperCase()}</span></td>
+          <td>${s.notes || ""}</td>
+        </tr>`
+        )
+        .join("")}
+    </tbody>
+  </table>`
   }
 
-  <!-- SECTION 5: COMPLETE PAYMENT HISTORY -->
-  <div class="section-title">5. Complete Payment History</div>
+  <!-- SECTION E: POS TRANSACTIONS & ITEM BREAKDOWN -->
+  <div class="section-title">SECTION E &mdash; Complete POS Transaction History</div>
   ${
-    fileData.payments.length > 0
-      ? `<table class="data-table">
-          <thead>
-            <tr>
-              <th>Date &amp; Time</th>
-              <th>Payment Ref</th>
-              <th>Txn / App Ref</th>
-              <th>Method</th>
-              <th>Branch</th>
-              <th style="text-align: right;">Amount Paid</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${fileData.payments
-              .map(
-                (p) => `<tr>
-                <td>${new Date(p.payment_date).toLocaleString("en-PH")}</td>
-                <td><strong>${p.payment_reference}</strong>${p.receipt_number ? ` (OR# ${p.receipt_number})` : ""}</td>
-                <td>${p.application_reference || p.transaction_reference || "N/A"}</td>
-                <td>${p.payment_method.toUpperCase()}</td>
-                <td>${p.branch_name}</td>
-                <td style="text-align: right; font-family: monospace; font-weight: 600;">${formatPHP(p.amount_paid)}</td>
-                <td><span class="status-badge status-${p.status}">${p.status.toUpperCase()}</span></td>
-              </tr>`
-              )
-              .join("")}
-          </tbody>
-        </table>`
-      : `<div class="empty-note">No payment transactions recorded for this client.</div>`
+    fileData.posTransactions && fileData.posTransactions.length > 0
+      ? `
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Txn Ref</th>
+        <th>Date &amp; Time</th>
+        <th>Branch</th>
+        <th>Cashier</th>
+        <th>Items Purchased</th>
+        <th style="text-align: right;">Total Amount</th>
+        <th>Payment Method</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${fileData.posTransactions
+        .map(
+          (tx) => `
+        <tr>
+          <td><strong>${tx.reference_number}</strong></td>
+          <td>${new Date(tx.transaction_date).toLocaleString("en-PH")}</td>
+          <td>${tx.branch_name}</td>
+          <td>${tx.cashier_name || "Assigned Cashier"}</td>
+          <td>${tx.items.length > 0 ? tx.items.map((i) => `${i.quantity}x ${i.item_name}`).join(", ") : "Retail Sale"}</td>
+          <td style="text-align: right; font-weight: 600;">${formatPHP(tx.total_amount)}</td>
+          <td>${tx.payment_method.toUpperCase()}</td>
+          <td><span class="status-badge status-${tx.status}">${tx.status.toUpperCase()}</span></td>
+        </tr>`
+        )
+        .join("")}
+    </tbody>
+  </table>`
+      : '<div class="empty-note">No retail POS merchandise transactions recorded for this client.</div>'
   }
 
-  <!-- SECTION 6: APPOINTMENTS AND CLINIC TREATMENTS -->
-  <div class="section-title">6. Appointments &amp; Treatments Rendered</div>
+  <!-- SECTION F: COMPLETE PAYMENT HISTORY -->
+  <div class="section-title">SECTION F &mdash; Complete Payment History</div>
   ${
-    fileData.appointments.length > 0
-      ? `<table class="data-table">
-          <thead>
-            <tr>
-              <th>Booking Ref</th>
-              <th>Date &amp; Time</th>
-              <th>Treatment / Service</th>
-              <th>Branch</th>
-              <th style="text-align: right;">Fee</th>
-              <th>Pay Status</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${fileData.appointments
-              .map(
-                (a) => `<tr>
-                <td><strong>${a.reference_number}</strong></td>
-                <td>${a.appointment_date} ${a.appointment_time}</td>
-                <td>${a.treatment_name}</td>
-                <td>${a.branch_name}</td>
-                <td style="text-align: right; font-family: monospace;">${formatPHP(a.amount_due)}</td>
-                <td><span class="status-badge status-${a.payment_status}">${a.payment_status.toUpperCase()}</span></td>
-                <td><span class="status-badge status-${a.status}">${a.status.toUpperCase()}</span></td>
-              </tr>`
-              )
-              .join("")}
-          </tbody>
-        </table>`
-      : `<div class="empty-note">No appointments or clinical treatment sessions found.</div>`
+    fileData.payments.length === 0
+      ? '<div class="empty-note">No payment transactions recorded for this client.</div>'
+      : `
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Date &amp; Time</th>
+        <th>Payment Ref</th>
+        <th>Txn / App Ref</th>
+        <th>Installment</th>
+        <th style="text-align: right;">Amount Paid</th>
+        <th>Method</th>
+        <th>Branch</th>
+        <th>Receipt / OR #</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${fileData.payments
+        .map(
+          (p) => `
+        <tr>
+          <td>${new Date(p.payment_date).toLocaleString("en-PH")}</td>
+          <td><strong>${p.payment_reference}</strong></td>
+          <td>${p.application_reference || p.transaction_reference || "&mdash;"}</td>
+          <td style="text-align: center;">${p.installment_number !== null ? `#${p.installment_number}` : "&mdash;"}</td>
+          <td style="text-align: right; font-weight: 600; color: ${p.is_valid_collection ? "#166534" : "#991b1b"};">
+            ${p.is_valid_collection ? formatPHP(p.amount_paid) : `(${formatPHP(p.amount_paid)})`}
+          </td>
+          <td>${p.payment_method.toUpperCase()}</td>
+          <td>${p.branch_name}</td>
+          <td>${p.receipt_number || "&mdash;"}</td>
+          <td>
+            <span class="status-badge status-${p.status}">
+              ${p.status.toUpperCase()}${!p.is_valid_collection ? " (REVERSED)" : ""}
+            </span>
+          </td>
+        </tr>`
+        )
+        .join("")}
+    </tbody>
+  </table>`
   }
 
-  <!-- SECTION 7: PACKAGES AND MEMBERSHIPS -->
-  <div class="section-title">7. Packages &amp; Treatment Memberships</div>
+  <!-- SECTION G: APPOINTMENTS AND TREATMENTS -->
+  <div class="section-title">SECTION G &mdash; Appointments and Treatments</div>
   ${
-    fileData.packages.length > 0
-      ? `<table class="data-table">
-          <thead>
-            <tr>
-              <th>Package Name</th>
-              <th>Branch</th>
-              <th>Total Sessions</th>
-              <th>Remaining</th>
-              <th style="text-align: right;">Amount Paid</th>
-              <th>Validity</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${fileData.packages
-              .map(
-                (pkg) => `<tr>
-                <td><strong>${pkg.package_name}</strong></td>
-                <td>${pkg.branch_name || "Main Clinic"}</td>
-                <td>${pkg.total_sessions}</td>
-                <td><strong>${pkg.sessions_remaining}</strong></td>
-                <td style="text-align: right; font-family: monospace;">${formatPHP(pkg.price_paid)}</td>
-                <td>${pkg.expiry_date || "No Expiry"}</td>
-                <td><span class="status-badge status-${pkg.status}">${pkg.status.toUpperCase()}</span></td>
-              </tr>`
-              )
-              .join("")}
-          </tbody>
-        </table>`
-      : `<div class="empty-note">No prepaid packages or membership plans registered.</div>`
+    fileData.appointments.length === 0
+      ? '<div class="empty-note">No clinic appointments or treatments recorded.</div>'
+      : `
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Reference #</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Treatment / Service</th>
+        <th>Branch</th>
+        <th style="text-align: right;">Amount Due</th>
+        <th>Payment Status</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${fileData.appointments
+        .map(
+          (a) => `
+        <tr>
+          <td><strong>${a.reference_number}</strong></td>
+          <td>${a.appointment_date}</td>
+          <td>${a.appointment_time}</td>
+          <td>${a.treatment_name}</td>
+          <td>${a.branch_name}</td>
+          <td style="text-align: right;">${formatPHP(a.amount_due)}</td>
+          <td><span class="status-badge status-${a.payment_status || 'unpaid'}">${(a.payment_status || "UNPAID").toUpperCase()}</span></td>
+          <td><span class="status-badge status-${a.status || 'booked'}">${(a.status || "BOOKED").toUpperCase()}</span></td>
+        </tr>`
+        )
+        .join("")}
+    </tbody>
+  </table>`
   }
 
-  <!-- SECTION 8: ACTIVITY TIMELINE -->
-  <div class="section-title">8. Complete Activity Timeline</div>
+  <!-- SECTION H: SERVICES, PACKAGES, AND MEMBERSHIPS -->
+  <div class="section-title">SECTION H &mdash; Services, Packages, and Memberships</div>
   ${
-    fileData.timeline.length > 0
-      ? `<table class="data-table">
-          <thead>
-            <tr>
-              <th>Date &amp; Time</th>
-              <th>Activity Type</th>
-              <th>Title &amp; Reference</th>
-              <th>Description</th>
-              <th style="text-align: right;">Amount</th>
-              <th>Branch</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${fileData.timeline.slice(0, 50)
-              .map(
-                (t) => `<tr>
-                <td>${t.date_formatted}</td>
-                <td><span class="status-badge" style="background: #edf2f7; color: #4a5568;">${t.type.replace(/_/g, " ").toUpperCase()}</span></td>
-                <td><strong>${t.title}</strong>${t.reference_number ? ` (${t.reference_number})` : ""}</td>
-                <td>${t.description}</td>
-                <td style="text-align: right; font-family: monospace;">${t.amount !== null && t.amount !== undefined ? formatPHP(t.amount) : "-"}</td>
-                <td>${t.branch_name || "Main Clinic"}</td>
-              </tr>`
-              )
-              .join("")}
-          </tbody>
-        </table>`
-      : `<div class="empty-note">No timeline activity on record.</div>`
+    fileData.packages.length === 0
+      ? '<div class="empty-note">No prepaid packages or memberships active.</div>'
+      : `
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Package Name</th>
+        <th>Branch</th>
+        <th style="text-align: center;">Total Sessions</th>
+        <th style="text-align: center;">Remaining</th>
+        <th style="text-align: right;">Price Paid</th>
+        <th>Start Date</th>
+        <th>Expiry Date</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${fileData.packages
+        .map(
+          (pkg) => `
+        <tr>
+          <td><strong>${pkg.package_name}</strong></td>
+          <td>${pkg.branch_name || "Main Clinic"}</td>
+          <td style="text-align: center;">${pkg.total_sessions}</td>
+          <td style="text-align: center; font-weight: 700;">${pkg.sessions_remaining}</td>
+          <td style="text-align: right;">${formatPHP(pkg.price_paid)}</td>
+          <td>${pkg.start_date || (pkg.created_at ? pkg.created_at.slice(0, 10) : "N/A")}</td>
+          <td>${pkg.expiry_date || pkg.expires_at || "No Expiry"}</td>
+          <td><span class="status-badge status-${pkg.status || 'active'}">${(pkg.status || "ACTIVE").toUpperCase()}</span></td>
+        </tr>`
+        )
+        .join("")}
+    </tbody>
+  </table>`
   }
 
-  <!-- SIGNATURE AND AUDIT FOOTER -->
+  <!-- SECTION I: REFUNDS, VOIDS, AND ADJUSTMENTS -->
+  <div class="section-title">SECTION I &mdash; Refunds, Voids, and Adjustments</div>
+  ${
+    fileData.refundsAdjustments && fileData.refundsAdjustments.length > 0
+      ? `
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Adjustment Ref</th>
+        <th>Original Txn</th>
+        <th>Date</th>
+        <th>Branch</th>
+        <th>Type</th>
+        <th style="text-align: right;">Original Amount</th>
+        <th style="text-align: right;">Adjusted Amount</th>
+        <th>Reason</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${fileData.refundsAdjustments
+        .map(
+          (r) => `
+        <tr>
+          <td><strong>${r.reference_number}</strong></td>
+          <td>${r.original_reference}</td>
+          <td>${new Date(r.date).toLocaleString("en-PH")}</td>
+          <td>${r.branch_name}</td>
+          <td><span class="status-badge status-reversed">${(r.adjustment_type || "ADJUSTMENT").toUpperCase()}</span></td>
+          <td style="text-align: right;">${formatPHP(r.original_amount)}</td>
+          <td style="text-align: right; font-weight: 700; color: #991b1b;">${formatPHP(r.adjustment_amount)}</td>
+          <td>${r.reason}</td>
+          <td>${(r.approval_status || "COMPLETED").toUpperCase()}</td>
+        </tr>`
+        )
+        .join("")}
+    </tbody>
+  </table>`
+      : '<div class="empty-note">No payment refunds, cashier voids, or financial adjustments recorded.</div>'
+  }
+
+  <!-- SECTION J: RECEIPTS AND DOCUMENTS -->
+  <div class="section-title">SECTION J &mdash; Receipts and Documents</div>
+  ${
+    fileData.receipts && fileData.receipts.length > 0
+      ? `
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Receipt / Document #</th>
+        <th>Document Type</th>
+        <th>Related Reference</th>
+        <th>Date</th>
+        <th>Branch</th>
+        <th style="text-align: right;">Amount</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${fileData.receipts
+        .map(
+          (rcpt) => `
+        <tr>
+          <td><strong>${rcpt.receipt_number}</strong></td>
+          <td>${rcpt.document_type}</td>
+          <td>${rcpt.related_reference}</td>
+          <td>${new Date(rcpt.date).toLocaleDateString("en-PH")}</td>
+          <td>${rcpt.branch_name}</td>
+          <td style="text-align: right; font-weight: 600;">${rcpt.amount ? formatPHP(rcpt.amount) : "&mdash;"}</td>
+          <td><span class="status-badge status-${rcpt.availability === 'available' ? 'paid' : 'pending'}">${rcpt.availability === 'available' ? 'AVAILABLE' : 'PENDING UPLOAD'}</span></td>
+        </tr>`
+        )
+        .join("")}
+    </tbody>
+  </table>`
+      : '<div class="empty-note">No formal receipt documents indexed.</div>'
+  }
+
+  <!-- SECTION K: COMPLETE CLIENT ACTIVITY TIMELINE -->
+  <div class="section-title">SECTION K &mdash; Complete Client Activity Timeline</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width: 130px;">Date &amp; Time</th>
+        <th style="width: 140px;">Activity Event</th>
+        <th>Description</th>
+        <th>Branch</th>
+        <th>Reference #</th>
+        <th style="text-align: right;">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${fileData.timeline
+        .slice(0, 50)
+        .map(
+          (item) => `
+        <tr>
+          <td style="font-size: 7.5pt;">${item.date_formatted}</td>
+          <td><strong>${item.title}</strong></td>
+          <td>${item.description}</td>
+          <td>${item.branch_name || "Main Clinic"}</td>
+          <td>${item.reference_number || "&mdash;"}</td>
+          <td style="text-align: right; font-weight: 600;">${item.amount !== null && item.amount !== undefined ? formatPHP(item.amount) : "&mdash;"}</td>
+        </tr>`
+        )
+        .join("")}
+    </tbody>
+  </table>
+
+  <!-- SIGNATURE AND OFFICIAL AUDIT SEAL BLOCK -->
   <div class="footer-stamp">
     <div>
       <div><strong>Certified Official Client Record</strong></div>
-      <div>Extracted by: ${fileData.generated_by}</div>
-      <div>Timestamp: ${new Date(fileData.generated_at).toLocaleString("en-PH")} (Asia/Manila)</div>
-      <div style="font-size: 7.5pt; color: #a0aec0; margin-top: 4px;">Cindyrella Aesthetic & Wellness Clinic Management System &bull; Confidential &bull; Authorized Personnel Only</div>
+      <div>Clinic System Engine &bull; Cindyrella Aesthetic &amp; Wellness Management System</div>
+      <div>Confidential Client Statement &bull; Generated by authorized officer: ${fileData.generated_by}</div>
+      <div style="font-size: 7.5pt; color: #a0aec0; margin-top: 4px;">Hash: ${client.id.slice(0, 16)} &bull; Scope: ${fileData.branch_scope}</div>
     </div>
     <div class="sign-block">
-      Authorized Signature / Clinic Officer
+      Authorized Signature / Clinic Manager
     </div>
   </div>
 
 </body>
-</html>`;
+</html>
+`;
 }

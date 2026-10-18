@@ -20,11 +20,13 @@ import {
   RefreshCw,
   MoreVertical,
   X,
+  Files,
 } from "lucide-react";
 import type { CompleteClientFile } from "./types";
 import { getCompleteClientFile, logClientFileExport } from "./actions";
 import { generateClientFileExcel } from "@/lib/customers/client-file-excel";
 import { ClientHistoryModal } from "@/components/admin/customers/ClientHistoryModal";
+import { ExtractClientFileModal } from "@/components/admin/customers/ExtractClientFileModal";
 import toast from "react-hot-toast";
 
 interface CustomerListItem {
@@ -69,7 +71,11 @@ export function CustomersClient({
 
   // Selected client for history modal
   const [selectedClientFile, setSelectedClientFile] = useState<CompleteClientFile | null>(null);
+  const [historyInitialTab, setHistoryInitialTab] = useState<
+    "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "timeline"
+  >("overview");
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [extractCustomer, setExtractCustomer] = useState<CustomerListItem | null>(null);
   const [activeMenuCustomerId, setActiveMenuCustomerId] = useState<string | null>(null);
 
   // Multi-facet search: Client ID, Full Name, Phone, Email, Code
@@ -108,9 +114,13 @@ export function CustomersClient({
     });
   }, [customers, searchTerm, branchFilter, statusFilter]);
 
-  // View Complete History action
-  const handleOpenHistory = async (customerId: string) => {
+  // View Client Profile or Complete History action
+  const handleOpenHistory = async (
+    customerId: string,
+    initialTab: "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "timeline" = "overview"
+  ) => {
     setIsLoadingHistory(true);
+    setHistoryInitialTab(initialTab);
     setActiveMenuCustomerId(null);
     try {
       const res = await getCompleteClientFile(customerId);
@@ -288,32 +298,47 @@ export function CustomersClient({
                 </td>
                 <td className="py-3 px-4 text-right">
                   <div className="flex items-center justify-end gap-1.5">
+                    {/* ACTION 1: View Client Profile */}
                     <button
-                      onClick={() => handleOpenHistory(c.id)}
+                      onClick={() => handleOpenHistory(c.id, "overview")}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-[11px] flex items-center gap-1 transition-colors"
+                      title="View Client Profile"
+                    >
+                      <User size={13} className="text-slate-600" />
+                      <span>Profile</span>
+                    </button>
+
+                    {/* ACTION 2: View Complete History */}
+                    <button
+                      onClick={() => handleOpenHistory(c.id, "timeline")}
                       className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-[11px] flex items-center gap-1 transition-colors"
                       title="View Complete History"
                     >
                       <History size={13} className="text-rose-700" />
-                      History
+                      <span>History</span>
                     </button>
 
+                    {/* ACTION 3: Extract Client File (Modal: PDF, Excel, Both) */}
                     {canExport && (
-                      <>
-                        <button
-                          onClick={() => handleExtractExcel(c.id, `${c.first_name} ${c.last_name}`)}
-                          className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-50 transition-colors"
-                          title="Extract Client File (Excel)"
-                        >
-                          <FileSpreadsheet size={15} />
-                        </button>
-                        <button
-                          onClick={() => handlePrintStatement(c.id)}
-                          className="p-1.5 rounded-lg text-rose-700 hover:bg-rose-50 transition-colors"
-                          title="Print Client Statement (PDF)"
-                        >
-                          <Printer size={15} />
-                        </button>
-                      </>
+                      <button
+                        onClick={() => setExtractCustomer(c)}
+                        className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 font-semibold text-[11px] flex items-center gap-1 transition-colors border border-rose-200/60"
+                        title="Extract Client File (PDF & Excel)"
+                      >
+                        <Files size={13} className="text-rose-700" />
+                        <span>Extract File</span>
+                      </button>
+                    )}
+
+                    {/* ACTION 4: Print Client Statement */}
+                    {canExport && (
+                      <button
+                        onClick={() => handlePrintStatement(c.id)}
+                        className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                        title="Print Client Statement (PDF)"
+                      >
+                        <Printer size={15} />
+                      </button>
                     )}
                   </div>
                 </td>
@@ -353,29 +378,42 @@ export function CustomersClient({
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
               <span className="text-slate-500">{c.branch_name || "Main Clinic"}</span>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* 1. View Profile */}
                 <button
-                  onClick={() => handleOpenHistory(c.id)}
-                  className="px-2.5 py-1 bg-slate-900 text-white rounded font-semibold text-[11px]"
+                  onClick={() => handleOpenHistory(c.id, "overview")}
+                  className="px-2 py-1 bg-slate-100 text-slate-800 rounded font-semibold text-[11px] flex items-center gap-1"
                 >
-                  View File
+                  <User size={12} />
+                  Profile
                 </button>
+                {/* 2. View History */}
+                <button
+                  onClick={() => handleOpenHistory(c.id, "timeline")}
+                  className="px-2 py-1 bg-slate-900 text-white rounded font-semibold text-[11px] flex items-center gap-1"
+                >
+                  <History size={12} />
+                  History
+                </button>
+                {/* 3. Extract File */}
                 {canExport && (
                   <button
-                    onClick={() => handleExtractExcel(c.id, `${c.first_name} ${c.last_name}`)}
-                    className="p-1 text-emerald-700 bg-emerald-50 rounded"
-                    title="Excel"
+                    onClick={() => setExtractCustomer(c)}
+                    className="px-2 py-1 text-rose-800 bg-rose-50 border border-rose-200 rounded font-semibold text-[11px] flex items-center gap-1"
+                    title="Extract Client File"
                   >
-                    <FileSpreadsheet size={15} />
+                    <Files size={12} />
+                    Extract
                   </button>
                 )}
+                {/* 4. Print Statement */}
                 {canExport && (
                   <button
                     onClick={() => handlePrintStatement(c.id)}
-                    className="p-1 text-rose-700 bg-rose-50 rounded"
+                    className="p-1 text-slate-600 bg-slate-100 rounded"
                     title="Print Statement"
                   >
-                    <Printer size={15} />
+                    <Printer size={14} />
                   </button>
                 )}
               </div>
@@ -389,14 +427,26 @@ export function CustomersClient({
         )}
       </div>
 
+      {/* EXTRACT CLIENT FILE MODAL (PDF / EXCEL / BOTH + DATE RANGE & BRANCH SCOPE) */}
+      {extractCustomer && (
+        <ExtractClientFileModal
+          isOpen={true}
+          onClose={() => setExtractCustomer(null)}
+          customer={extractCustomer}
+          branches={branches}
+          isSuperAdmin={isSuperAdmin}
+        />
+      )}
+
       {/* CLIENT COMPLETE HISTORY MODAL */}
       {selectedClientFile && (
         <ClientHistoryModal
           isOpen={true}
           onClose={() => setSelectedClientFile(null)}
           clientFile={selectedClientFile}
+          initialTab={historyInitialTab}
           canPay={canPay}
-          onRefresh={() => handleOpenHistory(selectedClientFile.client.id)}
+          onRefresh={() => handleOpenHistory(selectedClientFile.client.id, historyInitialTab)}
         />
       )}
     </div>

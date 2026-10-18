@@ -1,13 +1,13 @@
 // ==============================================================================
 // Cindyrella Aesthetic & Wellness / Clinic & Spa Management System
-// Excel Workbook Exporter for Complete Client Account History (9 Sheets)
+// Excel Multi-Sheet Workbook Generator for Complete Client File (15 Worksheets)
 // ==============================================================================
 
 import * as XLSX from "xlsx";
 import type { CompleteClientFile } from "@/app/admin/(dashboard)/customers/types";
 
 /**
- * Generates an Excel workbook with 9 distinct, structured sheets for the client.
+ * Generates a structured 15-worksheet Excel workbook containing the client's complete records.
  */
 export function generateClientFileExcel(fileData: CompleteClientFile): Blob {
   const wb = XLSX.utils.book_new();
@@ -40,7 +40,33 @@ export function generateClientFileExcel(fileData: CompleteClientFile): Blob {
   XLSX.utils.book_append_sheet(wb, wsProfile, "Client Profile");
 
   // ----------------------------------------------------------------------------
-  // SHEET 2: Installment Applications
+  // SHEET 2: Account Summary
+  // ----------------------------------------------------------------------------
+  const summaryRows = [
+    { Metric: "Total Contract Value", "Amount (₱)": summary.total_contract_value, Basis: "Installment Contracts + Valid Retail POS Sales" },
+    { Metric: "Total POS Sales", "Amount (₱)": summary.total_pos_sales, Basis: "Gross Retail Merchandise Sales" },
+    { Metric: "Total Installment Contract Value", "Amount (₱)": summary.total_installment_contract_value, Basis: "All Authorized Client Installment Agreements" },
+    { Metric: "Total Valid Collections", "Amount (₱)": summary.total_valid_payments, Basis: "Excludes Reversed, Refunded, or Voided Payments" },
+    { Metric: "Total Refunds Processed", "Amount (₱)": summary.total_refunds, Basis: "Refunds on Treatments and Retails" },
+    { Metric: "Total Reversed / Voided Transactions", "Amount (₱)": summary.total_refunded_reversed, Basis: "Reversals, Cashier Voids, and Cancelled Payments" },
+    { Metric: "Outstanding Installment Balance", "Amount (₱)": summary.total_outstanding_balance, Basis: "Contract Total less Valid Collections" },
+    { Metric: "Overdue Balance", "Amount (₱)": summary.overdue_balance, Basis: "Scheduled Installments Past Due Date" },
+    { Metric: "Next Due Date", "Amount (₱)": summary.next_due_date || "None", Basis: "Earliest Upcoming Unpaid Installment" },
+    { Metric: "Next Scheduled Amount", "Amount (₱)": summary.next_scheduled_amount || 0, Basis: "Scheduled Balance Due" },
+    { Metric: "Number of Paid Installments", "Amount (₱)": summary.paid_installments_count, Basis: "Fully Settled Scheduled Installments" },
+    { Metric: "Number of Remaining Installments", "Amount (₱)": summary.remaining_installments_count, Basis: "Unpaid or Partially Settled Installments" },
+    { Metric: "Active Installment Contracts", "Amount (₱)": summary.active_applications_count, Basis: "Active Ongoing Financing Plans" },
+    { Metric: "Number of POS Transactions", "Amount (₱)": summary.pos_transactions_count, Basis: "Total Client Retail Purchases" },
+    { Metric: "Number of Appointments", "Amount (₱)": summary.appointments_count, Basis: "All Clinic Bookings Recorded" },
+    { Metric: "Number of Completed Treatments", "Amount (₱)": summary.completed_treatments_count, Basis: "Treatments Rendered & Signed Off" },
+    { Metric: "Active Packages or Memberships", "Amount (₱)": summary.active_packages_count, Basis: "Prepaid Service Packages with Remaining Sessions" },
+    { Metric: "Last Clinic Visit", "Amount (₱)": summary.last_visit_date || "N/A", Basis: "Most Recent Completed Treatment or Transaction" },
+  ];
+  const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+  XLSX.utils.book_append_sheet(wb, wsSummary, "Account Summary");
+
+  // ----------------------------------------------------------------------------
+  // SHEET 3: Installment Applications
   // ----------------------------------------------------------------------------
   const appRows =
     fileData.applications.length > 0
@@ -67,7 +93,7 @@ export function generateClientFileExcel(fileData: CompleteClientFile): Blob {
   XLSX.utils.book_append_sheet(wb, wsApps, "Installment Applications");
 
   // ----------------------------------------------------------------------------
-  // SHEET 3: Installment Schedules
+  // SHEET 4: Installment Schedules
   // ----------------------------------------------------------------------------
   const schedRows =
     fileData.schedules.length > 0
@@ -86,7 +112,7 @@ export function generateClientFileExcel(fileData: CompleteClientFile): Blob {
   XLSX.utils.book_append_sheet(wb, wsSched, "Installment Schedules");
 
   // ----------------------------------------------------------------------------
-  // SHEET 4: Payment History (All Valid & Historical Collections)
+  // SHEET 5: Payment History
   // ----------------------------------------------------------------------------
   const payRows =
     fileData.payments.length > 0
@@ -111,25 +137,50 @@ export function generateClientFileExcel(fileData: CompleteClientFile): Blob {
   XLSX.utils.book_append_sheet(wb, wsPay, "Payment History");
 
   // ----------------------------------------------------------------------------
-  // SHEET 5: Outstanding Balances & Financial Summary
+  // SHEET 6: POS Transactions
   // ----------------------------------------------------------------------------
-  const balanceRows = [
-    { Metric: "Total Contract Value", "Amount (₱)": summary.total_contract_value },
-    { Metric: "Total Valid Collections", "Amount (₱)": summary.total_valid_payments },
-    { Metric: "Total Refunded / Reversed", "Amount (₱)": summary.total_refunded_reversed },
-    { Metric: "Total Outstanding Balance", "Amount (₱)": summary.total_outstanding_balance },
-    { Metric: "Overdue Balance", "Amount (₱)": summary.overdue_balance },
-    { Metric: "Next Due Date", "Amount (₱)": summary.next_due_date || "None" },
-    { Metric: "Next Scheduled Amount", "Amount (₱)": summary.next_scheduled_amount || 0 },
-    { Metric: "Number of Paid Installments", "Amount (₱)": summary.paid_installments_count },
-    { Metric: "Number of Remaining Installments", "Amount (₱)": summary.remaining_installments_count },
-    { Metric: "Active Installment Contracts", "Amount (₱)": summary.active_applications_count },
-  ];
-  const wsBal = XLSX.utils.json_to_sheet(balanceRows);
-  XLSX.utils.book_append_sheet(wb, wsBal, "Outstanding Balances");
+  const posTxnRows =
+    fileData.posTransactions && fileData.posTransactions.length > 0
+      ? fileData.posTransactions.map((tx) => ({
+          "Transaction Ref": tx.reference_number,
+          "Receipt Number": tx.receipt_number || tx.reference_number,
+          "Date & Time": new Date(tx.transaction_date).toLocaleString("en-PH"),
+          Branch: tx.branch_name,
+          Cashier: tx.cashier_name || "Assigned Cashier",
+          "Gross Amount (₱)": tx.total_amount,
+          "Discount (₱)": tx.discount_amount || 0,
+          "Discount Reason": tx.discount_reason || "None",
+          "Net Paid (₱)": tx.total_amount - (tx.discount_amount || 0),
+          "Payment Method": tx.payment_method.toUpperCase(),
+          Status: tx.status.toUpperCase(),
+          "Refunded Amount (₱)": tx.refunded_amount || 0,
+          "Void Reason": tx.void_reason || "N/A",
+        }))
+      : [{ Note: "No retail POS transactions found for this client." }];
+  const wsPOSTxns = XLSX.utils.json_to_sheet(posTxnRows);
+  XLSX.utils.book_append_sheet(wb, wsPOSTxns, "POS Transactions");
 
   // ----------------------------------------------------------------------------
-  // SHEET 6: Appointments and Services
+  // SHEET 7: POS Transaction Items
+  // ----------------------------------------------------------------------------
+  const posItemRows =
+    fileData.posItems && fileData.posItems.length > 0
+      ? fileData.posItems.map((item) => ({
+          "Sale Reference": item.sale_reference,
+          Date: new Date(item.date).toLocaleDateString("en-PH"),
+          Branch: item.branch_name,
+          "Item / Product Name": item.item_name,
+          SKU: item.sku || "N/A",
+          Quantity: item.quantity,
+          "Price per Unit (₱)": item.price_per_unit,
+          "Subtotal (₱)": item.subtotal,
+        }))
+      : [{ Note: "No line items found for client retail transactions." }];
+  const wsPOSItems = XLSX.utils.json_to_sheet(posItemRows);
+  XLSX.utils.book_append_sheet(wb, wsPOSItems, "POS Transaction Items");
+
+  // ----------------------------------------------------------------------------
+  // SHEET 8: Appointments
   // ----------------------------------------------------------------------------
   const apptRows =
     fileData.appointments.length > 0
@@ -140,17 +191,36 @@ export function generateClientFileExcel(fileData: CompleteClientFile): Blob {
           Treatment: a.treatment_name,
           Branch: a.branch_name,
           "Amount Due (₱)": a.amount_due,
-          "Payment Method": a.payment_method.toUpperCase(),
-          "Payment Status": a.payment_status.toUpperCase(),
-          "Booking Status": a.status.toUpperCase(),
+          "Payment Method": (a.payment_method || "N/A").toUpperCase(),
+          "Payment Status": (a.payment_status || "UNPAID").toUpperCase(),
+          "Booking Status": (a.status || "BOOKED").toUpperCase(),
           Notes: a.notes || "N/A",
         }))
-      : [{ Note: "No appointments or clinic treatments found." }];
+      : [{ Note: "No appointments found for this client." }];
   const wsAppt = XLSX.utils.json_to_sheet(apptRows);
-  XLSX.utils.book_append_sheet(wb, wsAppt, "Appointments and Services");
+  XLSX.utils.book_append_sheet(wb, wsAppt, "Appointments");
 
   // ----------------------------------------------------------------------------
-  // SHEET 7: Packages and Memberships
+  // SHEET 9: Treatments and Services
+  // ----------------------------------------------------------------------------
+  const treatmentRows =
+    fileData.appointments.length > 0
+      ? fileData.appointments.map((a) => ({
+          "Treatment Name": a.treatment_name,
+          "Date Rendered": a.appointment_date,
+          "Time Slot": a.appointment_time,
+          Branch: a.branch_name,
+          "Completion Status": a.status === "completed" ? "Completed" : (a.status || "BOOKED").toUpperCase(),
+          "Payment Settled": a.payment_status === "paid" ? "PAID" : (a.payment_status || "UNPAID").toUpperCase(),
+          "Amount Charged (₱)": a.amount_due,
+          "Service Notes": a.notes || "None",
+        }))
+      : [{ Note: "No treatments or clinical services rendered." }];
+  const wsTreatments = XLSX.utils.json_to_sheet(treatmentRows);
+  XLSX.utils.book_append_sheet(wb, wsTreatments, "Treatments and Services");
+
+  // ----------------------------------------------------------------------------
+  // SHEET 10: Packages and Memberships
   // ----------------------------------------------------------------------------
   const pkgRows =
     fileData.packages.length > 0
@@ -159,10 +229,11 @@ export function generateClientFileExcel(fileData: CompleteClientFile): Blob {
           Branch: pkg.branch_name || "Main Clinic",
           "Total Sessions": pkg.total_sessions,
           "Sessions Remaining": pkg.sessions_remaining,
+          "Sessions Redeemed": Math.max(0, pkg.total_sessions - pkg.sessions_remaining),
           "Price Paid (₱)": pkg.price_paid,
-          "Start Date": pkg.start_date,
-          "Expiry Date": pkg.expiry_date || "No Expiry",
-          Status: pkg.status.toUpperCase(),
+          "Start Date": pkg.start_date || (pkg.created_at ? pkg.created_at.slice(0, 10) : "N/A"),
+          "Expiry Date": pkg.expiry_date || pkg.expires_at || "No Expiry",
+          Status: (pkg.status || "ACTIVE").toUpperCase(),
           Notes: pkg.notes || "N/A",
         }))
       : [{ Note: "No packages or memberships found for this client." }];
@@ -170,29 +241,64 @@ export function generateClientFileExcel(fileData: CompleteClientFile): Blob {
   XLSX.utils.book_append_sheet(wb, wsPkg, "Packages and Memberships");
 
   // ----------------------------------------------------------------------------
-  // SHEET 8: Refunds and Adjustments
+  // SHEET 11: Package Redemptions
   // ----------------------------------------------------------------------------
-  const refundItems = fileData.payments.filter(
-    (p) => p.status === "reversed" || p.status === "refunded" || p.status === "voided"
-  );
+  const redemptionRows =
+    fileData.packageRedemptions && fileData.packageRedemptions.length > 0
+      ? fileData.packageRedemptions.map((red) => ({
+          "Package Name": red.package_name,
+          "Appointment Ref": red.appointment_reference,
+          "Treatment Rendered": red.treatment_name,
+          "Redemption Date": red.date,
+          Branch: red.branch_name,
+          "Sessions Deducted": red.sessions_deducted,
+        }))
+      : [{ Note: "No package session redemptions recorded." }];
+  const wsRedemptions = XLSX.utils.json_to_sheet(redemptionRows);
+  XLSX.utils.book_append_sheet(wb, wsRedemptions, "Package Redemptions");
+
+  // ----------------------------------------------------------------------------
+  // SHEET 12: Refunds and Adjustments
+  // ----------------------------------------------------------------------------
   const refundRows =
-    refundItems.length > 0
-      ? refundItems.map((r) => ({
-          "Payment Ref": r.payment_reference,
-          "Original Txn Ref": r.transaction_reference || "N/A",
-          Date: new Date(r.payment_date).toLocaleString("en-PH"),
-          "Reversed Amount (₱)": r.amount_paid,
-          Method: r.payment_method.toUpperCase(),
-          Status: r.status.toUpperCase(),
+    fileData.refundsAdjustments && fileData.refundsAdjustments.length > 0
+      ? fileData.refundsAdjustments.map((r) => ({
+          "Adjustment Ref": r.reference_number,
+          "Original Ref": r.original_reference,
+          Date: new Date(r.date).toLocaleString("en-PH"),
           Branch: r.branch_name,
-          Reason: r.notes || "Authorized Reversal",
+          "Adjustment Type": (r.adjustment_type || "ADJUSTMENT").toUpperCase(),
+          "Original Amount (₱)": r.original_amount,
+          "Adjustment Amount (₱)": r.adjustment_amount,
+          Reason: r.reason,
+          "Approval Status": (r.approval_status || "COMPLETED").toUpperCase(),
+          "Processed By": r.processed_by || "Authorized Supervisor",
         }))
       : [{ Note: "No refunds, adjustments, or payment reversals recorded." }];
   const wsRefunds = XLSX.utils.json_to_sheet(refundRows);
   XLSX.utils.book_append_sheet(wb, wsRefunds, "Refunds and Adjustments");
 
   // ----------------------------------------------------------------------------
-  // SHEET 9: Activity Timeline
+  // SHEET 13: Receipts and Documents Index
+  // ----------------------------------------------------------------------------
+  const receiptRows =
+    fileData.receipts && fileData.receipts.length > 0
+      ? fileData.receipts.map((rcpt) => ({
+          "Receipt / Document #": rcpt.receipt_number,
+          "Document Type": rcpt.document_type,
+          "Related Reference": rcpt.related_reference,
+          Date: new Date(rcpt.date).toLocaleDateString("en-PH"),
+          Branch: rcpt.branch_name,
+          "Amount (₱)": rcpt.amount,
+          "Document Status": rcpt.availability || "available",
+          "Verification URL": rcpt.file_path || "In-Clinic Official Document",
+        }))
+      : [{ Note: "No formal receipt documents indexed." }];
+  const wsReceipts = XLSX.utils.json_to_sheet(receiptRows);
+  XLSX.utils.book_append_sheet(wb, wsReceipts, "Receipts and Documents Index");
+
+  // ----------------------------------------------------------------------------
+  // SHEET 14: Activity Timeline
   // ----------------------------------------------------------------------------
   const timelineRows =
     fileData.timeline.length > 0
@@ -210,6 +316,21 @@ export function generateClientFileExcel(fileData: CompleteClientFile): Blob {
       : [{ Note: "No client timeline activity recorded." }];
   const wsTimeline = XLSX.utils.json_to_sheet(timelineRows);
   XLSX.utils.book_append_sheet(wb, wsTimeline, "Activity Timeline");
+
+  // ----------------------------------------------------------------------------
+  // SHEET 15: Data Quality Warnings
+  // ----------------------------------------------------------------------------
+  const warningRows =
+    fileData.warnings && fileData.warnings.length > 0
+      ? fileData.warnings.map((w) => ({
+          "Issue Type": w.issue_type,
+          Description: w.description,
+          Severity: w.severity.toUpperCase(),
+          "Recommended Action": w.recommended_action,
+        }))
+      : [{ Note: "No data quality warnings or relationship discrepancies detected." }];
+  const wsWarnings = XLSX.utils.json_to_sheet(warningRows);
+  XLSX.utils.book_append_sheet(wb, wsWarnings, "Data Quality Warnings");
 
   // Write out as Excel binary array
   const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });

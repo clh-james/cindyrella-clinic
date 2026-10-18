@@ -30,7 +30,10 @@ import {
  * Authoritative, server-enforced retrieval of a client's entire file across
  * profile, contracts, schedules, payments, appointments, packages, and activity.
  */
-export async function getCompleteClientFile(customerId: string): Promise<{
+export async function getCompleteClientFile(
+  customerId: string,
+  filters?: { fromDate?: string; toDate?: string; branchId?: string }
+): Promise<{
   success: boolean;
   data?: CompleteClientFile;
   error?: string;
@@ -218,12 +221,47 @@ export async function getCompleteClientFile(customerId: string): Promise<{
       };
     });
 
-    // 5. Fetch POS Retail Sales for this Customer
-    const { data: rawPosSales } = await supabase
+    // 5. Fetch POS Retail Sales for this Customer with item-level details
+    let posQuery = supabase
       .from("pos_sales")
-      .select("id, reference_number, total_amount, payment_method, status, created_at, shift_id, branches(name)")
+      .select("*, branches(name), pos_sale_items(*, inventory_items(name, sku))")
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false });
+
+    if (filters?.branchId && filters.branchId !== "all") {
+      posQuery = posQuery.eq("branch_id", filters.branchId);
+    }
+    if (filters?.fromDate) {
+      posQuery = posQuery.gte("created_at", `${filters.fromDate}T00:00:00Z`);
+    }
+    if (filters?.toDate) {
+      posQuery = posQuery.lte("created_at", `${filters.toDate}T23:59:59Z`);
+    }
+
+    const { data: rawPosSales } = await posQuery;
+
+    const posTransactions = (rawPosSales || []).map((s: any) => ({
+      id: s.id,
+      reference_number: s.reference_number,
+      receipt_number: s.reference_number,
+      transaction_date: s.created_at,
+      branch_name: s.branches?.name || "Main Clinic",
+      cashier_name: null,
+      items: (s.pos_sale_items || []).map((it: any) => ({
+        item_name: it.inventory_items?.name || "Retail Merchandise Item",
+        sku: it.inventory_items?.sku || null,
+        quantity: Number(it.quantity || 1),
+        price_per_unit: roundCurrency(Number(it.price_per_unit || 0)),
+        subtotal: roundCurrency(Number(it.quantity || 1) * Number(it.price_per_unit || 0)),
+      })),
+      total_amount: roundCurrency(Number(s.total_amount)),
+      discount_amount: roundCurrency(Number(s.discount_amount || 0)),
+      discount_reason: s.discount_reason || null,
+      payment_method: s.payment_method || "cash",
+      status: s.status || "completed",
+      refunded_amount: roundCurrency(Number(s.refunded_amount || 0)),
+      void_reason: s.void_reason || null,
+    }));
 
     const posSales = (rawPosSales || []).map((s: any) => ({
       id: s.id,
@@ -306,8 +344,10 @@ export async function getCompleteClientFile(customerId: string): Promise<{
       payments: unifiedPayments,
       appointments,
       packages,
+      posTransactions,
       actorName: staff.fullName,
       branchScope,
+      date_range: filters?.fromDate || filters?.toDate ? { from: filters.fromDate, to: filters.toDate } : undefined,
     });
 
     // 10. Audit Log (View Record)
@@ -679,7 +719,11 @@ export async function reverseInstallmentPayment(paymentId: string, reason: strin
 /**
  * 5. AUDIT LOG EXPORT ACTION
  */
-export async function logClientFileExport(customerId: string, exportType: "PDF" | "EXCEL" | "STATEMENT") {
+export async function logClientFileExport(
+  customerId: string,
+  exportType: "PDF" | "EXCEL" | "STATEMENT" | "BOTH",
+  metadata?: Record<string, any>
+) {
   const staff = await requireStaff();
   const supabase = createAdminClient();
 
