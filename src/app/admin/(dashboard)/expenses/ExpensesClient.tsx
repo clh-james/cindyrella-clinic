@@ -21,6 +21,7 @@ import {
   Sparkles,
   ExternalLink,
   Building2,
+  X,
 } from "lucide-react";
 import {
   ExpenseItem,
@@ -406,45 +407,63 @@ export function ExpensesClient({
         <>
           {/* SEARCH AND FILTER TOOLBAR (Section 6: Clean light container, consistent control heights, Reset button) */}
           <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
+            {/* Row 1: Search & Date Range */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
               {/* Search */}
-              <div className="lg:col-span-4 relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <div className="md:col-span-7 relative min-w-0">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search reference, vendor, or description..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full h-10 pl-9 pr-3 text-xs rounded-xl border border-slate-200 bg-slate-50/60 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all"
+                  className="w-full h-10 pl-9 pr-8 text-xs rounded-xl border border-slate-200 bg-slate-50/60 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all min-w-0"
                 />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-md"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* Date Range: From / To */}
-              <div className="lg:col-span-3 flex items-center gap-1.5">
-                <input
-                  type="date"
-                  aria-label="Filter start date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full h-10 px-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50/60 text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white"
-                />
-                <span className="text-xs text-slate-400 font-medium">to</span>
-                <input
-                  type="date"
-                  aria-label="Filter end date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full h-10 px-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50/60 text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white"
-                />
+              <div className="md:col-span-5 min-w-0">
+                <div className="flex items-center gap-2 h-10 px-3 rounded-xl border border-slate-200 bg-slate-50/60 focus-within:border-rose-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-rose-500/20 transition-all">
+                  <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input
+                    type="date"
+                    aria-label="Filter start date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full min-w-0 bg-transparent text-xs text-slate-800 focus:outline-none"
+                    title="Start Date"
+                  />
+                  <span className="text-xs text-slate-400 font-medium shrink-0 px-1">to</span>
+                  <input
+                    type="date"
+                    aria-label="Filter end date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full min-w-0 bg-transparent text-xs text-slate-800 focus:outline-none"
+                    title="End Date"
+                  />
+                </div>
               </div>
+            </div>
 
+            {/* Row 2: Branch, Category, Payment Status, Approval Status, Actions */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center pt-1 border-t border-slate-100">
               {/* Branch */}
-              <div className="lg:col-span-2">
+              <div className="min-w-0">
                 <select
                   disabled={!isSuperAdmin && branches.length <= 1}
                   value={branchFilter}
                   onChange={(e) => setBranchFilter(e.target.value)}
-                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-slate-50/60 text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white disabled:opacity-60"
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-slate-50/60 text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white disabled:opacity-60 truncate"
                 >
                   <option value="all">All Authorized Branches</option>
                   {branches.map((b) => (
@@ -456,11 +475,11 @@ export function ExpensesClient({
               </div>
 
               {/* Category */}
-              <div className="lg:col-span-3">
+              <div className="min-w-0">
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-slate-50/60 text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white"
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-slate-50/60 text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white truncate"
                 >
                   <option value="all">All Categories</option>
                   {categories.map((c) => (
@@ -470,54 +489,54 @@ export function ExpensesClient({
                   ))}
                 </select>
               </div>
-            </div>
 
-            {/* Second Filter Row: Payment Status, Approval Status, Reset */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Payment:</span>
-                  <select
-                    value={paymentStatusFilter}
-                    onChange={(e) => setPaymentStatusFilter(e.target.value)}
-                    className="h-8 px-2.5 text-xs rounded-lg border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                  >
-                    <option value="all">All Payment Statuses</option>
-                    <option value="unpaid">Unpaid</option>
-                    <option value="partially_paid">Partially Paid</option>
-                    <option value="paid">Paid</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
+              {/* Payment Status */}
+              <div className="min-w-0">
+                <select
+                  value={paymentStatusFilter}
+                  onChange={(e) => setPaymentStatusFilter(e.target.value)}
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-slate-50/60 text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white truncate"
+                >
+                  <option value="all">All Payment Statuses</option>
+                  <option value="unpaid">Unpaid</option>
+                  <option value="partially_paid">Partially Paid</option>
+                  <option value="paid">Paid</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Approval:</span>
-                  <select
-                    value={approvalStatusFilter}
-                    onChange={(e) => setApprovalStatusFilter(e.target.value)}
-                    className="h-8 px-2.5 text-xs rounded-lg border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                  >
-                    <option value="all">All Approval Statuses</option>
-                    <option value="pending">Pending Approval</option>
-                    <option value="approved">Approved</option>
-                    <option value="payment_pending">Payment Pending</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="draft">Draft</option>
-                  </select>
-                </div>
+              {/* Approval Status */}
+              <div className="min-w-0">
+                <select
+                  value={approvalStatusFilter}
+                  onChange={(e) => setApprovalStatusFilter(e.target.value)}
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-slate-50/60 text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white truncate"
+                >
+                  <option value="all">All Approval Statuses</option>
+                  <option value="pending">Pending Approval</option>
+                  <option value="approved">Approved</option>
+                  <option value="payment_pending">Payment Pending</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="draft">Draft</option>
+                </select>
               </div>
 
               {/* Reset Action */}
-              {isFiltered && (
+              <div className="min-w-0">
                 <button
                   type="button"
                   onClick={handleResetFilters}
-                  className="h-8 px-3 text-xs font-semibold rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200/80 flex items-center gap-1.5 transition-colors"
+                  disabled={!isFiltered}
+                  className={`w-full h-10 px-3 text-xs font-semibold rounded-xl border flex items-center justify-center gap-1.5 transition-colors ${
+                    isFiltered
+                      ? "border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 shadow-xs cursor-pointer"
+                      : "border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed opacity-60"
+                  }`}
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  Reset Filters
+                  {isFiltered ? "Reset Filters" : "Reset"}
                 </button>
-              )}
+              </div>
             </div>
           </div>
 
