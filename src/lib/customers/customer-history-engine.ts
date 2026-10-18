@@ -771,8 +771,8 @@ export function buildCompleteClientFile(params: {
     timeline,
     warnings,
     generated_at: new Date().toISOString(),
-    generated_by: params.actorName,
-    branch_scope: params.branchScope,
+    generated_by: actorName,
+    branch_scope: branchScope,
     date_range: params.date_range,
   };
 }
