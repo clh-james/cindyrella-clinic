@@ -195,7 +195,7 @@ CREATE POLICY "Staff insert client audit logs" ON client_audit_logs
   FOR INSERT WITH CHECK (is_staff());
 
 -- 9. SEED PERMISSIONS FOR CLIENT FILE EXTRACTION & INSTALLMENTS
-INSERT INTO permissions (key, label, module) VALUES
+INSERT INTO permissions (key, name, module) VALUES
   ('customers.export_file', 'Extract Client File and Statements', 'customers'),
   ('customers.view_history', 'View Complete Client History', 'customers'),
   ('installments.view', 'View Installment Applications and Schedules', 'installments'),
