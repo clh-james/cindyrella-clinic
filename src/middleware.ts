@@ -45,6 +45,7 @@ export async function middleware(request: NextRequest) {
         '/admin/gallery': 'gallery.view',
         '/admin/staff': 'staff.view',
         '/admin/payroll': 'payroll.view',
+        '/admin/expenses': 'expenses.view',
         '/admin/settings': 'settings.view',
         '/admin/transactions': 'transactions.view',
         '/admin/reports': 'reports.view',
