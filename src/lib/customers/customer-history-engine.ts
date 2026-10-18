@@ -569,9 +569,10 @@ export function buildCompleteClientFile(params: {
   payments: UnifiedPaymentRecord[];
   appointments: ClientAppointmentItem[];
   packages: CustomerPackage[];
-  actorName: string;
-  branchScope: string;
+  actorName?: string;
+  branchScope?: string;
   posTransactions?: ClientPOSTransaction[];
+  posSales?: any[];
   posItems?: (ClientPOSItem & { sale_reference: string; date: string; branch_name: string })[];
   packageRedemptions?: PackageRedemption[];
   refundsAdjustments?: ClientRefundAdjustment[];
@@ -579,7 +580,9 @@ export function buildCompleteClientFile(params: {
   warnings?: DataQualityWarning[];
   date_range?: { from?: string; to?: string };
 }): CompleteClientFile {
-  const posTxns = params.posTransactions || [];
+  const posTxns = (params.posTransactions || params.posSales || []) as ClientPOSTransaction[];
+  const actorName = params.actorName || "System Officer";
+  const branchScope = params.branchScope || "Company-Wide";
   const summary = computeClientFinancialSummary(
     params.applications,
     params.payments,
