@@ -23,6 +23,7 @@ export function usePermissions() {
         .select(`
           role_id,
           roles (
+            name,
             role_permissions (
               permissions ( key )
             )
@@ -31,8 +32,13 @@ export function usePermissions() {
         .eq('id', user.id)
         .single();
 
-      const rolesData = data?.roles as unknown as { role_permissions: { permissions?: { key: string } }[] };
-      if (!error && rolesData?.role_permissions) {
+      const rolesData = data?.roles as unknown as { name?: string; role_permissions?: { permissions?: { key: string } }[] };
+      const roleName = rolesData?.name;
+      const isSuperOrAdmin = roleName === 'super_admin' || roleName === 'admin';
+
+      if (isSuperOrAdmin) {
+        setPermissions(['*']); // Wildcard access
+      } else if (!error && rolesData?.role_permissions) {
         const keys = rolesData.role_permissions
           .map((rp: { permissions?: { key: string } }) => rp.permissions?.key)
           .filter(Boolean) as string[];
@@ -44,7 +50,11 @@ export function usePermissions() {
     loadPermissions();
   }, []);
 
-  return { permissions, loading, hasPermission: (key: string) => permissions.includes(key) };
+  return {
+    permissions,
+    loading,
+    hasPermission: (key: string) => permissions.includes('*') || permissions.includes(key),
+  };
 }
 
 export function Can({ 

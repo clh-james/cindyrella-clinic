@@ -55,6 +55,7 @@ const NAVIGATION_GROUPS = [
     name: "PEOPLE",
     items: [
       { name: "Staff", href: "/admin/staff", icon: UserRoundCog, permission: "staff.view" },
+      { name: "Payroll", href: "/admin/payroll", icon: Banknote, permission: "payroll.view" },
       { name: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck, permission: "users.assign_role" },
     ]
   },
