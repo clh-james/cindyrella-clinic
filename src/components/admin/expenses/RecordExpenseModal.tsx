@@ -125,29 +125,20 @@ export function RecordExpenseModal({
 
     setIsUploading(true);
     try {
-      // Direct base64 or upload through server
-      const reader = new FileReader();
-      reader.onload = async () => {
-        // Upload via upload API
-        const fd = new FormData();
-        fd.append("file", file);
-        const res = await fetch("/api/admin/expenses/upload", {
-          method: "POST",
-          body: fd,
-        });
-        const json = await res.json();
-        if (json.success && json.url) {
-          setReceiptUrl(json.url);
-          setReceiptFileName(file.name);
-          toast.success("Receipt voucher uploaded!");
-        } else {
-          // Fallback
-          setReceiptUrl(reader.result as string);
-          setReceiptFileName(file.name);
-          toast.success("Receipt attached!");
-        }
-      };
-      reader.readAsDataURL(file);
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/expenses/upload", {
+        method: "POST",
+        body: fd,
+      });
+      const json = await res.json();
+      if (json.success && json.url) {
+        setReceiptUrl(json.url);
+        setReceiptFileName(file.name);
+        toast.success("Receipt voucher uploaded!");
+      } else {
+        toast.error(json.error || "Failed to upload file");
+      }
     } catch {
       toast.error("Failed to attach receipt");
     } finally {
@@ -210,174 +201,192 @@ export function RecordExpenseModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-800/40">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/70">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+            <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-200/60">
               <Receipt className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-stone-900 dark:text-stone-100">Record Clinic Expense</h2>
-              <p className="text-xs text-stone-500 dark:text-stone-400">
-                Log disbursements, petty cash, clinic overheads & vendor invoices
+              <h2 className="text-base font-bold text-slate-900">Record Clinic Expense</h2>
+              <p className="text-xs text-slate-500">
+                Log disbursements, petty cash vouchers, clinic overheads & vendor invoices
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             aria-label="Close modal"
-            className="p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Top Row: Date, Branch, Category */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5" /> Date *
-              </label>
-              <input
-                type="date"
-                required
-                value={expenseDate}
-                onChange={(e) => setExpenseDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* SECTION 1: EXPENSE INFORMATION */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Expense Information</h3>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5 flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5" /> Branch *
-              </label>
-              <select
-                disabled={!isSuperAdmin && branches.length <= 1}
-                value={branchId}
-                onChange={(e) => setBranchId(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:opacity-75 disabled:cursor-not-allowed"
-              >
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5" /> Category *
+            {/* Date, Branch, Category */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" /> Date *
                 </label>
-                <button
-                  type="button"
-                  onClick={onOpenNewCategory}
-                  className="text-[11px] font-medium text-rose-600 hover:text-rose-700 dark:text-rose-400 underline"
+                <input
+                  type="date"
+                  required
+                  value={expenseDate}
+                  onChange={(e) => setExpenseDate(e.target.value)}
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-slate-400" /> Branch *
+                </label>
+                <select
+                  disabled={!isSuperAdmin && branches.length <= 1}
+                  value={branchId}
+                  onChange={(e) => setBranchId(e.target.value)}
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:opacity-60"
                 >
-                  + Manage
-                </button>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.requires_receipt ? "★ (Receipt req)" : ""}
-                  </option>
-                ))}
-              </select>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-slate-400" /> Category *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={onOpenNewCategory}
+                    className="text-[11px] font-medium text-rose-600 hover:text-rose-700 underline"
+                  >
+                    + Manage
+                  </button>
+                </div>
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.requires_receipt ? "★ (Receipt req)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Category Notice Banner if receipt or approval required */}
+            {activeCategory && (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activeCategory.color }} />
+                  <span className="font-semibold text-slate-800">{activeCategory.name}</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="truncate max-w-xs text-slate-500">{activeCategory.description || "Operational account"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {activeCategory.requires_receipt && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/60">
+                      Receipt Required
+                    </span>
+                  )}
+                  {activeCategory.requires_approval && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
+                      Approval Required
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Payee / Vendor & Purpose */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Vendor / Payee Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Meralco, Medline Supplies, PLDT, Landlord"
+                  value={vendorOrPayee}
+                  onChange={(e) => setVendorOrPayee(e.target.value)}
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Expense Title / Purpose *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Clinic Electricity Bill October 2026"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-slate-400" /> Description / Itemized Details
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Specific items, quantities, or clinic operational purpose..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full p-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
             </div>
           </div>
 
-          {/* Category Notice Banner if receipt or approval required */}
-          {activeCategory && (
-            <div className="p-3 rounded-xl bg-stone-100 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 text-xs text-stone-600 dark:text-stone-300 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activeCategory.color }} />
-                <span className="font-medium text-stone-900 dark:text-stone-100">{activeCategory.name}</span>
-                <span className="text-stone-400">•</span>
-                <span className="truncate max-w-xs">{activeCategory.description || "Clinic operational category"}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {activeCategory.requires_receipt && (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20">
-                    Receipt Required
-                  </span>
-                )}
-                {activeCategory.requires_approval && (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">
-                    Approval Required
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Payee / Vendor & Title */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
-                Vendor / Payee Name *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Meralco, Medline Supplies, PLDT, Landlord"
-                value={vendorOrPayee}
-                onChange={(e) => setVendorOrPayee(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
-                Expense Title / Purpose *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Clinic Electricity Bill October 2026"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
-          </div>
-
-          {/* Amount Calculation: Before Tax, Tax, Total */}
-          <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/40 border border-stone-200 dark:border-stone-700 space-y-3">
+          {/* SECTION 2: FINANCIAL INFORMATION */}
+          <div className="space-y-3 pt-3 border-t border-slate-200">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-emerald-500" /> Financial Details & Taxes
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Financial Details & Taxes
               </span>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={applyVat12}
-                  className="px-2 py-0.5 rounded text-[11px] font-medium bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-300"
+                  className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
                 >
                   Apply 12% VAT
                 </button>
                 <button
                   type="button"
                   onClick={clearTax}
-                  className="px-2 py-0.5 rounded text-[11px] font-medium bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-300"
+                  className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
                 >
                   VAT Exempt (0%)
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
               <div>
-                <label className="block text-[11px] font-semibold text-stone-500 dark:text-stone-400 mb-1">
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1">
                   Amount Before Tax (₱)
                 </label>
                 <input
@@ -387,12 +396,12 @@ export function RecordExpenseModal({
                   placeholder="0.00"
                   value={amountBeforeTax}
                   onChange={(e) => handleAmountBeforeTaxChange(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-rose-500"
+                  className="w-full h-10 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 font-mono focus:ring-2 focus:ring-rose-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-stone-500 dark:text-stone-400 mb-1">
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1">
                   Tax / VAT Amount (₱)
                 </label>
                 <input
@@ -402,12 +411,12 @@ export function RecordExpenseModal({
                   placeholder="0.00"
                   value={taxAmount}
                   onChange={(e) => handleTaxChange(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-rose-500"
+                  className="w-full h-10 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 font-mono focus:ring-2 focus:ring-rose-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-stone-800 dark:text-stone-200 mb-1">
+                <label className="block text-[11px] font-bold text-slate-900 mb-1">
                   Total Amount (₱) *
                 </label>
                 <input
@@ -418,137 +427,142 @@ export function RecordExpenseModal({
                   placeholder="0.00"
                   value={totalAmount}
                   onChange={(e) => setTotalAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-sm font-bold rounded-lg border border-rose-300 dark:border-rose-700 bg-white dark:bg-stone-800 text-rose-600 dark:text-rose-400 focus:ring-2 focus:ring-rose-500"
+                  className="w-full h-10 px-3 text-sm font-bold rounded-lg border border-rose-300 bg-white text-rose-600 font-mono focus:ring-2 focus:ring-rose-500"
                 />
               </div>
             </div>
           </div>
 
-          {/* Payment Method & Cash Source */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5 flex items-center gap-1.5">
-                <Wallet className="w-3.5 h-3.5" /> Payment Method *
-              </label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => handlePaymentMethodChange(e.target.value as ExpensePaymentMethod)}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              >
-                <option value="cash">Cash (Direct)</option>
-                <option value="petty_cash">Petty Cash Float (Drawer)</option>
-                <option value="cashier_drawer">Cashier Shift Drawer (Disbursement)</option>
-                <option value="gcash">GCash</option>
-                <option value="maya">Maya</option>
-                <option value="bank_transfer">Bank Transfer (BDO / BPI)</option>
-                <option value="credit_card">Company Credit Card</option>
-                <option value="cheque">Company Cheque</option>
-                <option value="other">Other / Accounts Payable</option>
-              </select>
-            </div>
+          {/* SECTION 3: PAYMENT INFORMATION */}
+          <div className="space-y-4 pt-3 border-t border-slate-200">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Payment Information</h3>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
-                Paid From Account / Cash Source
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. BDO Checking 1092, Cashier Drawer 1, Petty Cash Box"
-                value={paymentAccount}
-                onChange={(e) => setPaymentAccount(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
-          </div>
-
-          {/* Cashier Drawer Shift Notice */}
-          {paymentMethod === "cashier_drawer" && (
-            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300">
-              <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <p className="font-semibold">Cashier Shift Integration</p>
-                <p className="mt-0.5">
-                  This cash-out will be automatically recorded and deducted from the current active shift for this branch, keeping drawer reconciliation accurate.
-                </p>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <Wallet className="w-3.5 h-3.5 text-slate-400" /> Payment Method *
+                </label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => handlePaymentMethodChange(e.target.value as ExpensePaymentMethod)}
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                >
+                  <option value="cash">Cash (Direct)</option>
+                  <option value="petty_cash">Petty Cash Float (Drawer)</option>
+                  <option value="cashier_drawer">Cashier Shift Drawer (Disbursement)</option>
+                  <option value="gcash">GCash</option>
+                  <option value="maya">Maya</option>
+                  <option value="bank_transfer">Bank Transfer (BDO / BPI)</option>
+                  <option value="credit_card">Company Credit Card</option>
+                  <option value="cheque">Company Cheque</option>
+                  <option value="other">Other / Accounts Payable</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Paid From Account / Cash Source
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. BDO Checking 1092, Cashier Drawer 1, Petty Cash Box"
+                  value={paymentAccount}
+                  onChange={(e) => setPaymentAccount(e.target.value)}
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
               </div>
             </div>
-          )}
 
-          {/* OR / Invoice Number & Immediate Payment Checkbox */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
-                Official Receipt (OR) / Invoice #
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. OR-2026-99120, SI-55102"
-                value={referenceNumber}
-                onChange={(e) => setReferenceNumber(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              />
+            {/* Cashier Drawer Shift Notice */}
+            {paymentMethod === "cashier_drawer" && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200/80 flex items-start gap-2.5 text-xs text-amber-800">
+                <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold">Cashier Shift Integration</p>
+                  <p className="mt-0.5">
+                    This cash-out will automatically link to the active open shift for this branch and deduct from drawer expected cash during closing reconciliation.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Official Receipt (OR) / Invoice #
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. OR-2026-99120, SI-55102"
+                  value={referenceNumber}
+                  onChange={(e) => setReferenceNumber(e.target.value)}
+                  className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div className="pt-4 flex items-center">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={recordImmediatePayment}
+                    onChange={(e) => setRecordImmediatePayment(e.target.checked)}
+                    className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-300"
+                  />
+                  <span className="text-xs font-medium text-slate-700">
+                    Mark as Paid / Immediate Disbursement
+                  </span>
+                </label>
+              </div>
             </div>
 
-            <div className="pt-5 flex items-center">
+            {/* Staff Reimbursement Checkbox & Assignee */}
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
               <label className="flex items-center gap-2.5 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={recordImmediatePayment}
-                  onChange={(e) => setRecordImmediatePayment(e.target.checked)}
-                  className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-stone-300 dark:border-stone-600"
+                  checked={isReimbursement}
+                  onChange={(e) => setIsReimbursement(e.target.checked)}
+                  className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-300"
                 />
-                <span className="text-xs font-medium text-stone-700 dark:text-stone-300">
-                  Mark as Paid / Immediate Disbursement
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-purple-600" />
+                  This is an Employee Out-of-Pocket Reimbursement Request
                 </span>
               </label>
+
+              {isReimbursement && (
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                    Select Staff Member to Reimburse
+                  </label>
+                  <select
+                    value={reimbursementEmployeeId}
+                    onChange={(e) => setReimbursementEmployeeId(e.target.value)}
+                    className="w-full h-10 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-800"
+                  >
+                    <option value="">-- Current Logged-in Staff Member --</option>
+                    {staffList.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Staff Reimbursement Option */}
-          <div className="p-3.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50/50 dark:bg-stone-800/30 space-y-3">
-            <label className="flex items-center gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isReimbursement}
-                onChange={(e) => setIsReimbursement(e.target.checked)}
-                className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-stone-300 dark:border-stone-600"
-              />
-              <span className="text-xs font-semibold text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
-                <UserCheck className="w-4 h-4 text-rose-500" />
-                This is an Employee Out-of-Pocket Reimbursement Request
+          {/* SECTION 4: ATTACHMENTS */}
+          <div className="space-y-3 pt-3 border-t border-slate-200">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Receipt / Invoice Attachment {activeCategory?.requires_receipt && "*"}
               </span>
-            </label>
-
-            {isReimbursement && (
-              <div>
-                <label className="block text-[11px] font-semibold text-stone-500 dark:text-stone-400 mb-1">
-                  Select Staff Member to Reimburse
-                </label>
-                <select
-                  value={reimbursementEmployeeId}
-                  onChange={(e) => setReimbursementEmployeeId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                >
-                  <option value="">-- Current Logged-in Staff Member --</option>
-                  {staffList.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.full_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-
-          {/* Receipt / Invoice Upload Section */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5 flex items-center justify-between">
-              <span>Receipt / Invoice Attachment {activeCategory?.requires_receipt && "*"}</span>
-              <span className="text-[11px] font-normal text-stone-400">JPG, PNG, PDF up to 10MB</span>
-            </label>
+              <span className="text-[11px] text-slate-400">JPG, PNG, PDF up to 10MB</span>
+            </div>
 
             {receiptUrl ? (
-              <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300">
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800">
                 <div className="flex items-center gap-2.5 truncate">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                   <div className="truncate">
@@ -557,7 +571,7 @@ export function RecordExpenseModal({
                       href={receiptUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[11px] text-emerald-600 dark:text-emerald-400 underline flex items-center gap-1 mt-0.5"
+                      className="text-[11px] text-emerald-600 underline flex items-center gap-1 mt-0.5"
                     >
                       View attached file <ExternalLink className="w-3 h-3" />
                     </a>
@@ -569,13 +583,13 @@ export function RecordExpenseModal({
                     setReceiptUrl("");
                     setReceiptFileName("");
                   }}
-                  className="text-xs text-stone-400 hover:text-red-500 px-2 py-1 rounded"
+                  className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded"
                 >
                   Remove
                 </button>
               </div>
             ) : (
-              <div className="relative border-2 border-dashed border-stone-300 dark:border-stone-700 hover:border-rose-400 dark:hover:border-rose-500 rounded-xl p-4 transition-colors text-center cursor-pointer bg-stone-50/50 dark:bg-stone-800/20">
+              <div className="relative border-2 border-dashed border-slate-300 hover:border-rose-400 rounded-xl p-5 transition-colors text-center cursor-pointer bg-slate-50/60">
                 <input
                   id={fileInputId}
                   type="file"
@@ -588,60 +602,45 @@ export function RecordExpenseModal({
                   {isUploading ? (
                     <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
                   ) : (
-                    <UploadCloud className="w-6 h-6 text-stone-400" />
+                    <UploadCloud className="w-6 h-6 text-slate-400" />
                   )}
-                  <p className="text-xs font-medium text-stone-700 dark:text-stone-300">
+                  <p className="text-xs font-medium text-slate-700">
                     {isUploading ? "Uploading file..." : "Click or drag & drop receipt file here"}
                   </p>
-                  <p className="text-[10px] text-stone-400">Official receipt photo, tax invoice, or vendor PDF</p>
+                  <p className="text-[11px] text-slate-400">Official receipt photo, tax invoice, or vendor PDF</p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Description & Internal Notes */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5 flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5" /> Description / Items
-              </label>
-              <textarea
-                rows={2}
-                placeholder="Itemized items, quantities, or clinic purpose..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1.5">
-                Internal Auditor Notes
-              </label>
-              <textarea
-                rows={2}
-                placeholder="Optional notes for managers, cash reconciliation, or CPA..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
+          {/* SECTION 5: NOTES */}
+          <div className="pt-3 border-t border-slate-200">
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Internal Auditor Notes
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Optional notes for managers, cash reconciliation, or CPA..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full p-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+            />
           </div>
 
-          {/* Modal Footer */}
-          <div className="pt-3 border-t border-stone-200 dark:border-stone-800 flex items-center justify-end gap-3">
+          {/* Footer */}
+          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 text-xs font-medium rounded-xl border border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+              className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || isUploading}
-              className="px-5 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-md shadow-rose-500/20 flex items-center gap-2 transition-all disabled:opacity-50"
+              className="px-5 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20 flex items-center gap-2 transition-all disabled:opacity-50"
             >
               {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Save & Record Expense

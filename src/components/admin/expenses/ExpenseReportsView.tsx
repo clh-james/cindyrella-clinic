@@ -266,23 +266,23 @@ export function ExpenseReportsView({
   return (
     <div className="space-y-6">
       {/* Filters & Export Actions Bar */}
-      <div className="p-4 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Date Filters */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-stone-400" />
+            <Calendar className="w-4 h-4 text-slate-400" />
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="px-2.5 py-1.5 text-xs rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+              className="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
             />
-            <span className="text-xs text-stone-400">to</span>
+            <span className="text-xs text-slate-400 font-medium">to</span>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="px-2.5 py-1.5 text-xs rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+              className="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
             />
           </div>
 
@@ -293,7 +293,7 @@ export function ExpenseReportsView({
                 setStartDate(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10));
                 setEndDate(now.toISOString().slice(0, 10));
               }}
-              className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200"
+              className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
             >
               This Month
             </button>
@@ -303,7 +303,7 @@ export function ExpenseReportsView({
                 setStartDate(new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10));
                 setEndDate(new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10));
               }}
-              className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200"
+              className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
             >
               Last Month
             </button>
@@ -313,7 +313,7 @@ export function ExpenseReportsView({
                 setStartDate(new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10));
                 setEndDate(now.toISOString().slice(0, 10));
               }}
-              className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200"
+              className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
             >
               This Year
             </button>
@@ -324,15 +324,15 @@ export function ExpenseReportsView({
         <div className="flex items-center gap-2">
           <button
             onClick={exportToExcel}
-            className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-1.5 transition-colors"
+            className="h-9 px-3.5 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-1.5 transition-colors"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" /> Export Excel (.xlsx)
           </button>
           <button
             onClick={exportToCSV}
-            className="px-3.5 py-1.5 text-xs font-medium rounded-xl border border-stone-300 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 flex items-center gap-1.5 transition-colors"
+            className="h-9 px-3.5 text-xs font-semibold rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 bg-white shadow-sm flex items-center gap-1.5 transition-colors"
           >
-            <Download className="w-3.5 h-3.5" /> Export CSV
+            <Download className="w-3.5 h-3.5 text-slate-500" /> Export CSV
           </button>
         </div>
       </div>
@@ -356,8 +356,8 @@ export function ExpenseReportsView({
               onClick={() => setReportType(tab.id as ReportType)}
               className={`px-3.5 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 whitespace-nowrap transition-all ${
                 active
-                  ? "bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 shadow-sm"
-                  : "bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-50"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -365,7 +365,7 @@ export function ExpenseReportsView({
               {tab.count !== undefined && tab.count > 0 && (
                 <span
                   className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                    active ? "bg-stone-700 text-white" : "bg-rose-100 text-rose-700"
+                    active ? "bg-slate-700 text-white" : "bg-rose-100 text-rose-700 font-bold"
                   }`}
                 >
                   {tab.count}
@@ -378,61 +378,61 @@ export function ExpenseReportsView({
 
       {/* KPI Highlight Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm">
-          <span className="text-xs text-stone-400 block mb-1">Total Filtered Disbursements</span>
-          <span className="text-xl font-black text-stone-900 dark:text-stone-100 font-mono">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 block mb-1">Total Filtered Disbursements</span>
+          <span className="text-xl font-bold text-slate-900 font-mono">
             {formatPHP(totalDisbursed)}
           </span>
-          <span className="text-[11px] text-stone-400 block mt-0.5">{filtered.length} transactions</span>
+          <span className="text-[11px] text-slate-500 block mt-0.5">{filtered.length} transactions</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm">
-          <span className="text-xs text-stone-400 block mb-1">Total Tax / VAT Component</span>
-          <span className="text-xl font-black text-stone-900 dark:text-stone-100 font-mono">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 block mb-1">Total Tax / VAT Component</span>
+          <span className="text-xl font-bold text-slate-900 font-mono">
             {formatPHP(totalTax)}
           </span>
-          <span className="text-[11px] text-stone-400 block mt-0.5">Creditable input tax</span>
+          <span className="text-[11px] text-slate-500 block mt-0.5">Creditable input tax</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm">
-          <span className="text-xs text-stone-400 block mb-1">Approved but Unpaid</span>
-          <span className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 block mb-1">Approved but Unpaid</span>
+          <span className="text-xl font-bold text-amber-700 font-mono">
             {formatPHP(approvedUnpaid.reduce((s, e) => s + Number(e.total_amount), 0))}
           </span>
-          <span className="text-[11px] text-stone-400 block mt-0.5">{approvedUnpaid.length} invoices pending</span>
+          <span className="text-[11px] text-slate-500 block mt-0.5">{approvedUnpaid.length} invoices pending</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm">
-          <span className="text-xs text-stone-400 block mb-1">Staff Reimbursements</span>
-          <span className="text-xl font-black text-rose-600 dark:text-rose-400 font-mono">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 block mb-1">Staff Reimbursements</span>
+          <span className="text-xl font-bold text-rose-600 font-mono">
             {formatPHP(reimbursements.reduce((s, e) => s + Number(e.total_amount), 0))}
           </span>
-          <span className="text-[11px] text-stone-400 block mt-0.5">{reimbursements.length} claims submitted</span>
+          <span className="text-[11px] text-slate-500 block mt-0.5">{reimbursements.length} claims submitted</span>
         </div>
       </div>
 
       {/* Main Report Table Container */}
-      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         {/* REPORT: CATEGORY BREAKDOWN */}
         {reportType === "by_category" && (
           <div className="p-5 space-y-4">
-            <h3 className="text-sm font-bold text-stone-900 dark:text-stone-100">Disbursements by Category</h3>
+            <h3 className="text-sm font-bold text-slate-900">Disbursements by Category</h3>
             <div className="space-y-3">
               {categoryBreakdown.map((cat) => {
                 const pct = totalDisbursed > 0 ? (cat.total / totalDisbursed) * 100 : 0;
                 return (
                   <div key={cat.name} className="space-y-1 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-stone-800 dark:text-stone-200 flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                      <span className="font-semibold text-slate-800 flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: cat.color }} />
                         {cat.name} ({cat.count})
                       </span>
                       <div className="flex items-center gap-3">
-                        <span className="font-bold text-stone-900 dark:text-stone-100">{formatPHP(cat.total)}</span>
-                        <span className="text-stone-400 w-12 text-right">{pct.toFixed(1)}%</span>
+                        <span className="font-bold text-slate-900">{formatPHP(cat.total)}</span>
+                        <span className="text-slate-500 w-12 text-right">{pct.toFixed(1)}%</span>
                       </div>
                     </div>
-                    <div className="w-full h-2 rounded-full bg-stone-100 dark:bg-stone-800 overflow-hidden">
+                    <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-300"
                         style={{ width: `${pct}%`, backgroundColor: cat.color }}
@@ -448,14 +448,14 @@ export function ExpenseReportsView({
         {/* REPORT: VENDOR BREAKDOWN */}
         {reportType === "by_vendor" && (
           <div className="p-5">
-            <h3 className="text-sm font-bold text-stone-900 dark:text-stone-100 mb-4">Expenditure by Vendor / Payee</h3>
-            <div className="divide-y divide-stone-200 dark:divide-stone-800 text-xs">
+            <h3 className="text-sm font-bold text-slate-900 mb-4">Expenditure by Vendor / Payee</h3>
+            <div className="divide-y divide-slate-200 text-xs">
               {vendorBreakdown.map((v) => (
-                <div key={v.vendor} className="py-2.5 flex items-center justify-between">
-                  <span className="font-semibold text-stone-800 dark:text-stone-200">{v.vendor}</span>
+                <div key={v.vendor} className="py-2.5 flex items-center justify-between hover:bg-slate-50 px-2 rounded-lg transition-colors">
+                  <span className="font-semibold text-slate-800">{v.vendor}</span>
                   <div className="flex items-center gap-4">
-                    <span className="text-stone-400">{v.count} transactions</span>
-                    <span className="font-bold text-stone-900 dark:text-stone-100">{formatPHP(v.total)}</span>
+                    <span className="text-slate-500">{v.count} transactions</span>
+                    <span className="font-bold text-slate-900 font-mono">{formatPHP(v.total)}</span>
                   </div>
                 </div>
               ))}
@@ -470,7 +470,7 @@ export function ExpenseReportsView({
           reportType === "rejected_expenses") && (
           <div className="overflow-x-auto text-xs">
             <table className="w-full text-left">
-              <thead className="bg-stone-50 dark:bg-stone-800/60 text-stone-500 font-semibold border-b border-stone-200 dark:border-stone-800">
+              <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                 <tr>
                   <th className="p-3.5">Ref #</th>
                   <th className="p-3.5">Date</th>
@@ -482,7 +482,7 @@ export function ExpenseReportsView({
                   <th className="p-3.5 text-center">Payment</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-200 dark:divide-stone-800">
+              <tbody className="divide-y divide-slate-200 bg-white">
                 {(reportType === "approved_unpaid"
                   ? approvedUnpaid
                   : reportType === "reimbursements"
@@ -491,14 +491,14 @@ export function ExpenseReportsView({
                   ? rejectedExpenses
                   : filtered
                 ).map((e) => (
-                  <tr key={e.id} className="hover:bg-stone-50/60 dark:hover:bg-stone-800/40">
-                    <td className="p-3.5 font-mono font-medium">{e.expense_number}</td>
-                    <td className="p-3.5">{e.expense_date}</td>
-                    <td className="p-3.5 font-medium">{e.branch_name || "Main"}</td>
+                  <tr key={e.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="p-3.5 font-mono font-medium text-slate-800">{e.expense_number}</td>
+                    <td className="p-3.5 text-slate-600">{e.expense_date}</td>
+                    <td className="p-3.5 font-medium text-slate-800">{e.branch_name || "Main"}</td>
                     <td className="p-3.5">
                       {e.category && (
                         <span
-                          className="px-2 py-0.5 rounded text-[11px] font-semibold text-white"
+                          className="px-2 py-0.5 rounded text-[11px] font-semibold text-white shadow-xs"
                           style={{ backgroundColor: e.category.color }}
                         >
                           {e.category.name}
@@ -506,25 +506,25 @@ export function ExpenseReportsView({
                       )}
                     </td>
                     <td className="p-3.5">
-                      <p className="font-semibold text-stone-900 dark:text-stone-100">{e.vendor_or_payee}</p>
-                      <p className="text-[11px] text-stone-400 truncate max-w-xs">{e.title}</p>
+                      <p className="font-semibold text-slate-900">{e.vendor_or_payee}</p>
+                      <p className="text-[11px] text-slate-500 truncate max-w-xs">{e.title}</p>
                     </td>
-                    <td className="p-3.5 text-right font-bold text-stone-900 dark:text-stone-100">
+                    <td className="p-3.5 text-right font-bold text-slate-900 font-mono">
                       {formatPHP(e.total_amount)}
                     </td>
                     <td className="p-3.5 text-center">
-                      <span className="capitalize px-2 py-0.5 rounded text-[10px] font-medium bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400">
+                      <span className="capitalize px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                         {e.approval_status}
                       </span>
                     </td>
                     <td className="p-3.5 text-center">
                       <span
-                        className={`capitalize px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        className={`capitalize px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                           e.payment_status === "paid"
-                            ? "bg-emerald-100 text-emerald-700"
+                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                             : e.payment_status === "partially_paid"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-amber-100 text-amber-700"
+                            ? "bg-blue-100 text-blue-800 border border-blue-200"
+                            : "bg-amber-100 text-amber-800 border border-amber-200"
                         }`}
                       >
                         {e.payment_status.replace("_", " ")}
