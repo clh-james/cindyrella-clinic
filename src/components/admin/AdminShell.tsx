@@ -9,7 +9,7 @@ import { signOut, pingActivity } from "@/app/admin/actions";
 import { createClient } from "@/lib/supabase/client";
 import { 
   LayoutDashboard, CreditCard, CalendarDays, Users, Sparkles, PackageOpen, Crown, Gift, Boxes, 
-  ReceiptText, WalletCards, ClipboardCheck, Banknote, BarChart3, UserRoundCog, ShieldCheck, 
+  ReceiptText, WalletCards, Banknote, BarChart3, UserRoundCog, ShieldCheck, 
   Images, Megaphone, Bell, ScrollText, Building2, Settings,
   ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity
 } from "lucide-react";
@@ -47,7 +47,6 @@ const NAVIGATION_GROUPS = [
       { name: "Transactions", href: "/admin/transactions", icon: ReceiptText, permission: "transactions.view" },
       { name: "Cashier / Shifts", href: "/admin/shifts", icon: WalletCards, permission: "cashier.view" },
       { name: "Expenses", href: "/admin/expenses", icon: Banknote, permission: "expenses.view" },
-      { name: "Expense Approvals", href: "/admin/expenses?tab=approvals", icon: ClipboardCheck, permission: "expenses.approve" },
       { name: "Reports", href: "/admin/reports", icon: BarChart3, permission: "reports.view" },
     ]
   },
