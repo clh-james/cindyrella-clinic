@@ -39,6 +39,7 @@ export type PaymentRecordStatus =
 export type ActivityType =
   | "client_registration"
   | "appointment_created"
+  | "appointment_booked"
   | "appointment_rescheduled"
   | "appointment_completed"
   | "appointment_cancelled"
@@ -168,6 +169,7 @@ export interface CustomerPackage {
   price_paid: number;
   start_date: string;
   expiry_date?: string | null;
+  expires_at?: string | null;
   status: "active" | "fully_redeemed" | "expired" | "cancelled";
   notes?: string | null;
   created_at: string;
@@ -208,7 +210,9 @@ export interface ClientActivityTimelineItem {
 
 export interface ClientPOSItem {
   id?: string;
-  item_name: string;
+  item_name?: string;
+  product_name?: string;
+  pos_sale_id?: string;
   sku?: string | null;
   quantity: number;
   price_per_unit: number;
@@ -219,16 +223,20 @@ export interface ClientPOSTransaction {
   id: string;
   reference_number: string;
   receipt_number?: string | null;
-  transaction_date: string;
+  customer_id?: string;
+  transaction_date?: string;
+  created_at?: string;
   branch_name: string;
   cashier_name?: string | null;
   items: ClientPOSItem[];
+  subtotal?: number;
+  tax_amount?: number;
   total_amount: number;
-  discount_amount: number;
+  discount_amount?: number;
   discount_reason?: string | null;
   payment_method: string;
   status: string;
-  refunded_amount: number;
+  refunded_amount?: number;
   void_reason?: string | null;
 }
 
@@ -238,7 +246,7 @@ export interface ClientRefundAdjustment {
   original_reference: string;
   date: string;
   branch_name: string;
-  adjustment_type: "refund" | "void" | "reversal";
+  adjustment_type: "refund" | "void" | "reversal" | string;
   original_amount: number;
   adjustment_amount: number;
   reason: string;
@@ -248,30 +256,41 @@ export interface ClientRefundAdjustment {
 }
 
 export interface ClientReceiptDocument {
+  id?: string;
   receipt_number: string;
-  document_type: "POS Sale Receipt" | "Appointment Receipt" | "Installment Receipt" | "Contract Document";
+  document_type: "POS Sale Receipt" | "Appointment Receipt" | "Installment Receipt" | "Contract Document" | "Official Receipt" | string;
   related_reference: string;
   date: string;
   branch_name: string;
   amount: number;
   receipt_url?: string | null;
-  status: string;
+  availability?: "available" | "pending_upload" | "archived" | string;
+  file_path?: string | null;
+  notes?: string | null;
+  status?: string;
 }
 
 export interface PackageRedemption {
-  package_name: string;
-  appointment_reference: string;
-  treatment_name: string;
-  date: string;
-  branch_name: string;
-  sessions_deducted: number;
+  id?: string;
+  package_id?: string;
+  package_name?: string;
+  session_number?: number;
+  appointment_reference?: string;
+  treatment_name?: string;
+  redeemed_at?: string;
+  date?: string;
+  branch_name?: string;
+  therapist_name?: string;
+  sessions_deducted?: number;
 }
 
 export interface DataQualityWarning {
-  issue_type: string;
+  category?: string;
+  issue_type?: string;
   description: string;
-  severity: "low" | "medium" | "high";
-  recommended_action: string;
+  reference_id?: string | null;
+  severity: "low" | "medium" | "high" | "warning";
+  recommended_action?: string;
 }
 
 export interface ClientFinancialSummary {
@@ -302,9 +321,12 @@ export interface ClientAppointmentItem {
   appointment_time: string;
   treatment_name: string;
   branch_name: string;
+  therapist_name?: string | null;
   status: string;
-  payment_method: string;
-  payment_status: string;
+  treatment_status?: string | null;
+  cancellation_reason?: string | null;
+  payment_method?: string;
+  payment_status?: string;
   amount_due: number;
   notes?: string | null;
   created_at: string;
