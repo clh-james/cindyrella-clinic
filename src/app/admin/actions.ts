@@ -488,3 +488,78 @@ export async function sendAppointmentReminder(appointmentId: string) {
 
   return { error: null };
 }
+
+export async function changeStaffPasswordAction(formData: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<{ ok: boolean; error?: string; message?: string }> {
+  try {
+    const user = await requireStaff();
+    const supabase = await createClient();
+
+    const { currentPassword, newPassword, confirmPassword } = formData;
+
+    if (!currentPassword) {
+      return { ok: false, error: "Please enter your current password." };
+    }
+    if (!newPassword || newPassword.length < 8) {
+      return { ok: false, error: "New password must be at least 8 characters long." };
+    }
+    if (newPassword !== confirmPassword) {
+      return { ok: false, error: "New password and confirm password do not match." };
+    }
+    if (currentPassword === newPassword) {
+      return { ok: false, error: "New password must be different from your current password." };
+    }
+
+    // Verify current password by attempting re-authentication
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: user.email!,
+      password: currentPassword,
+    });
+
+    if (verifyError) {
+      return { ok: false, error: "Incorrect current password. Please check and try again." };
+    }
+
+    // Update password
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (updateError) {
+      return { ok: false, error: updateError.message || "Failed to update password." };
+    }
+
+    // Log security audit event
+    try {
+      const adminClient = createAdminClient();
+      await adminClient.from("audit_logs").insert({
+        user_id: user.id,
+        action: "auth.password_changed",
+        resource_type: "auth.users",
+        resource_id: user.id,
+        metadata: {
+          email: user.email,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      await adminClient.from("auth_events").insert({
+        user_id: user.id,
+        event_type: "PASSWORD_CHANGED",
+        outcome: "SUCCESS",
+        description: `Staff user ${user.email} changed their password successfully`,
+      });
+    } catch (auditErr) {
+      console.error("Non-fatal audit logging error:", auditErr);
+    }
+
+    return { ok: true, message: "Your password has been changed successfully!" };
+  } catch (err: unknown) {
+    console.error("changeStaffPasswordAction error:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "An unexpected error occurred." };
+  }
+}
+

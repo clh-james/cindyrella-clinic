@@ -11,10 +11,11 @@ import {
   LayoutDashboard, CreditCard, CalendarDays, Users, Sparkles, PackageOpen, Crown, Gift, Boxes, 
   ReceiptText, WalletCards, Banknote, BarChart3, UserRoundCog, ShieldCheck, 
   Images, Megaphone, Bell, ScrollText, Building2, Settings,
-  ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity, Clock, CheckCircle2, CalendarCheck, Scale
+  ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity, Clock, CheckCircle2, CalendarCheck, Scale, KeyRound
 } from "lucide-react";
 import { Can, usePermissions } from "@/components/rbac/Can";
 import { NotificationCenter } from "./NotificationCenter";
+import { ChangePasswordModal } from "./ChangePasswordModal";
 
 // Navigation definition
 const NAVIGATION_GROUPS = [
@@ -118,6 +119,7 @@ export function AdminShell({
   const [branches, setBranches] = useState<any[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
   const [isBranchMenuOpen, setIsBranchMenuOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   // Close mobile sidebar on navigate
   useEffect(() => {
@@ -415,10 +417,18 @@ export function AdminShell({
                 <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-royal to-royal-deep text-white flex items-center justify-center font-bold text-sm shadow-sm">
                   {fullName.charAt(0)}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-ink truncate">{fullName}</p>
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setIsPasswordModalOpen(true)}>
+                  <p className="text-sm font-bold text-ink truncate hover:text-royal transition-colors">{fullName}</p>
                   <p className="text-xs text-ink-soft capitalize truncate">{role}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  title="Change Password"
+                  className="p-2 text-ink-soft hover:text-royal rounded-full hover:bg-royal/10 transition-colors"
+                >
+                  <KeyRound size={18} />
+                </button>
                 <form action={signOut}>
                   <button title="Log out" className="p-2 text-ink-soft hover:text-red-500 rounded-full hover:bg-red-50 transition-colors">
                     <LogOut size={18} />
@@ -505,30 +515,49 @@ export function AdminShell({
         {/* Desktop User Profile Footer */}
         <div className="border-t border-line p-4 bg-pale/30">
           <div className={`flex items-center ${isDesktopCollapsed ? 'justify-center' : 'justify-between'} gap-3`}>
-            <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-royal to-royal-deep text-white flex items-center justify-center font-bold text-sm shadow-sm relative group cursor-pointer">
+            <div 
+              onClick={() => setIsPasswordModalOpen(true)}
+              className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-royal to-royal-deep text-white flex items-center justify-center font-bold text-sm shadow-sm relative group cursor-pointer hover:ring-2 hover:ring-royal/30 transition-all"
+              title="Click to Change Password"
+            >
               {fullName.charAt(0)}
               {/* Tooltip for collapsed state */}
               {isDesktopCollapsed && (
                 <div className="absolute left-full ml-4 px-3 py-2 bg-ink text-white text-xs font-medium rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none flex flex-col gap-0.5">
                   <span className="font-bold">{fullName}</span>
                   <span className="text-white/70 capitalize">{role}</span>
+                  <span className="text-amber-300 text-[10px] mt-0.5">Click to Change Password</span>
                 </div>
               )}
             </div>
             
             {!isDesktopCollapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-ink truncate">{fullName}</p>
+              <div 
+                className="flex-1 min-w-0 cursor-pointer" 
+                onClick={() => setIsPasswordModalOpen(true)}
+                title="Click to Change Password"
+              >
+                <p className="text-sm font-bold text-ink truncate hover:text-royal transition-colors">{fullName}</p>
                 <p className="text-[10px] uppercase tracking-wider font-semibold text-royal truncate">{role}</p>
               </div>
             )}
             
             {!isDesktopCollapsed && (
-              <form action={signOut}>
-                <button title="Log out" className="p-2 text-ink-soft hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
-                  <LogOut size={16} />
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  title="Change Password"
+                  className="p-1.5 text-ink-soft hover:text-royal rounded-lg hover:bg-royal/10 transition-colors"
+                >
+                  <KeyRound size={16} />
                 </button>
-              </form>
+                <form action={signOut}>
+                  <button title="Log out" className="p-1.5 text-ink-soft hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
+                    <LogOut size={16} />
+                  </button>
+                </form>
+              </div>
             )}
           </div>
         </div>
@@ -604,6 +633,13 @@ export function AdminShell({
           <span className="text-[9px] font-semibold tracking-wide">More</span>
         </button>
       </div>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        userName={fullName}
+      />
     </div>
   );
 }

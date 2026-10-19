@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { signOut } from "../login/actions";
 import { Sparkles, CalendarClock } from "lucide-react";
 import { AppointmentQRCode } from "./QRCode";
+import { CustomerPasswordSection } from "./CustomerPasswordSection";
 
 export const metadata = { title: "My Account — Cindyrella" };
 
@@ -103,6 +104,11 @@ export default async function AccountPage() {
             )}
           </ul>
         </div>
+      </div>
+
+      {/* Account Security & Password */}
+      <div className="mt-8">
+        <CustomerPasswordSection userEmail={user.email || ""} />
       </div>
     </div>
   );
