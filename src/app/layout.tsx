@@ -5,6 +5,13 @@ export const metadata: Metadata = {
   title: "Cindyrella Medical Group — IV Drip Therapy",
   description:
     "Nurse-administered IV drip therapy in a premium medical spa setting. Hydration, recovery, and skin glow, backed by licensed healthcare professionals.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: "/icon.png",
+  },
   openGraph: {
     title: "Cindyrella Medical Group — IV Drip Therapy",
     description:
