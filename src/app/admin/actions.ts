@@ -216,11 +216,27 @@ export async function signOut(reasonOrFormData?: string | FormData) {
   redirect("/admin/login");
 }
 
+import { 
+  deductAppointmentInventory, 
+  reverseAppointmentInventory,
+  recordDirectUsedItems 
+} from "@/lib/inventory/deduction";
+
 export async function updateAppointmentStatus(
   appointmentId: string,
   status: "pending" | "confirmed" | "completed" | "cancelled" | "no_show"
 ) {
   const supabase = await createClient();
+
+  // 1. Fetch current appointment status before updating
+  const { data: currentAppt } = await supabase
+    .from("appointments")
+    .select("id, status, reference_number, treatment_id, branch_id")
+    .eq("id", appointmentId)
+    .single();
+
+  const prevStatus = currentAppt?.status;
+
   const { error } = await supabase
     .from("appointments")
     .update({ status })
@@ -228,9 +244,97 @@ export async function updateAppointmentStatus(
 
   if (error) return { error: "Could not update that appointment." };
 
+  // 2. Automated Inventory Deduction when appointment is marked completed
+  if (status === "completed" && prevStatus !== "completed") {
+    try {
+      const user = await supabase.auth.getUser();
+      await deductAppointmentInventory(appointmentId, user.data.user?.id);
+    } catch (deductErr) {
+      console.error("Auto inventory deduction failed on appointment completion:", deductErr);
+    }
+  } else if (prevStatus === "completed" && (status === "cancelled" || status === "no_show")) {
+    try {
+      const user = await supabase.auth.getUser();
+      await reverseAppointmentInventory(appointmentId, user.data.user?.id, `Appointment marked as ${status}`);
+    } catch (revErr) {
+      console.error("Inventory reversal failed:", revErr);
+    }
+  }
+
   revalidatePath("/admin/appointments");
+  revalidatePath("/admin/inventory");
   revalidatePath("/admin");
   return { error: null };
+}
+
+export async function getAppointmentUsedMaterials(appointmentId: string) {
+  const adminClient = createAdminClient();
+
+  const { data: appointment } = await adminClient
+    .from("appointments")
+    .select("id, reference_number, status, branch_id, treatment_id, treatments(id, name), branches(name)")
+    .eq("id", appointmentId)
+    .single();
+
+  if (!appointment) return { error: "Appointment not found." };
+
+  const treatment = appointment.treatments as unknown as { id: string; name: string } | null;
+
+  // Recipe materials
+  const { data: recipe } = await adminClient
+    .from("treatment_materials")
+    .select("item_id, quantity_required, inventory_items(id, name, unit, current_stock, category)")
+    .eq("treatment_id", appointment.treatment_id);
+
+  // Actual movements already logged for this appointment
+  const { data: actualMovements } = await adminClient
+    .from("inventory_movements")
+    .select("id, reference_number, item_id, quantity, unit, previous_quantity, new_quantity, reason, created_at, inventory_items(name)")
+    .eq("reference_id", appointment.reference_number)
+    .eq("movement_type", "stock_out");
+
+  return {
+    appointment,
+    treatmentName: treatment?.name || "Treatment",
+    recipe: recipe || [],
+    actualMovements: actualMovements || [],
+    isDeducted: (actualMovements || []).length > 0,
+  };
+}
+
+export async function recordAdditionalUsedItems(
+  appointmentId: string,
+  items: { itemId: string; quantity: number }[],
+  notes?: string
+) {
+  const supabase = await createClient();
+  const user = await supabase.auth.getUser();
+
+  const { data: appt } = await supabase
+    .from("appointments")
+    .select("id, reference_number, branch_id, treatments(name)")
+    .eq("id", appointmentId)
+    .single();
+
+  if (!appt) return { error: "Appointment not found." };
+
+  const treatment = appt.treatments as unknown as { name: string } | null;
+
+  const result = await recordDirectUsedItems({
+    appointmentId: appt.id,
+    referenceNumber: appt.reference_number,
+    branchId: appt.branch_id,
+    treatmentName: treatment?.name,
+    items,
+    performedByUserId: user.data.user?.id,
+    notes: notes || `Additional consumables used for ${appt.reference_number}`,
+  });
+
+  if (!result.success) return { error: result.error || "Failed to record used items" };
+
+  revalidatePath("/admin/appointments");
+  revalidatePath("/admin/inventory");
+  return { success: true, count: result.count, deductedItems: result.deductedItems };
 }
 
 export async function addBlockedDate(formData: FormData) {

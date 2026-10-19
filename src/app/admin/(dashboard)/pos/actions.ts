@@ -94,15 +94,13 @@ export async function processPOSWalkin(input: {
     return { error: appointmentError?.message || "Failed to create walk-in appointment." };
   }
 
-  // 3. Deduct inventory for all treatments
+  // 3. Deduct inventory for treatment and update movements/balances
   const user = await supabase.auth.getUser();
-  for (const item of input.items) {
-    for (let i = 0; i < item.quantity; i++) {
-      await supabase.rpc('deduct_inventory_for_treatment', {
-        p_treatment_id: item.id,
-        p_user_id: user.data.user?.id
-      });
-    }
+  try {
+    const { deductAppointmentInventory } = await import("@/lib/inventory/deduction");
+    await deductAppointmentInventory(appointment.id, user.data.user?.id);
+  } catch (dErr) {
+    console.error("POS inventory deduction error:", dErr);
   }
 
   revalidatePath("/admin/appointments");

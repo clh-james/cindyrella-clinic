@@ -221,6 +221,10 @@ export default async function InventoryPage() {
     };
   }
 
+  // Fetch Treatment Recipes (BOM)
+  const { getTreatmentRecipes } = await import("./actions");
+  const recipes = await getTreatmentRecipes();
+
   return (
     <InventoryClient
       initialItems={items}
@@ -232,6 +236,7 @@ export default async function InventoryPage() {
       branches={branches}
       currentStaff={staff}
       permissions={permissions}
+      recipes={recipes}
     />
   );
 }

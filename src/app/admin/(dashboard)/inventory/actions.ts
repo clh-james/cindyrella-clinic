@@ -664,6 +664,49 @@ export async function recordStockMovement(input: {
     return { error: `Failed to update item stock: ${updateErr.message}` };
   }
 
+  // 2b. Synchronize branch stock balance if branchId is provided
+  if (input.branchId) {
+    try {
+      const { data: bStock } = await supabase
+        .from("inventory_stock_balances")
+        .select("quantity")
+        .eq("item_id", input.itemId)
+        .eq("branch_id", input.branchId)
+        .maybeSingle();
+
+      const branchPrev = bStock ? Number(bStock.quantity) : (input.type === "stock_in" ? 0 : previousQty);
+      let branchNew = branchPrev;
+
+      if (input.type === "stock_in" || input.type === "customer_return") {
+        branchNew = branchPrev + input.quantity;
+      } else if (
+        input.type === "stock_out" ||
+        input.type === "transfer" ||
+        input.type === "wastage" ||
+        input.type === "expired" ||
+        input.type === "supplier_return"
+      ) {
+        branchNew = Math.max(0, branchPrev - input.quantity);
+      } else if (input.type === "adjustment") {
+        branchNew = input.quantity;
+      }
+
+      await supabase
+        .from("inventory_stock_balances")
+        .upsert(
+          {
+            item_id: input.itemId,
+            branch_id: input.branchId,
+            quantity: branchNew,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "item_id,branch_id" }
+        );
+    } catch (bErr) {
+      console.error("Failed to update branch balance:", bErr);
+    }
+  }
+
   // 3. Log movement
   const refNum = generateRef(
     input.type === "stock_in" ? "IN" : input.type === "stock_out" ? "OUT" : "ADJ"
@@ -1059,3 +1102,96 @@ export async function quarantineItem(itemId: string, isQuarantined: boolean, rea
   revalidatePath("/admin/inventory");
   return { success: true };
 }
+
+// ==============================================================================
+// 8. TREATMENT MATERIALS / RECIPES (BOM) MANAGEMENT
+// ==============================================================================
+
+export async function getTreatmentRecipes() {
+  const supabase = await createClient();
+
+  const { data: treatments, error: tErr } = await supabase
+    .from("treatments")
+    .select("id, name, slug, session_price")
+    .order("name", { ascending: true });
+
+  if (tErr || !treatments) return [];
+
+  const { data: materials, error: mErr } = await supabase
+    .from("treatment_materials")
+    .select("id, treatment_id, item_id, quantity_required, inventory_items(id, name, unit, current_stock, category)");
+
+  if (mErr || !materials) {
+    return treatments.map((t) => ({ ...t, materials: [] }));
+  }
+
+  const materialsByTreatment: Record<string, any[]> = {};
+  for (const m of materials) {
+    if (!materialsByTreatment[m.treatment_id]) {
+      materialsByTreatment[m.treatment_id] = [];
+    }
+    materialsByTreatment[m.treatment_id].push({
+      id: m.id,
+      itemId: m.item_id,
+      quantityRequired: m.quantity_required,
+      item: m.inventory_items,
+    });
+  }
+
+  return treatments.map((t) => ({
+    ...t,
+    materials: materialsByTreatment[t.id] || [],
+  }));
+}
+
+export async function addOrUpdateTreatmentMaterial(
+  treatmentId: string,
+  itemId: string,
+  quantityRequired: number
+) {
+  const staff = await requireStaff();
+  if (staff.role !== "super_admin" && staff.role !== "admin" && staff.role !== "manager") {
+    return { error: "Forbidden: You do not have permission to edit treatment recipes." };
+  }
+
+  if (quantityRequired <= 0) {
+    return { error: "Quantity must be at least 1." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("treatment_materials")
+    .upsert(
+      {
+        treatment_id: treatmentId,
+        item_id: itemId,
+        quantity_required: quantityRequired,
+      },
+      { onConflict: "treatment_id,item_id" }
+    );
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/inventory");
+  return { success: true };
+}
+
+export async function deleteTreatmentMaterial(treatmentId: string, itemId: string) {
+  const staff = await requireStaff();
+  if (staff.role !== "super_admin" && staff.role !== "admin" && staff.role !== "manager") {
+    return { error: "Forbidden: You do not have permission to delete treatment recipes." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("treatment_materials")
+    .delete()
+    .eq("treatment_id", treatmentId)
+    .eq("item_id", itemId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/inventory");
+  return { success: true };
+}
+

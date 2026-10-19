@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { StatusSelect } from "@/components/admin/StatusSelect";
 import { SendReminderButton } from "@/components/admin/SendReminderButton";
 import { ExportAppointmentsCSV } from "@/components/admin/ExportAppointmentsCSV";
+import { AppointmentUsedItemsButton } from "@/components/admin/AppointmentUsedItemsButton";
 
 const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
 
@@ -9,13 +10,21 @@ export const metadata = { title: "Appointments — Admin" };
 
 export default async function AppointmentsPage() {
   const supabase = await createClient();
-  const { data: appointments } = await supabase
-    .from("appointments")
-    .select(
-      "id, reference_number, appointment_date, appointment_time, status, amount_due, payment_method, treatments(name), branches(name), customers(first_name, last_name, phone)"
-    )
-    .order("appointment_date", { ascending: false })
-    .limit(100);
+  const [{ data: appointments }, { data: inventoryItems }] = await Promise.all([
+    supabase
+      .from("appointments")
+      .select(
+        "id, reference_number, appointment_date, appointment_time, status, amount_due, payment_method, treatments(name), branches(name), customers(first_name, last_name, phone)"
+      )
+      .order("appointment_date", { ascending: false })
+      .limit(100),
+    supabase
+      .from("inventory_items")
+      .select("id, name, unit, current_stock")
+      .order("name", { ascending: true }),
+  ]);
+
+  const allItems = inventoryItems || [];
 
   return (
     <div>
@@ -69,7 +78,17 @@ export default async function AppointmentsPage() {
               
               <div className="grid gap-2">
                 <StatusSelect appointmentId={a.id} status={a.status} />
-                <SendReminderButton appointmentId={a.id} />
+                <div className="grid grid-cols-2 gap-2">
+                  <AppointmentUsedItemsButton
+                    appointmentId={a.id}
+                    referenceNumber={a.reference_number}
+                    treatmentName={treatment?.name || "Treatment"}
+                    clientName={`${customer?.first_name || ""} ${customer?.last_name || ""}`.trim() || "Client"}
+                    status={a.status}
+                    allItems={allItems}
+                  />
+                  <SendReminderButton appointmentId={a.id} />
+                </div>
               </div>
             </div>
           );
@@ -83,7 +102,7 @@ export default async function AppointmentsPage() {
 
       {/* DESKTOP VIEW (TABLE) */}
       <div className="mt-6 hidden lg:block overflow-x-auto rounded-2xl border border-line">
-        <table className="w-full min-w-[880px] border-collapse text-sm">
+        <table className="w-full min-w-[960px] border-collapse text-sm">
           <thead>
             <tr className="bg-pale text-left text-ink">
               <th className="px-5 py-3 font-medium">Reference</th>
@@ -93,6 +112,7 @@ export default async function AppointmentsPage() {
               <th className="px-5 py-3 font-medium">When</th>
               <th className="px-5 py-3 font-medium">Amount</th>
               <th className="px-5 py-3 font-medium">Status</th>
+              <th className="px-5 py-3 font-medium">Used Items</th>
               <th className="px-5 py-3 font-medium">Reminder</th>
             </tr>
           </thead>
@@ -120,6 +140,16 @@ export default async function AppointmentsPage() {
                     <StatusSelect appointmentId={a.id} status={a.status} />
                   </td>
                   <td className="px-5 py-3">
+                    <AppointmentUsedItemsButton
+                      appointmentId={a.id}
+                      referenceNumber={a.reference_number}
+                      treatmentName={treatment?.name || "Treatment"}
+                      clientName={`${customer?.first_name || ""} ${customer?.last_name || ""}`.trim() || "Client"}
+                      status={a.status}
+                      allItems={allItems}
+                    />
+                  </td>
+                  <td className="px-5 py-3">
                     <SendReminderButton appointmentId={a.id} />
                   </td>
                 </tr>
@@ -127,7 +157,7 @@ export default async function AppointmentsPage() {
             })}
             {(appointments ?? []).length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-sm text-ink-soft">
+                <td colSpan={9} className="px-5 py-8 text-center text-sm text-ink-soft">
                   No appointments yet.
                 </td>
               </tr>

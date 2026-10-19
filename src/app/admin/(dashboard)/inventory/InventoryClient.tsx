@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { 
   Boxes, LayoutDashboard, History, ArrowRightLeft, 
-  Truck, Layers, AlertTriangle, FileText, Building2, Plus
+  Truck, Layers, AlertTriangle, FileText, Building2, Plus, Sparkles
 } from "lucide-react";
 import { 
   InventoryItem, InventoryCategory, InventorySupplier, 
@@ -17,6 +17,7 @@ import { SuppliersAndPOView } from "./SuppliersAndPOView";
 import { CategoryManagementView } from "./CategoryManagementView";
 import { AlertsView } from "./AlertsView";
 import { InventoryReportsView } from "./InventoryReportsView";
+import { TreatmentRecipesView } from "./TreatmentRecipesView";
 import { InventoryItemModal } from "./InventoryItemModal";
 import { ItemDetailsDrawer } from "./ItemDetailsDrawer";
 import { 
@@ -32,6 +33,7 @@ interface InventoryClientProps {
   transfers: InventoryTransfer[];
   purchaseOrders: InventoryPurchaseOrder[];
   branches: BranchInfo[];
+  recipes?: any[];
   currentStaff: {
     id: string;
     fullName: string;
@@ -60,6 +62,7 @@ export function InventoryClient({
   transfers,
   purchaseOrders,
   branches,
+  recipes = [],
   currentStaff,
   permissions,
 }: InventoryClientProps) {
@@ -82,6 +85,7 @@ export function InventoryClient({
   // Tab definitions
   const tabs = [
     { id: "items", label: "Catalog & Stock", icon: Boxes, count: initialItems.length },
+    { id: "recipes", label: "Treatment Recipes (BOM)", icon: Sparkles, count: recipes.length },
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "movements", label: "Movements Ledger", icon: History, count: movements.length },
     { id: "transfers", label: "Transfers", icon: ArrowRightLeft, count: transfers.length },
@@ -207,6 +211,14 @@ export function InventoryClient({
             onStockOut={(item) => setStockOutItem(item)}
             onAdjust={(item) => setAdjustItem(item)}
             onTransfer={(item) => setTransferItem(item)}
+          />
+        )}
+
+        {activeTab === "recipes" && (
+          <TreatmentRecipesView
+            initialRecipes={recipes}
+            allItems={initialItems}
+            canEdit={permissions.canEdit}
           />
         )}
 
