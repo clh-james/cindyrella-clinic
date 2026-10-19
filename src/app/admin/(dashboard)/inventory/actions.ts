@@ -4,7 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth";
 import { hasServerPermission } from "@/lib/rbac";
 import { revalidatePath } from "next/cache";
-import { DEFAULT_CATEGORIES, StockMovementType, TransferStatus } from "./types";
+import { 
+  DEFAULT_CATEGORIES, 
+  StockMovementType, 
+  TransferStatus, 
+  TreatmentRecipeData, 
+  TreatmentRecipeMaterial 
+} from "./types";
 
 function generateRef(prefix: string) {
   const d = new Date();
@@ -1107,7 +1113,7 @@ export async function quarantineItem(itemId: string, isQuarantined: boolean, rea
 // 8. TREATMENT MATERIALS / RECIPES (BOM) MANAGEMENT
 // ==============================================================================
 
-export async function getTreatmentRecipes() {
+export async function getTreatmentRecipes(): Promise<TreatmentRecipeData[]> {
   const supabase = await createClient();
 
   const { data: treatments, error: tErr } = await supabase
@@ -1122,24 +1128,41 @@ export async function getTreatmentRecipes() {
     .select("id, treatment_id, item_id, quantity_required, inventory_items(id, name, unit, current_stock, category)");
 
   if (mErr || !materials) {
-    return treatments.map((t) => ({ ...t, materials: [] }));
+    return treatments.map((t) => ({ 
+      id: t.id,
+      name: t.name,
+      slug: t.slug,
+      session_price: t.session_price || 0,
+      materials: [] 
+    }));
   }
 
-  const materialsByTreatment: Record<string, any[]> = {};
+  const materialsByTreatment: Record<string, TreatmentRecipeMaterial[]> = {};
   for (const m of materials) {
     if (!materialsByTreatment[m.treatment_id]) {
       materialsByTreatment[m.treatment_id] = [];
     }
+    const invItem = m.inventory_items as unknown as {
+      id: string;
+      name: string;
+      unit: string;
+      current_stock: number;
+      category: string;
+    } | undefined;
+
     materialsByTreatment[m.treatment_id].push({
       id: m.id,
       itemId: m.item_id,
       quantityRequired: m.quantity_required,
-      item: m.inventory_items,
+      item: invItem,
     });
   }
 
   return treatments.map((t) => ({
-    ...t,
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    session_price: t.session_price || 0,
     materials: materialsByTreatment[t.id] || [],
   }));
 }

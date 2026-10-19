@@ -2,31 +2,14 @@
 
 import { useState } from "react";
 import { 
-  Sparkles, Search, Plus, Trash2, Edit2, 
-  Package, Check, AlertCircle, Loader2, ChevronRight, Filter 
+  Sparkles, Search, Plus, Trash2, 
+  Package, Check, Loader2 
 } from "lucide-react";
-import { InventoryItem } from "./types";
+import { InventoryItem, TreatmentRecipeData } from "./types";
 import { addOrUpdateTreatmentMaterial, deleteTreatmentMaterial } from "./actions";
 import { toast } from "react-hot-toast";
 
-interface TreatmentRecipe {
-  id: string;
-  name: string;
-  slug: string;
-  session_price: number;
-  materials: {
-    id: string;
-    itemId: string;
-    quantityRequired: number;
-    item?: {
-      id: string;
-      name: string;
-      unit: string;
-      current_stock: number;
-      category: string;
-    };
-  }[];
-}
+type TreatmentRecipe = TreatmentRecipeData;
 
 interface TreatmentRecipesViewProps {
   initialRecipes: TreatmentRecipe[];
@@ -110,7 +93,7 @@ export function TreatmentRecipesView({
         prev.map((r) => {
           if (r.id !== activeTreatment.id) return r;
           const existingIdx = r.materials.findIndex((m) => m.itemId === selectedItemId);
-          let newMaterials = [...r.materials];
+          const newMaterials = [...r.materials];
           if (existingIdx >= 0) {
             newMaterials[existingIdx] = {
               ...newMaterials[existingIdx],

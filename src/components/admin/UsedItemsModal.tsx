@@ -1,12 +1,48 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useCallback } from "react";
 import { 
-  Package, CheckCircle2, Clock, Plus, AlertCircle, 
-  Trash2, Loader2, X, Sparkles, ShieldCheck, ArrowDownRight 
+  Package, CheckCircle2, Clock, Plus, 
+  Loader2, X, ShieldCheck, ArrowDownRight 
 } from "lucide-react";
 import { getAppointmentUsedMaterials, recordAdditionalUsedItems, updateAppointmentStatus } from "@/app/admin/actions";
 import { toast } from "react-hot-toast";
+
+interface AppointmentRecipeItem {
+  item_id: string;
+  quantity_required: number;
+  inventory_items?: {
+    id: string;
+    name: string;
+    unit: string;
+    current_stock: number;
+    category?: string;
+  };
+}
+
+interface AppointmentMovementItem {
+  id: string;
+  reference_number: string;
+  item_id: string;
+  quantity: number;
+  unit: string;
+  previous_quantity: number;
+  new_quantity: number;
+  reason: string;
+  created_at: string;
+  inventory_items?: {
+    name: string;
+  };
+}
+
+interface AppointmentMaterialsResponse {
+  appointment?: unknown;
+  treatmentName: string;
+  recipe: AppointmentRecipeItem[];
+  actualMovements: AppointmentMovementItem[];
+  isDeducted: boolean;
+  error?: string;
+}
 
 interface UsedItemsModalProps {
   isOpen: boolean;
@@ -32,7 +68,7 @@ export function UsedItemsModal({
   onStatusChange,
 }: UsedItemsModalProps) {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<AppointmentMaterialsResponse | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Additional items to record
@@ -42,23 +78,23 @@ export function UsedItemsModal({
   const [extraNotes, setExtraNotes] = useState<string>("");
   const [savingExtra, setSavingExtra] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getAppointmentUsedMaterials(appointmentId);
-      setData(res);
+      setData(res as unknown as AppointmentMaterialsResponse);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [appointmentId]);
 
   useEffect(() => {
     if (isOpen) {
       loadData();
     }
-  }, [isOpen, appointmentId]);
+  }, [isOpen, loadData]);
 
   if (!isOpen) return null;
 
@@ -194,7 +230,7 @@ export function UsedItemsModal({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-line">
-                        {data.recipe.map((r: any) => {
+                        {data.recipe.map((r: AppointmentRecipeItem) => {
                           const item = r.inventory_items;
                           const hasStock = (item?.current_stock ?? 0) >= r.quantity_required;
                           return (
@@ -234,7 +270,7 @@ export function UsedItemsModal({
                     Recorded Stock Out Movements ({data.actualMovements.length})
                   </h3>
                   <div className="space-y-1.5">
-                    {data.actualMovements.map((m: any) => (
+                    {data.actualMovements.map((m: AppointmentMovementItem) => (
                       <div
                         key={m.id}
                         className="flex items-center justify-between rounded-lg border border-line bg-emerald-50/50 px-3 py-2 text-xs"

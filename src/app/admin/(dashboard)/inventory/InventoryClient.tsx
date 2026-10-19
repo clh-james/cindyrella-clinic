@@ -7,7 +7,8 @@ import {
 } from "lucide-react";
 import { 
   InventoryItem, InventoryCategory, InventorySupplier, 
-  InventoryMovement, InventoryTransfer, InventoryPurchaseOrder, BranchInfo 
+  InventoryMovement, InventoryTransfer, InventoryPurchaseOrder, BranchInfo,
+  TreatmentRecipeData
 } from "./types";
 import { InventoryTable } from "./InventoryTable";
 import { InventoryDashboardView } from "./InventoryDashboardView";
@@ -25,6 +26,8 @@ import {
   LogWastageModal, QuickTransferModal 
 } from "./StockActionModals";
 
+
+
 interface InventoryClientProps {
   initialItems: InventoryItem[];
   categories: InventoryCategory[];
@@ -33,7 +36,7 @@ interface InventoryClientProps {
   transfers: InventoryTransfer[];
   purchaseOrders: InventoryPurchaseOrder[];
   branches: BranchInfo[];
-  recipes?: any[];
+  recipes?: TreatmentRecipeData[];
   currentStaff: {
     id: string;
     fullName: string;

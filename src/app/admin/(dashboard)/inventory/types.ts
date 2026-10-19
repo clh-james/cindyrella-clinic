@@ -304,3 +304,25 @@ export const DEFAULT_CATEGORIES: {
     subcategories: ["Treatment Machines", "Reusable Tools", "Trolleys & Trays", "Applicators"],
   },
 ];
+
+export interface TreatmentRecipeMaterial {
+  id: string;
+  itemId: string;
+  quantityRequired: number;
+  item?: {
+    id: string;
+    name: string;
+    unit: string;
+    current_stock: number;
+    category: string;
+  };
+}
+
+export interface TreatmentRecipeData {
+  id: string;
+  name: string;
+  slug: string;
+  session_price: number;
+  materials: TreatmentRecipeMaterial[];
+}
+
