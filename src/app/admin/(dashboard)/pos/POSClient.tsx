@@ -1,13 +1,14 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
+import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import type { } from "@/lib/supabase/types";
 import { 
   ShoppingCart, Minus, Plus, CreditCard, Banknote, ScanLine, 
   Loader2, Search, X, CheckCircle2,
   Trash2, AlertTriangle, Package as PackageIcon,
-  BriefcaseMedical, User, History, ReceiptText, Printer, Bluetooth
+  BriefcaseMedical, User, History, ReceiptText, Printer, Bluetooth, Scale
 } from "lucide-react";
 import { processPOSWalkin, processPOSRetail, getRecentTransactions } from "./actions";
 import { 
@@ -604,6 +605,15 @@ export function POSClient({
             <History size={16} />
             <span className="hidden sm:inline">History</span>
           </button>
+
+          <Link
+            href="/admin/reports/financials"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-line rounded-lg text-sm font-medium text-ink-soft hover:text-royal hover:border-royal hover:bg-pale transition-colors shadow-sm"
+            title="View Income Statement & Balance Sheet"
+          >
+            <Scale size={16} />
+            <span className="hidden md:inline">Financials</span>
+          </Link>
           
           <div className="flex flex-col items-end border-l border-line pl-2 sm:pl-4">
             <div className="text-xs sm:text-sm font-medium text-ink-soft flex items-center gap-2">

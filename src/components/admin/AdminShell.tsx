@@ -11,7 +11,7 @@ import {
   LayoutDashboard, CreditCard, CalendarDays, Users, Sparkles, PackageOpen, Crown, Gift, Boxes, 
   ReceiptText, WalletCards, Banknote, BarChart3, UserRoundCog, ShieldCheck, 
   Images, Megaphone, Bell, ScrollText, Building2, Settings,
-  ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity, Clock, CheckCircle2, CalendarCheck
+  ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity, Clock, CheckCircle2, CalendarCheck, Scale
 } from "lucide-react";
 import { Can, usePermissions } from "@/components/rbac/Can";
 import { NotificationCenter } from "./NotificationCenter";
@@ -51,6 +51,7 @@ const NAVIGATION_GROUPS = [
       { name: "Bills Due", href: "/admin/bills", icon: Clock, permission: "expenses.view", badge: "bills" },
       { name: "Approvals", href: "/admin/approvals", icon: CheckCircle2, permission: "approvals.view", badge: "approvals" },
       { name: "Reports", href: "/admin/reports", icon: BarChart3, permission: "reports.view" },
+      { name: "Financial Statements", href: "/admin/reports/financials", icon: Scale, permission: "reports.view" },
     ]
   },
   {
