@@ -6,6 +6,7 @@ export type StaffSession = {
   fullName: string;
   role: string;
   branchId?: string | null;
+  email?: string | null;
 };
 
 export async function requireStaff(): Promise<StaffSession> {
@@ -40,6 +41,7 @@ export async function requireStaff(): Promise<StaffSession> {
     id: staff.id, 
     fullName: staff.full_name, 
     role: roleName || "staff",
-    branchId: staff.branch_id || null
+    branchId: staff.branch_id || null,
+    email: user.email || null,
   };
 }

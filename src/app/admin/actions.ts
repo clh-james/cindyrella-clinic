@@ -513,9 +513,14 @@ export async function changeStaffPasswordAction(formData: {
       return { ok: false, error: "New password must be different from your current password." };
     }
 
+    const userEmail = user.email || (await supabase.auth.getUser()).data.user?.email;
+    if (!userEmail) {
+      return { ok: false, error: "Unable to determine your account email." };
+    }
+
     // Verify current password by attempting re-authentication
     const { error: verifyError } = await supabase.auth.signInWithPassword({
-      email: user.email!,
+      email: userEmail,
       password: currentPassword,
     });
 
