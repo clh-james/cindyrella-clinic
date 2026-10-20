@@ -21,7 +21,7 @@ VALUES
   ('IV Drip & Infusion Supplies', 'IVS', 'IV bags, infusion sets, tubing, cannulas, and intravenous infusion essentials', ARRAY['IV Bags', 'Infusion Sets', 'Tubing', 'Cannulas', 'Catheters']),
   ('Aesthetic & Treatment Products', 'ATP', 'Approved treatment products, serums, ampoules, peels, and clinical vials', ARRAY['Serums', 'Ampoules', 'Vials', 'Peels', 'Boosters']),
   ('Medical Consumables & PPE', 'MCP', 'Gloves, masks, gauze, cotton, alcohol swabs, syringes, and clinical disposables', ARRAY['Gloves', 'Masks', 'Gauze & Cotton', 'Alcohol Swabs', 'Syringes & Needles', 'Bandages']),
-  ('Skincare & Retail Products', 'SKN', 'Cleansers, moisturizers, sunscreen, lotions, and take-home retail products', ARRAY['Cleansers', 'Moisturizers', 'Sunscreen', 'Toners', 'Creams']),
+  ('Skincare & Retail Products', 'SKN', 'Cleansers, moisturizers, sunscreen, serums, lotions, and take-home retail products', ARRAY['Cleansers', 'Moisturizers', 'Sunscreen', 'Toners', 'Creams', 'Serums']),
   ('Spa, Nail & Beauty Supplies', 'SNB', 'Nail polish, files, acetone, wax, massage oils, and aesthetic beauty essentials', ARRAY['Nail Care', 'Waxing Supplies', 'Massage Oils', 'Eyelash Supplies', 'Piercing Supplies']),
   ('Cleaning & Sanitation Supplies', 'CLN', 'Disinfectants, detergents, hand soap, trash bags, and clinic sterilizers', ARRAY['Disinfectants', 'Sterilization', 'Detergents', 'Soaps & Sanitizers', 'Trash Bags']),
   ('Office & POS Supplies', 'OPS', 'Receipt rolls, printer paper, labels, pens, and clerical administrative supplies', ARRAY['Receipt Rolls', 'Printer Paper', 'Thermal Labels', 'Office Stationery']),

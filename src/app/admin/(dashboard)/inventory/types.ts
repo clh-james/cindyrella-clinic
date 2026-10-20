@@ -276,8 +276,8 @@ export const DEFAULT_CATEGORIES: {
   {
     name: "Skincare & Retail Products",
     code: "SKN",
-    description: "Cleansers, moisturizers, sunscreen, lotions, and take-home retail products",
-    subcategories: ["Cleansers", "Moisturizers", "Sunscreen", "Toners", "Creams"],
+    description: "Cleansers, moisturizers, sunscreen, serums, lotions, and take-home retail products",
+    subcategories: ["Cleansers", "Moisturizers", "Sunscreen", "Toners", "Creams", "Serums"],
   },
   {
     name: "Spa, Nail & Beauty Supplies",

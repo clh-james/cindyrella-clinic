@@ -38,6 +38,8 @@ export function InventoryItemModal({
   const [categoryId, setCategoryId] = useState("");
   const [categoryName, setCategoryName] = useState("");
   const [subcategory, setSubcategory] = useState("");
+  const [customSubcategory, setCustomSubcategory] = useState("");
+  const [isCustomSubcategory, setIsCustomSubcategory] = useState(false);
   const [brand, setBrand] = useState("");
   const [unit, setUnit] = useState("pcs");
   const [customUnit, setCustomUnit] = useState("");
@@ -64,7 +66,18 @@ export function InventoryItemModal({
       setDescription(itemToEdit.description || "");
       setCategoryId(itemToEdit.category_id || "");
       setCategoryName(itemToEdit.category || "");
-      setSubcategory(itemToEdit.subcategory || "");
+      const itemSub = itemToEdit.subcategory || "";
+      const cat = categories.find((c) => c.id === itemToEdit.category_id);
+      const catSubs = cat?.subcategories || [];
+      if (itemSub && catSubs.length > 0 && !catSubs.includes(itemSub)) {
+        setIsCustomSubcategory(true);
+        setCustomSubcategory(itemSub);
+        setSubcategory("custom");
+      } else {
+        setIsCustomSubcategory(false);
+        setCustomSubcategory("");
+        setSubcategory(itemSub);
+      }
       setBrand(itemToEdit.brand || "");
       
       const isStandard = STANDARD_UNITS.includes(itemToEdit.unit);
@@ -98,6 +111,8 @@ export function InventoryItemModal({
       setCategoryId(categories[0]?.id || "");
       setCategoryName(categories[0]?.name || "IV Drip & Infusion Supplies");
       setSubcategory("");
+      setCustomSubcategory("");
+      setIsCustomSubcategory(false);
       setBrand("");
       setUnit("pcs");
       setCustomUnit("");
@@ -124,6 +139,8 @@ export function InventoryItemModal({
 
   const handleCategoryChange = (catId: string) => {
     setCategoryId(catId);
+    setIsCustomSubcategory(false);
+    setCustomSubcategory("");
     const cat = categories.find((c) => c.id === catId);
     if (cat) {
       setCategoryName(cat.name);
@@ -150,7 +167,8 @@ export function InventoryItemModal({
     if (description.trim()) formData.append("description", description.trim());
     formData.append("category_id", categoryId);
     formData.append("category", categoryName);
-    if (subcategory.trim()) formData.append("subcategory", subcategory.trim());
+    const effectiveSubcategory = isCustomSubcategory ? customSubcategory.trim() : subcategory.trim();
+    if (effectiveSubcategory) formData.append("subcategory", effectiveSubcategory);
     if (brand.trim()) formData.append("brand", brand.trim());
     formData.append("unit", effectiveUnit);
     formData.append("current_stock", currentStock.toString());
@@ -337,18 +355,37 @@ export function InventoryItemModal({
                   Subcategory
                 </label>
                 {availableSubcategories.length > 0 ? (
-                  <select
-                    value={subcategory}
-                    onChange={(e) => setSubcategory(e.target.value)}
-                    className="w-full rounded-xl border border-line px-3.5 py-2.5 text-sm text-ink bg-white outline-none focus:border-royal"
-                  >
-                    <option value="">None / General</option>
-                    {availableSubcategories.map((sub) => (
-                      <option key={sub} value={sub}>
-                        {sub}
-                      </option>
-                    ))}
-                  </select>
+                  <>
+                    <select
+                      value={isCustomSubcategory ? "custom" : subcategory}
+                      onChange={(e) => {
+                        if (e.target.value === "custom") {
+                          setIsCustomSubcategory(true);
+                        } else {
+                          setIsCustomSubcategory(false);
+                          setSubcategory(e.target.value);
+                        }
+                      }}
+                      className="w-full rounded-xl border border-line px-3.5 py-2.5 text-sm text-ink bg-white outline-none focus:border-royal"
+                    >
+                      <option value="">None / General</option>
+                      {availableSubcategories.map((sub) => (
+                        <option key={sub} value={sub}>
+                          {sub}
+                        </option>
+                      ))}
+                      <option value="custom">+ Custom Subcategory...</option>
+                    </select>
+                    {isCustomSubcategory && (
+                      <input
+                        type="text"
+                        value={customSubcategory}
+                        onChange={(e) => setCustomSubcategory(e.target.value)}
+                        placeholder="Enter custom subcategory"
+                        className="mt-2 w-full rounded-xl border border-royal px-3 py-1.5 text-xs text-ink outline-none"
+                      />
+                    )}
+                  </>
                 ) : (
                   <input
                     type="text"
