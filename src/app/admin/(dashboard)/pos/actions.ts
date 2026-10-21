@@ -69,25 +69,52 @@ export async function processPOSWalkin(input: {
   // Save all items in notes as JSON string
   const itemsJson = JSON.stringify(input.items);
   
-  const { data: appointment, error: appointmentError } = await supabase
+  // Safe payment method mapping for PostgreSQL enum payment_method
+  // PostgreSQL enum has ('cash', 'credit_card', 'bank_transfer', 'gcash')
+  const safePaymentMethod =
+    input.paymentMethod === "card"
+      ? "credit_card"
+      : input.paymentMethod;
+
+  const appointmentPayload = {
+    reference_number: referenceNumber,
+    customer_id: customer.id,
+    treatment_id: input.items[0].id, // Primary treatment is first item
+    branch_id: input.branchId,
+    appointment_date: date.toISOString().split('T')[0],
+    appointment_time: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+    payment_method: safePaymentMethod,
+    amount_due: Math.round(Number(input.amountDue)),
+    discount_amount: Math.round(Number(input.discountAmount || 0)),
+    discount_reason: input.discountReason || null,
+    status: "completed",
+    payment_status: "paid",
+    notes: itemsJson // Store full cart here
+  };
+
+  let appointmentResult = await supabase
     .from("appointments")
-    .insert({
-      reference_number: referenceNumber,
-      customer_id: customer.id,
-      treatment_id: input.items[0].id, // Primary treatment is first item
-      branch_id: input.branchId,
-      appointment_date: date.toISOString().split('T')[0],
-      appointment_time: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-      payment_method: input.paymentMethod,
-      amount_due: Math.round(Number(input.amountDue)),
-      discount_amount: Math.round(Number(input.discountAmount || 0)),
-      discount_reason: input.discountReason || null,
-      status: "completed",
-      payment_status: "paid",
-      notes: itemsJson // Store full cart here
-    })
+    .insert(appointmentPayload)
     .select("id")
     .single();
+
+  // If DB enum rejected 'maya' (code 22P02), fallback to 'bank_transfer' (electronic e-wallet transfer)
+  if (
+    appointmentResult.error &&
+    appointmentResult.error.code === "22P02" &&
+    (input.paymentMethod === "maya" || safePaymentMethod === "maya")
+  ) {
+    appointmentResult = await supabase
+      .from("appointments")
+      .insert({
+        ...appointmentPayload,
+        payment_method: "bank_transfer",
+      })
+      .select("id")
+      .single();
+  }
+
+  const { data: appointment, error: appointmentError } = appointmentResult;
 
   if (appointmentError || !appointment) {
     console.error("Failed to create walk-in appointment:", appointmentError);
