@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useId } from "react";
+import { useState, useEffect, useId } from "react";
 import {
   X,
   UploadCloud,
@@ -16,6 +16,7 @@ import {
   Calendar,
   Wallet,
   UserCheck,
+  Sparkles,
 } from "lucide-react";
 import {
   ExpenseCategory,
@@ -47,6 +48,8 @@ export function RecordExpenseModal({
   onOpenNewCategory,
 }: RecordExpenseModalProps) {
   const fileInputId = useId();
+  const aiScanInputId = useId();
+
   const [title, setTitle] = useState("");
   const [categoryId, setCategoryId] = useState(categories[0]?.id || "");
   const [branchId, setBranchId] = useState(defaultBranchId || branches[0]?.id || "");
@@ -68,6 +71,33 @@ export function RecordExpenseModal({
   const [isUploading, setIsUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState("");
+
+  // AI Receipt Scanner States
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanDone, setScanDone] = useState(false);
+  const [customApiKey, setCustomApiKey] = useState("");
+  const [tempApiKey, setTempApiKey] = useState("");
+  const [showApiKeyPrompt, setShowApiKeyPrompt] = useState(false);
+  const [lastScannedFile, setLastScannedFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("cindyrella_gemini_api_key");
+      if (saved) setCustomApiKey(saved);
+    }
+  }, []);
+
+  const handleSaveApiKey = () => {
+    const key = tempApiKey.trim();
+    if (!key) return;
+    localStorage.setItem("cindyrella_gemini_api_key", key);
+    setCustomApiKey(key);
+    setShowApiKeyPrompt(false);
+    toast.success("Gemini API Key na-save! Ini-scan na ang resibo...");
+    if (lastScannedFile) {
+      processFileAndScan(lastScannedFile, key);
+    }
+  };
 
   const activeCategory = categories.find((c) => c.id === categoryId);
 
@@ -114,8 +144,8 @@ export function RecordExpenseModal({
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  // Upload and AI scan runner
+  const processFileAndScan = async (file: File, overrideKey?: string) => {
     if (!file) return;
 
     if (file.size > 10 * 1024 * 1024) {
@@ -123,8 +153,12 @@ export function RecordExpenseModal({
       return;
     }
 
+    setLastScannedFile(file);
     setIsUploading(true);
+    setIsScanning(true);
+
     try {
+      // 1. Upload file to Supabase storage voucher bucket
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch("/api/admin/expenses/upload", {
@@ -135,16 +169,102 @@ export function RecordExpenseModal({
       if (json.success && json.url) {
         setReceiptUrl(json.url);
         setReceiptFileName(file.name);
-        toast.success("Receipt voucher uploaded!");
       } else {
         toast.error(json.error || "Failed to upload file");
+        setIsUploading(false);
+        setIsScanning(false);
+        return;
+      }
+      setIsUploading(false);
+
+      // 2. Scan file with Google Gemini Vision
+      const scanFd = new FormData();
+      scanFd.append("file", file);
+      scanFd.append(
+        "categories",
+        JSON.stringify(categories.map((c) => ({ id: c.id, name: c.name })))
+      );
+      scanFd.append(
+        "branches",
+        JSON.stringify(branches.map((b) => ({ id: b.id, name: b.name })))
+      );
+
+      const activeKey = overrideKey || customApiKey;
+      const scanRes = await fetch("/api/admin/expenses/scan-receipt", {
+        method: "POST",
+        headers: activeKey ? { "x-gemini-key": activeKey } : undefined,
+        body: scanFd,
+      });
+
+      const scanJson = await scanRes.json();
+
+      if (!scanRes.ok || !scanJson.success) {
+        if (scanJson.needsApiKey) {
+          setShowApiKeyPrompt(true);
+          toast("Pakilagay ang Gemini API Key para mag-scan ng resibo.", { icon: "🔑" });
+        } else {
+          toast.error(scanJson.error || "Hindi nabasa ang resibo. Pwede mong manual na i-type.");
+        }
+        return;
+      }
+
+      // 3. Populate form fields
+      const data = scanJson.data;
+      if (data) {
+        if (data.title) setTitle(data.title);
+        if (data.suggestedCategoryId) setCategoryId(data.suggestedCategoryId);
+        if (data.suggestedBranchId) setBranchId(data.suggestedBranchId);
+        if (data.vendor) setVendorOrPayee(data.vendor);
+        if (data.invoiceNumber) setReferenceNumber(data.invoiceNumber);
+        if (data.expenseDate) setExpenseDate(data.expenseDate);
+
+        if (typeof data.totalAmount === "number" && !isNaN(data.totalAmount)) {
+          setTotalAmount(data.totalAmount.toFixed(2));
+        }
+        if (typeof data.amountBeforeTax === "number" && !isNaN(data.amountBeforeTax)) {
+          setAmountBeforeTax(data.amountBeforeTax.toFixed(2));
+        } else if (typeof data.totalAmount === "number" && !isNaN(data.totalAmount)) {
+          setAmountBeforeTax(data.totalAmount.toFixed(2));
+        }
+        if (typeof data.taxAmount === "number" && !isNaN(data.taxAmount)) {
+          setTaxAmount(data.taxAmount.toFixed(2));
+        }
+
+        if (data.paymentMethod) {
+          setPaymentMethod(data.paymentMethod);
+          if (data.paymentMethod === "petty_cash") {
+            setIsPettyCash(true);
+          }
+        }
+        if (data.paymentAccount) {
+          setPaymentAccount(data.paymentAccount);
+        }
+        if (data.formattedBreakdown) {
+          setDescription(data.formattedBreakdown);
+        }
+        if (data.auditorNotes) {
+          setNotes(data.auditorNotes);
+        }
+
+        setRecordImmediatePayment(true);
+        setScanDone(true);
+        toast.success("✨ Resibo na-scan na! Kusa nang napunan ang mga detalye.");
       }
     } catch {
-      toast.error("Failed to attach receipt");
+      toast.error("Error habang nag-i-scan ng resibo.");
     } finally {
       setIsUploading(false);
+      setIsScanning(false);
     }
   };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await processFileAndScan(file);
+    }
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,6 +347,121 @@ export function RecordExpenseModal({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* AI RECEIPT SCANNER BANNER / DROPZONE */}
+          <div className="relative overflow-hidden rounded-2xl border border-rose-200/90 bg-gradient-to-br from-rose-50 via-purple-50/40 to-amber-50/40 p-4 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 via-pink-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-rose-500/25 shrink-0 mt-0.5">
+                  <Sparkles className={`w-5 h-5 ${isScanning ? "animate-spin text-amber-200" : "animate-pulse"}`} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      Smart AI Receipt Scanner
+                    </h4>
+                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-rose-600 text-white rounded-full shadow-xs">
+                      Auto-Fill
+                    </span>
+                    {scanDone && (
+                      <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 rounded-full flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Na-Auto-Fill na!
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    I-upload ang resibo (NCCC, SM Store, Unitop, etc.) — kusa nitong babasahin ang Branch, Halaga, VAT, Items, Petsa, at OR #!
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <label
+                  htmlFor={aiScanInputId}
+                  className={`px-3.5 py-2 text-xs font-bold rounded-xl cursor-pointer flex items-center gap-1.5 shadow-sm transition-all ${
+                    isScanning || isUploading
+                      ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                      : "bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-700 hover:to-indigo-700 text-white shadow-rose-500/20 active:scale-95"
+                  }`}
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Binabasa ng AI...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      <span>Scan Receipt</span>
+                    </>
+                  )}
+                </label>
+                <input
+                  id={aiScanInputId}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  disabled={isScanning || isUploading}
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKeyPrompt(!showApiKeyPrompt)}
+                  title="Configure Gemini API Key"
+                  className="p-2 text-slate-500 hover:text-slate-800 hover:bg-white/90 rounded-xl transition-colors border border-slate-200/80 bg-white/60"
+                >
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                </button>
+              </div>
+            </div>
+
+            {/* API Key Prompt / Configuration */}
+            {showApiKeyPrompt && (
+              <div className="mt-3 pt-3 border-t border-rose-200/70 animate-in fade-in duration-150">
+                <div className="p-3 bg-white/95 rounded-xl border border-rose-200 shadow-xs flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      🔑 Google Gemini API Key
+                    </label>
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-rose-600 underline hover:text-rose-700 font-semibold flex items-center gap-0.5"
+                    >
+                      Kumuha ng libreng key sa Google AI Studio <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Libreng API key mula sa Google. Maaalala ito ng browser mo para sa lahat ng susunod na pag-scan ng resibo.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="password"
+                      placeholder="I-paste ang iyong AIzaSy... key dito"
+                      value={tempApiKey || customApiKey}
+                      onChange={(e) => setTempApiKey(e.target.value)}
+                      className="flex-1 h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveApiKey}
+                      className="h-9 px-4 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors shrink-0"
+                    >
+                      I-save Key
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isScanning && (
+              <div className="mt-3 pt-3 border-t border-rose-200/70 flex items-center gap-2 text-xs font-semibold text-rose-700 animate-pulse">
+                <Loader2 className="w-4 h-4 animate-spin text-rose-600 shrink-0" />
+                <span>Sinasala ng Gemini Vision ang mga items, halaga ng VAT, petsa, tindahan, at OR #... Sandali lamang.</span>
+              </div>
+            )}
+          </div>
+
           {/* SECTION 1: EXPENSE INFORMATION */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Expense Information</h3>
@@ -582,6 +817,7 @@ export function RecordExpenseModal({
                   onClick={() => {
                     setReceiptUrl("");
                     setReceiptFileName("");
+                    setScanDone(false);
                   }}
                   className="text-xs text-slate-400 hover:text-red-500 px-2 py-1 rounded"
                 >
@@ -595,19 +831,36 @@ export function RecordExpenseModal({
                   type="file"
                   accept="image/jpeg,image/png,image/webp,application/pdf"
                   onChange={handleFileUpload}
-                  disabled={isUploading}
+                  disabled={isUploading || isScanning}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
                 <div className="flex flex-col items-center justify-center gap-1.5">
-                  {isUploading ? (
-                    <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
+                  {isScanning ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <Sparkles className="w-6 h-6 animate-spin text-purple-600" />
+                      <p className="text-xs font-bold text-purple-700 animate-pulse">
+                        Binabasa ng AI ang resibo at ina-auto-fill ang form...
+                      </p>
+                    </div>
+                  ) : isUploading ? (
+                    <>
+                      <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
+                      <p className="text-xs font-medium text-slate-700">Uploading file...</p>
+                    </>
                   ) : (
-                    <UploadCloud className="w-6 h-6 text-slate-400" />
+                    <>
+                      <div className="flex items-center gap-1.5 text-rose-500">
+                        <UploadCloud className="w-6 h-6 text-slate-400" />
+                        <Sparkles className="w-4 h-4 text-purple-500" />
+                      </div>
+                      <p className="text-xs font-semibold text-slate-700">
+                        Click or drag & drop receipt file here (Auto-Scans with AI)
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        Official receipt photo, tax invoice, or vendor PDF
+                      </p>
+                    </>
                   )}
-                  <p className="text-xs font-medium text-slate-700">
-                    {isUploading ? "Uploading file..." : "Click or drag & drop receipt file here"}
-                  </p>
-                  <p className="text-[11px] text-slate-400">Official receipt photo, tax invoice, or vendor PDF</p>
                 </div>
               </div>
             )}
