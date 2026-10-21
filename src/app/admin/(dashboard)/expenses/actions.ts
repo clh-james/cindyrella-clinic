@@ -19,6 +19,33 @@ function generatePaymentNumber(): string {
   return `PAY-${yearMonth}-${rand}`;
 }
 
+async function logExpenseAudit(
+  supabase: ReturnType<typeof createAdminClient>,
+  data: {
+    expense_id: string;
+    actor_id?: string | null;
+    action: string;
+    notes?: string | null;
+    details?: Record<string, unknown>;
+  }
+) {
+  try {
+    let combinedNotes = data.notes || "";
+    if (data.details) {
+      const detailsStr = JSON.stringify(data.details);
+      combinedNotes = combinedNotes ? `${combinedNotes} | ${detailsStr}` : detailsStr;
+    }
+    await supabase.from("expense_audit_logs").insert({
+      expense_id: data.expense_id,
+      actor_id: data.actor_id || null,
+      action: data.action,
+      notes: combinedNotes || null,
+    });
+  } catch (err) {
+    console.warn("Could not write expense_audit_logs:", err);
+  }
+}
+
 // 1. RECORD NEW EXPENSE
 export async function recordExpense(formData: ExpenseFormData) {
   const staff = await requireStaff();
@@ -94,6 +121,7 @@ export async function recordExpense(formData: ExpenseFormData) {
       amount_before_tax: amountBeforeTax,
       tax_amount: taxAmount,
       total_amount: totalAmount,
+      amount: totalAmount,
       approved_amount: approvalStatus === "approved" ? totalAmount : null,
       expense_date: formData.expense_date,
       payment_method: formData.payment_method,
@@ -187,7 +215,7 @@ export async function recordExpense(formData: ExpenseFormData) {
     }
 
     // System audit logs
-    await supabase.from("expense_audit_logs").insert({
+    await logExpenseAudit(supabase, {
       expense_id: exp.id,
       actor_id: staff.id,
       action: formData.is_reimbursement ? "EXPENSE_REIMBURSEMENT_SUBMITTED" : "EXPENSE_CREATED",
@@ -200,18 +228,22 @@ export async function recordExpense(formData: ExpenseFormData) {
       },
     });
 
-    await supabase.from("audit_logs").insert({
-      action: formData.is_reimbursement ? "EXPENSE_REIMBURSEMENT_SUBMITTED" : "EXPENSE_CREATED",
-      resource_type: "expenses",
-      resource_id: exp.id,
-      user_id: staff.id,
-      branch_id: targetBranchId,
-      metadata: {
-        expense_number: exp.expense_number,
-        amount: totalAmount,
-        payee: formData.vendor_or_payee,
-      },
-    });
+    try {
+      await supabase.from("audit_logs").insert({
+        action: formData.is_reimbursement ? "EXPENSE_REIMBURSEMENT_SUBMITTED" : "EXPENSE_CREATED",
+        resource_type: "expenses",
+        resource_id: exp.id,
+        user_id: staff.id,
+        branch_id: targetBranchId,
+        metadata: {
+          expense_number: exp.expense_number,
+          amount: totalAmount,
+          payee: formData.vendor_or_payee,
+        },
+      });
+    } catch (auditErr) {
+      console.warn("Could not write audit_logs:", auditErr);
+    }
 
     revalidatePath("/admin/expenses");
     revalidatePath("/admin/shifts");
@@ -266,6 +298,7 @@ export async function updateExpense(id: string, formData: Partial<ExpenseFormDat
       updatePayload.amount_before_tax = beforeTax;
       updatePayload.tax_amount = tax;
       updatePayload.total_amount = total;
+      updatePayload.amount = total;
     }
 
     const { error: updateErr } = await supabase
@@ -275,7 +308,7 @@ export async function updateExpense(id: string, formData: Partial<ExpenseFormDat
 
     if (updateErr) throw updateErr;
 
-    await supabase.from("expense_audit_logs").insert({
+    await logExpenseAudit(supabase, {
       expense_id: id,
       actor_id: staff.id,
       action: "EXPENSE_UPDATED",
@@ -316,7 +349,7 @@ export async function submitForApproval(expenseId: string) {
       })
       .eq("id", expenseId);
 
-    await supabase.from("expense_audit_logs").insert({
+    await logExpenseAudit(supabase, {
       expense_id: expenseId,
       actor_id: staff.id,
       action: "EXPENSE_SUBMITTED",
@@ -388,7 +421,7 @@ export async function approveExpense(
 
     if (updateErr) throw updateErr;
 
-    await supabase.from("expense_audit_logs").insert({
+    await logExpenseAudit(supabase, {
       expense_id: expenseId,
       actor_id: staff.id,
       action: "EXPENSE_APPROVED",
@@ -475,7 +508,7 @@ export async function rejectExpense(expenseId: string, reason: string) {
       }
     }
 
-    await supabase.from("expense_audit_logs").insert({
+    await logExpenseAudit(supabase, {
       expense_id: expenseId,
       actor_id: staff.id,
       action: "EXPENSE_REJECTED",
@@ -666,7 +699,7 @@ export async function recordPayment(data: {
       .eq("id", data.expenseId);
 
     // Audit logs
-    await supabase.from("expense_audit_logs").insert({
+    await logExpenseAudit(supabase, {
       expense_id: data.expenseId,
       actor_id: staff.id,
       action: "EXPENSE_PAYMENT_RECORDED",
@@ -801,7 +834,7 @@ export async function reversePayment(paymentId: string, reason: string) {
       .eq("id", payment.expense_id);
 
     // Audit logs
-    await supabase.from("expense_audit_logs").insert({
+    await logExpenseAudit(supabase, {
       expense_id: payment.expense_id,
       actor_id: staff.id,
       action: "EXPENSE_PAYMENT_REVERSED",
