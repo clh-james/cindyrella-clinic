@@ -1011,6 +1011,79 @@ export async function replenishPettyCash(
   }
 }
 
+// 10.1 ADJUST PETTY CASH BALANCE / TARGET FLOAT
+export async function adjustPettyCash(
+  branchId: string,
+  newBalance: number,
+  newTargetFloat?: number,
+  notes?: string
+) {
+  const staff = await requireStaff();
+  const supabase = createAdminClient();
+
+  try {
+    const bal = Math.round(Number(newBalance) * 100) / 100;
+    if (isNaN(bal) || bal < 0) {
+      return { success: false, error: "Current balance must be a valid non-negative amount." };
+    }
+
+    const { data: fund } = await supabase
+      .from("petty_cash_funds")
+      .select("id, current_balance, target_float")
+      .eq("branch_id", branchId)
+      .maybeSingle();
+
+    const now = new Date().toISOString();
+    const updateData: {
+      current_balance: number;
+      target_float?: number;
+      updated_at: string;
+    } = {
+      current_balance: bal,
+      updated_at: now,
+    };
+
+    if (newTargetFloat !== undefined && !isNaN(newTargetFloat) && newTargetFloat > 0) {
+      updateData.target_float = Math.round(Number(newTargetFloat) * 100) / 100;
+    }
+
+    if (fund) {
+      const { error } = await supabase
+        .from("petty_cash_funds")
+        .update(updateData)
+        .eq("id", fund.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("petty_cash_funds").insert({
+        branch_id: branchId,
+        current_balance: bal,
+        target_float: updateData.target_float ?? 5000.0,
+        updated_at: now,
+      });
+      if (error) throw error;
+    }
+
+    await supabase.from("audit_logs").insert({
+      action: "PETTY_CASH_ADJUSTED",
+      resource_type: "petty_cash_funds",
+      user_id: staff.id,
+      branch_id: branchId,
+      metadata: {
+        previous_balance: fund?.current_balance ?? null,
+        new_balance: bal,
+        target_float: updateData.target_float ?? fund?.target_float ?? 5000,
+        notes: notes || null,
+      },
+    });
+
+    revalidatePath("/admin/expenses");
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to adjust petty cash";
+    return { success: false, error: message };
+  }
+}
+
 // 11. UPLOAD RECEIPT ATTACHMENT
 export async function uploadReceiptAttachment(expenseId: string, formData: FormData) {
   const staff = await requireStaff();
