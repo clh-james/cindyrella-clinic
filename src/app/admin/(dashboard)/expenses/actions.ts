@@ -1153,3 +1153,35 @@ export async function uploadReceiptAttachment(expenseId: string, formData: FormD
     return { success: false, error: message };
   }
 }
+
+// 12. UPDATE EXPENSE CATEGORY
+export async function updateExpenseCategory(expenseId: string, categoryId: string) {
+  const staff = await requireStaff();
+  const supabase = createAdminClient();
+
+  try {
+    const { error } = await supabase
+      .from("expenses")
+      .update({ category_id: categoryId, updated_at: new Date().toISOString() })
+      .eq("id", expenseId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    await logExpenseAudit(supabase, {
+      expense_id: expenseId,
+      actor_id: staff.id,
+      action: "EXPENSE_CATEGORY_UPDATED",
+      notes: `Category updated by ${staff.fullName}`,
+      details: { category_id: categoryId },
+    });
+
+    revalidatePath("/admin/expenses");
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to update category";
+    return { success: false, error: message };
+  }
+}
+

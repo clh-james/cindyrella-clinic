@@ -795,6 +795,7 @@ export function ExpensesClient({
       {selectedExpense && (
         <ExpenseDetailModal
           expense={selectedExpense}
+          categories={categories}
           canApprove={canApprove}
           currentStaffId={currentStaffId}
           isSuperAdmin={isSuperAdmin}

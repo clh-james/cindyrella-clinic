@@ -18,19 +18,22 @@ import {
   Receipt,
   PlusCircle,
   RotateCcw,
+  Tag,
 } from "lucide-react";
-import { ExpenseItem, ExpensePaymentMethod } from "@/app/admin/(dashboard)/expenses/types";
+import { ExpenseItem, ExpensePaymentMethod, ExpenseCategory } from "@/app/admin/(dashboard)/expenses/types";
 import {
   approveExpense,
   rejectExpense,
   deleteExpense,
   recordPayment,
   reversePayment,
+  updateExpenseCategory,
 } from "@/app/admin/(dashboard)/expenses/actions";
 import toast from "react-hot-toast";
 
 interface ExpenseDetailModalProps {
   expense: ExpenseItem;
+  categories?: ExpenseCategory[];
   canApprove: boolean;
   currentStaffId?: string;
   isSuperAdmin?: boolean;
@@ -40,6 +43,7 @@ interface ExpenseDetailModalProps {
 
 export function ExpenseDetailModal({
   expense,
+  categories = [],
   canApprove,
   currentStaffId,
   isSuperAdmin = false,
@@ -49,6 +53,11 @@ export function ExpenseDetailModal({
   const [rejecting, setRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [loadingAction, setLoadingAction] = useState(false);
+
+  // Category Edit State
+  const [isEditingCat, setIsEditingCat] = useState(false);
+  const [selectedCatId, setSelectedCatId] = useState(expense.category_id);
+  const [isUpdatingCat, setIsUpdatingCat] = useState(false);
 
   // Partial Payment State
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -61,6 +70,7 @@ export function ExpenseDetailModal({
   // Reversal State
   const [reversingPaymentId, setReversingPaymentId] = useState<string | null>(null);
   const [reversalReason, setReversalReason] = useState("");
+
 
   const formatPHP = (val?: number | null) =>
     `₱${(val || 0).toLocaleString("en-PH", {
@@ -200,7 +210,27 @@ export function ExpenseDetailModal({
     }
   };
 
+  const handleCategoryChange = async (newCatId: string) => {
+    setSelectedCatId(newCatId);
+    setIsUpdatingCat(true);
+    try {
+      const res = await updateExpenseCategory(expense.id, newCatId);
+      if (res.success) {
+        toast.success("Category updated!");
+        onRefresh();
+      } else {
+        toast.error(res.error || "Failed to update category");
+      }
+    } catch {
+      toast.error("Failed to update category");
+    } finally {
+      setIsUpdatingCat(false);
+      setIsEditingCat(false);
+    }
+  };
+
   const getStatusBadge = () => {
+
     switch (expense.approval_status) {
       case "approved":
         return (
@@ -273,14 +303,56 @@ export function ExpenseDetailModal({
                   <h4 className="text-sm font-bold text-slate-900">{expense.title}</h4>
                   <p className="text-xs text-slate-500 mt-0.5">{expense.description || "No detailed description provided."}</p>
                 </div>
-                {expense.category && (
-                  <span
-                    className="px-2.5 py-1 rounded-md text-xs font-semibold text-white shadow-xs"
-                    style={{ backgroundColor: expense.category.color }}
-                  >
-                    {expense.category.name}
-                  </span>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {isEditingCat ? (
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        value={selectedCatId}
+                        disabled={isUpdatingCat}
+                        onChange={(e) => handleCategoryChange(e.target.value)}
+                        className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-800 shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500"
+                      >
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      {isUpdatingCat ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-500" />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingCat(false)}
+                          className="text-[11px] text-slate-400 hover:text-slate-600 px-1 py-0.5 rounded"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      {expense.category && (
+                        <span
+                          className="px-2.5 py-1 rounded-md text-xs font-semibold text-white shadow-xs"
+                          style={{ backgroundColor: expense.category.color }}
+                        >
+                          {expense.category.name}
+                        </span>
+                      )}
+                      {categories.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingCat(true)}
+                          className="text-[11px] font-medium text-slate-400 hover:text-rose-600 underline px-1 py-0.5 rounded transition-colors"
+                          title="Change category"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs border-t border-slate-200/60">
