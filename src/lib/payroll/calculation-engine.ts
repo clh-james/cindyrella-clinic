@@ -276,7 +276,16 @@ export function computeEmployeePayrollItem(
     withholdingTax = taxRes.taxAmount;
   }
 
-  // 9. Total Deductions & Net Pay
+  // 9. Non-statutory & Recurring Deductions (e.g. Uniform installment, loans)
+  let uniformDeduction = 0;
+  if (comp.notes) {
+    const uMatch = comp.notes.match(/(\d+(?:\.\d+)?)\s*(?:pesos|php)?\s*uniform/i) || comp.notes.match(/uniform[^\d]*(\d+(?:\.\d+)?)/i);
+    if (uMatch) {
+      uniformDeduction = parseFloat(uMatch[1]) || 0;
+    }
+  }
+
+  // 10. Total Deductions & Net Pay
   const totalDeductions =
     Math.round(
       (sssEE +
@@ -284,13 +293,14 @@ export function computeEmployeePayrollItem(
         pagibigEE +
         withholdingTax +
         lateUndertimeTotal +
-        absenceDeduction) *
+        absenceDeduction +
+        uniformDeduction) *
         100
     ) / 100;
 
   const netPay = Math.round((grossPay - totalDeductions) * 100) / 100;
 
-  // 10. Total Employer Cost (Gross + Employer Contributions)
+  // 11. Total Employer Cost (Gross + Employer Contributions)
   const totalEmployerContributions =
     Math.round((sssER + phER + pagibigER) * 100) / 100;
   const totalEmployerCost =
@@ -377,6 +387,14 @@ export function computeEmployeePayrollItem(
       is_statutory: false,
     });
   }
+  if (uniformDeduction > 0) {
+    deductionsBreakdown.push({
+      code: "UNIFORM",
+      label: "Uniform Deduction",
+      amount: uniformDeduction,
+      is_statutory: false,
+    });
+  }
 
   const attendanceSummary: AttendanceSummary = {
     days_present: daysPresent,
@@ -419,7 +437,7 @@ export function computeEmployeePayrollItem(
     late_undertime_deduction: lateUndertimeTotal,
     absence_deduction: absenceDeduction,
     loan_advance_deduction: 0.0,
-    other_deductions: 0.0,
+    other_deductions: uniformDeduction,
     total_deductions: totalDeductions,
     net_pay: netPay,
     total_employer_cost: totalEmployerCost,
