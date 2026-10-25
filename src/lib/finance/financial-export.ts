@@ -63,7 +63,7 @@ export function generateFinancialStatementsExcel(
   });
 
   isRows.push(
-    { "Section / Account": "  Staff Payroll & Salaries", "Amount (₱)": income.operatingExpenses.payrollSalaries, Notes: "Approved payroll runs for the period" },
+    { "Section / Account": "  Staff Payroll & Salaries", "Amount (₱)": income.operatingExpenses.payrollSalaries, Notes: "Actual net disbursed payroll runs for the period" },
     { "Section / Account": "  Petty Cash & Cashier Drawer Disbursements", "Amount (₱)": income.operatingExpenses.pettyCashDisbursements, Notes: "Cash drops & clinic operational disbursements" },
     { "Section / Account": "TOTAL OPERATING EXPENSES", "Amount (₱)": income.operatingExpenses.totalOperatingExpenses, Notes: "Operational overhead & staff cost" },
     { "Section / Account": "", "Amount (₱)": "", Notes: "" },

@@ -292,7 +292,8 @@ export async function calculateIncomeStatement(
 
   let payrollSalaries = 0;
   (payrollRuns || []).forEach(pr => {
-    payrollSalaries += Number((pr as any).total_gross_pay) || Number((pr as any).total_net_pay) || Number((pr as any).total_gross) || Number((pr as any).total_net) || 0;
+    // Prioritize actual net take-home pay disbursed out of clinic cash/bank
+    payrollSalaries += Number((pr as any).total_net_pay) || Number((pr as any).total_gross_pay) || Number((pr as any).total_net) || Number((pr as any).total_gross) || 0;
   });
 
   (expenses || []).forEach(e => {
