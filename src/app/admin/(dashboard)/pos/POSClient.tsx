@@ -280,6 +280,7 @@ export function POSClient({
         branchId: selectedBranch,
         customerName: customerName || "Walk-in Customer",
         customerPhone: customerPhone || "N/A",
+        clientClassification,
         paymentMethod,
         amountDue: total,
         discountAmount,
@@ -289,6 +290,9 @@ export function POSClient({
       res = await processPOSRetail({
         items: cart,
         branchId: selectedBranch,
+        customerName: customerName || undefined,
+        customerPhone: customerPhone || undefined,
+        clientClassification,
         paymentMethod,
         amountDue: total,
         discountAmount,
@@ -318,7 +322,8 @@ export function POSClient({
         }),
         isAppointment: mode === "walkin",
         appointmentNo: refNumber,
-        customerName: mode === "walkin" ? (customerName || "Walk-in Customer") : "Walk-in Customer",
+        customerName: customerName || (mode === "walkin" ? "Walk-in Customer" : "Retail Customer"),
+        clientClassification,
         cashierName: cashierName || "Cashier",
         items: cart.map(item => ({
           name: item.name,
@@ -342,7 +347,8 @@ export function POSClient({
         totalPaid: total,
         paymentMethod,
         change: changeAmount > 0 ? changeAmount : 0,
-        customerName: mode === "walkin" ? customerName : "Walk-in Customer"
+        customerName: customerName || (mode === "walkin" ? "Walk-in Customer" : "Retail Customer"),
+        clientClassification
       });
       setLoading(false);
       setShowPaymentModal(false);
@@ -362,6 +368,7 @@ export function POSClient({
     setCart([]);
     setCustomerName("");
     setCustomerPhone("");
+    setClientClassification("walk-in");
     setSuccessData(null);
     setSearchQuery("");
     setPrintStatus(null);
