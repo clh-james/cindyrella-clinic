@@ -110,6 +110,22 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
     }
   }, []);
 
+  let clientClassification = data.client_classification;
+  if (!clientClassification && data.notes) {
+    const match = data.notes.match(/\[Classification:([^\]]+)\]/i);
+    if (match) clientClassification = match[1];
+  }
+  if (!clientClassification && data.discount_reason) {
+    const match = data.discount_reason.match(/\[Classification:([^\]]+)\]/i);
+    if (match) clientClassification = match[1];
+  }
+  const formattedClassification = (() => {
+    const norm = (clientClassification || "").toLowerCase();
+    if (norm === "booked") return "Booked";
+    if (norm.includes("boost")) return "Boosting from Main";
+    return "Walk-in";
+  })();
+
   const handleBluetoothPrint = async () => {
     setIsBtPrinting(true);
     setBtStatus("Connecting to BLE...");
@@ -126,6 +142,7 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
           customerName: customer
             ? `${customer.first_name} ${customer.last_name}`.trim()
             : "Walk-in Customer",
+          clientClassification: formattedClassification,
           cashierName: staff?.full_name,
           items,
           subtotal,
@@ -260,6 +277,12 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
               <span>Customer:</span>
               <span className="font-medium text-right max-w-[120px] truncate capitalize">
                 {customer ? `${customer.first_name} ${customer.last_name}`.trim() : "Walk-in Customer"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Client Type:</span>
+              <span className="font-semibold text-right max-w-[120px] truncate capitalize">
+                {formattedClassification}
               </span>
             </div>
             {staff && (

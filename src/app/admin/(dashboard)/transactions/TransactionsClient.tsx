@@ -16,33 +16,61 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
   const [voidTarget, setVoidTarget] = useState<{id: string, type: "retail"|"appointment"} | null>(null);
   const [voidReason, setVoidReason] = useState("");
 
+  const getClassificationBadge = (c?: string) => {
+    const norm = (c || "").toLowerCase();
+    if (norm === "booked") {
+      return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-indigo-50 text-indigo-700 border-indigo-200">Booked</span>;
+    }
+    if (norm.includes("boost")) {
+      return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-purple-50 text-purple-700 border-purple-200">Boosting Main</span>;
+    }
+    return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-sky-50 text-sky-700 border-sky-200">Walk-in</span>;
+  };
+
   // Combine and sort
   const combined = [
-    ...sales.map(s => ({
-      id: s.id,
-      ref: s.reference_number,
-      amount: s.total_amount,
-      method: s.payment_method,
-      type: "retail",
-      date: new Date(s.created_at),
-      status: s.status,
-      customer: s.customers ? `${s.customers.first_name} ${s.customers.last_name}` : "Walk-in"
-    })),
-    ...appointments.map(a => ({
-      id: a.id,
-      ref: a.reference_number,
-      amount: a.amount_due,
-      method: a.payment_method,
-      type: "appointment",
-      date: new Date(a.created_at),
-      status: a.payment_status,
-      customer: a.customers ? `${a.customers.first_name} ${a.customers.last_name}` : "Unknown"
-    }))
+    ...sales.map(s => {
+      let classification = s.client_classification;
+      if (!classification && s.discount_reason) {
+        const m = s.discount_reason.match(/\[Classification:([^\]]+)\]/i);
+        if (m) classification = m[1];
+      }
+      return {
+        id: s.id,
+        ref: s.reference_number,
+        amount: s.total_amount,
+        method: s.payment_method,
+        type: "retail",
+        classification: classification || "walk-in",
+        date: new Date(s.created_at),
+        status: s.status,
+        customer: s.customers ? `${s.customers.first_name} ${s.customers.last_name}` : "Walk-in"
+      };
+    }),
+    ...appointments.map(a => {
+      let classification = a.client_classification;
+      if (!classification && a.notes) {
+        const m = a.notes.match(/\[Classification:([^\]]+)\]/i);
+        if (m) classification = m[1];
+      }
+      return {
+        id: a.id,
+        ref: a.reference_number,
+        amount: a.amount_due,
+        method: a.payment_method,
+        type: "appointment",
+        classification: classification || "walk-in",
+        date: new Date(a.created_at),
+        status: a.payment_status,
+        customer: a.customers ? `${a.customers.first_name} ${a.customers.last_name}` : "Unknown"
+      };
+    })
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   const filtered = combined.filter(t => 
     t.ref?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.customer?.toLowerCase().includes(searchTerm.toLowerCase())
+    t.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.classification?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleVoid = () => {
@@ -110,7 +138,12 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
                       {t.date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                     </td>
                     <td className="px-6 py-4 font-medium text-ink">{t.ref}</td>
-                    <td className="px-6 py-4 text-ink">{t.customer}</td>
+                    <td className="px-6 py-4 text-ink">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium">{t.customer}</span>
+                        {getClassificationBadge(t.classification)}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-ink-soft capitalize">{t.type}</td>
                     <td className="px-6 py-4 text-ink-soft capitalize">{t.method}</td>
                     <td className="px-6 py-4 text-right font-bold text-ink">{peso(t.amount)}</td>

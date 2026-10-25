@@ -398,6 +398,12 @@ export function POSClient({
               <span className="font-medium text-ink">{successData.customerName || "Guest"}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-line border-dashed">
+              <span className="text-ink-soft">Classification</span>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getClassificationBadgeClass(successData.clientClassification)}`}>
+                {getClassificationLabel(successData.clientClassification)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-line border-dashed">
               <span className="text-ink-soft">Total Paid</span>
               <span className="font-medium text-ink text-lg">₱{successData.totalPaid.toLocaleString()}</span>
             </div>
@@ -487,9 +493,57 @@ export function POSClient({
           </div>
           
           <div className="p-6 bg-pale/30">
-            <div className="text-center mb-6">
+            <div className="text-center mb-5">
               <p className="text-ink-soft font-medium mb-1">Total Amount Due</p>
               <p className="text-4xl font-bold font-mono text-royal">₱{total.toLocaleString()}</p>
+            </div>
+
+            {/* Client Classification Selector */}
+            <div className="mb-5 bg-white p-3 rounded-xl border border-line shadow-2xs">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider">Client Classification</span>
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${getClassificationBadgeClass(clientClassification)}`}>
+                  {getClassificationLabel(clientClassification)}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setClientClassification("walk-in")}
+                  className={`py-2 px-1 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1 ${
+                    clientClassification === "walk-in"
+                      ? "bg-royal text-white shadow-xs"
+                      : "bg-pale/70 text-ink-soft hover:bg-pale hover:text-ink"
+                  }`}
+                >
+                  <span>🚶‍♂️</span>
+                  <span>Walk-in</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClientClassification("booked")}
+                  className={`py-2 px-1 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1 ${
+                    clientClassification === "booked"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-pale/70 text-ink-soft hover:bg-pale hover:text-ink"
+                  }`}
+                >
+                  <span>📅</span>
+                  <span>Booked</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClientClassification("boosting_from_main")}
+                  className={`py-2 px-1 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1 ${
+                    clientClassification === "boosting_from_main"
+                      ? "bg-purple-600 text-white shadow-xs"
+                      : "bg-pale/70 text-ink-soft hover:bg-pale hover:text-ink"
+                  }`}
+                >
+                  <span>🚀</span>
+                  <span>Boosting Main</span>
+                </button>
+              </div>
             </div>
             
             {paymentMethod === "cash" && (
@@ -858,31 +912,80 @@ export function POSClient({
             )}
           </div>
 
-          {/* Customer Selection */}
-          {mode === "walkin" && (
-            <div className="p-4 sm:p-5 border-b border-line bg-pale/30 shrink-0">
-              <div className="flex items-center gap-2 mb-2 sm:mb-3 text-xs sm:text-sm font-medium text-ink">
-                <User size={16} className="text-royal" />
-                Customer Info
+          {/* Customer Selection & Client Classification */}
+          <div className="p-4 sm:p-5 border-b border-line bg-pale/30 shrink-0 space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider flex items-center gap-1.5">
+                  <User size={14} className="text-royal" />
+                  Client Classification
+                </span>
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${getClassificationBadgeClass(clientClassification)}`}>
+                  {getClassificationLabel(clientClassification)}
+                </span>
               </div>
-              <div className="space-y-2 sm:space-y-3">
-                <input 
-                  type="text" 
-                  placeholder="Customer Name" 
-                  value={customerName} 
-                  onChange={e => setCustomerName(e.target.value)} 
-                  className="w-full rounded-xl border border-line px-3 sm:px-4 py-2 sm:py-2.5 text-sm outline-none focus:border-royal focus:ring-2 focus:ring-royal/20 transition-all shadow-sm bg-white" 
-                />
-                <input 
-                  type="text" 
-                  placeholder="Phone Number" 
-                  value={customerPhone} 
-                  onChange={e => setCustomerPhone(e.target.value)} 
-                  className="w-full rounded-xl border border-line px-3 sm:px-4 py-2 sm:py-2.5 text-sm outline-none focus:border-royal focus:ring-2 focus:ring-royal/20 transition-all shadow-sm bg-white" 
-                />
+
+              {/* 3 Pills: Walk-in, Booked, Boosting from Main */}
+              <div className="grid grid-cols-3 gap-1.5 bg-white p-1 rounded-xl border border-line shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setClientClassification("walk-in")}
+                  className={`py-2 px-1 text-center rounded-lg text-xs transition-all flex flex-col items-center gap-0.5 ${
+                    clientClassification === "walk-in"
+                      ? "bg-royal text-white font-semibold shadow-xs"
+                      : "text-ink-soft hover:text-ink hover:bg-pale font-medium"
+                  }`}
+                >
+                  <span className="text-sm">🚶‍♂️</span>
+                  <span>Walk-in</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setClientClassification("booked")}
+                  className={`py-2 px-1 text-center rounded-lg text-xs transition-all flex flex-col items-center gap-0.5 ${
+                    clientClassification === "booked"
+                      ? "bg-indigo-600 text-white font-semibold shadow-xs"
+                      : "text-ink-soft hover:text-ink hover:bg-pale font-medium"
+                  }`}
+                >
+                  <span className="text-sm">📅</span>
+                  <span>Booked</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setClientClassification("boosting_from_main")}
+                  className={`py-2 px-1 text-center rounded-lg text-xs transition-all flex flex-col items-center gap-0.5 ${
+                    clientClassification === "boosting_from_main"
+                      ? "bg-purple-600 text-white font-semibold shadow-xs"
+                      : "text-ink-soft hover:text-ink hover:bg-pale font-medium"
+                  }`}
+                >
+                  <span className="text-sm">🚀</span>
+                  <span className="leading-tight text-[11px]">Boosting Main</span>
+                </button>
               </div>
             </div>
-          )}
+
+            {/* Customer Inputs */}
+            <div className="space-y-2">
+              <input 
+                type="text" 
+                placeholder={mode === "walkin" ? "Customer Name *" : "Customer Name (Optional)"}
+                value={customerName} 
+                onChange={e => setCustomerName(e.target.value)} 
+                className="w-full rounded-xl border border-line px-3 sm:px-4 py-2 sm:py-2.5 text-sm outline-none focus:border-royal focus:ring-2 focus:ring-royal/20 transition-all shadow-sm bg-white" 
+              />
+              <input 
+                type="text" 
+                placeholder={mode === "walkin" ? "Phone Number *" : "Phone Number (Optional)"}
+                value={customerPhone} 
+                onChange={e => setCustomerPhone(e.target.value)} 
+                className="w-full rounded-xl border border-line px-3 sm:px-4 py-2 sm:py-2.5 text-sm outline-none focus:border-royal focus:ring-2 focus:ring-royal/20 transition-all shadow-sm bg-white" 
+              />
+            </div>
+          </div>
 
           {/* Cart Items List */}
           <div className="flex-1 overflow-y-auto bg-[#f8fafc] p-4 sm:p-5">
@@ -1072,7 +1175,7 @@ export function POSClient({
                   {transactions.map(t => (
                     <div key={t.reference_number} className="bg-white border border-line rounded-xl p-4 flex items-center justify-between shadow-sm">
                       <div>
-                        <div className="flex items-center gap-3 mb-1.5">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                           <span className="font-mono text-sm font-semibold text-ink bg-pale px-2 py-0.5 rounded border border-line">
                             {t.reference_number}
                           </span>
@@ -1080,6 +1183,9 @@ export function POSClient({
                             t.type === 'Retail Sale' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                           }`}>
                             {t.type}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getClassificationBadgeClass(t.client_classification)}`}>
+                            {getClassificationLabel(t.client_classification)}
                           </span>
                         </div>
                         <div className="text-xs font-medium text-ink-soft flex items-center gap-2">

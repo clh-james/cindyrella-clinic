@@ -136,7 +136,7 @@ export async function processPOSWalkin(input: {
     appointmentResult.error.code === "22P02" &&
     (input.paymentMethod === "maya" || safePaymentMethod === "maya")
   ) {
-    const fallbackMaya = {
+    const fallbackMaya: Record<string, unknown> = {
       ...appointmentPayload,
       payment_method: "bank_transfer",
     };

@@ -85,9 +85,38 @@ export default async function AppointmentsPage() {
             <div key={a.id} className="rounded-xl border border-line bg-white p-4 shadow-sm flex flex-col gap-3">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-semibold text-ink text-base">
-                    {customer?.first_name} {customer?.last_name}
-                  </h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-ink text-base">
+                      {customer?.first_name} {customer?.last_name}
+                    </h3>
+                    {(() => {
+                      let c = (a as unknown as { client_classification?: string }).client_classification;
+                      if (!c && a.notes) {
+                        const m = a.notes.match(/\[Classification:([^\]]+)\]/i);
+                        if (m) c = m[1];
+                      }
+                      const norm = (c || "walk-in").toLowerCase();
+                      if (norm === "booked") {
+                        return (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-indigo-50 text-indigo-700 border-indigo-200">
+                            Booked
+                          </span>
+                        );
+                      }
+                      if (norm.includes("boost")) {
+                        return (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-purple-50 text-purple-700 border-purple-200">
+                            Boosting Main
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-sky-50 text-sky-700 border-sky-200">
+                          Walk-in
+                        </span>
+                      );
+                    })()}
+                  </div>
                   <p className="text-xs text-ink-soft">{customer?.phone}</p>
                 </div>
                 <div className="font-mono text-xs text-ink-soft bg-pale px-2 py-1 rounded">
@@ -187,7 +216,36 @@ export default async function AppointmentsPage() {
                 <tr key={a.id} className="border-b border-line last:border-0 hover:bg-pale/50 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs text-ink-soft">{a.reference_number}</td>
                   <td className="px-4 py-3 text-ink">
-                    {customer?.first_name} {customer?.last_name}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-medium">{customer?.first_name} {customer?.last_name}</span>
+                      {(() => {
+                        let c = (a as unknown as { client_classification?: string }).client_classification;
+                        if (!c && a.notes) {
+                          const m = a.notes.match(/\[Classification:([^\]]+)\]/i);
+                          if (m) c = m[1];
+                        }
+                        const norm = (c || "walk-in").toLowerCase();
+                        if (norm === "booked") {
+                          return (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-indigo-50 text-indigo-700 border-indigo-200">
+                              Booked
+                            </span>
+                          );
+                        }
+                        if (norm.includes("boost")) {
+                          return (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-purple-50 text-purple-700 border-purple-200">
+                              Boosting Main
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-sky-50 text-sky-700 border-sky-200">
+                            Walk-in
+                          </span>
+                        );
+                      })()}
+                    </div>
                     <div className="text-xs text-ink-soft">{customer?.phone}</div>
                   </td>
                   <td className="px-4 py-3 text-ink font-medium">{treatment?.name}</td>
