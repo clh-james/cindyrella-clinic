@@ -307,8 +307,12 @@ export function computeEmployeePayrollItem(
     Math.round((grossPay + totalEmployerContributions) * 100) / 100;
 
   // 11. Itemized Earnings Breakdown
+  const basicLabel =
+    comp.salary_type === "daily"
+      ? `Basic Pay (${daysPresent} day${daysPresent === 1 ? "" : "s"} on duty @ ₱${standardDailyRate.toFixed(2)}/day)`
+      : "Basic Pay";
   const earningsBreakdown: EarningsDetail[] = [
-    { code: "BASIC", label: "Basic Pay", amount: basicPay, is_taxable: true },
+    { code: "BASIC", label: basicLabel, amount: basicPay, is_taxable: true },
   ];
   if (totalOTPay > 0) {
     earningsBreakdown.push({

@@ -84,6 +84,39 @@ export function SalaryConfigModal({
     }
   };
 
+  // Auto calculate hourly and monthly basis when daily rate changes
+  const handleDailyRateChange = (val: string) => {
+    setDailyRate(val);
+    const num = parseFloat(val) || 0;
+    if (num > 0) {
+      const computedHourly = Math.round((num / 8) * 100) / 100;
+      setHourlyRate(computedHourly.toString());
+      if (salaryType === "daily") {
+        const computedMonthly = Math.round(num * 26 * 100) / 100;
+        setBasicSalary(computedMonthly.toString());
+      }
+    }
+  };
+
+  const handleSalaryTypeChange = (type: SalaryType) => {
+    setSalaryType(type);
+    if (type === "daily") {
+      const daily = parseFloat(dailyRate) || 0;
+      if (daily > 0) {
+        setBasicSalary(Math.round(daily * 26 * 100) / 100 ? (Math.round(daily * 26 * 100) / 100).toString() : basicSalary);
+        setHourlyRate(Math.round((daily / 8) * 100) / 100 ? (Math.round((daily / 8) * 100) / 100).toString() : hourlyRate);
+      }
+    } else if (type === "monthly") {
+      const basic = parseFloat(basicSalary) || 0;
+      if (basic > 0) {
+        const computedDaily = Math.round((basic / 26) * 100) / 100;
+        const computedHourly = Math.round((computedDaily / 8) * 100) / 100;
+        setDailyRate(computedDaily.toString());
+        setHourlyRate(computedHourly.toString());
+      }
+    }
+  };
+
   const handleAddAllowance = () => {
     setAllowances([
       ...allowances,
@@ -247,7 +280,7 @@ export function SalaryConfigModal({
               <label className="block text-xs font-semibold text-ink mb-1.5">Salary Type</label>
               <select
                 value={salaryType}
-                onChange={(e) => setSalaryType(e.target.value as SalaryType)}
+                onChange={(e) => handleSalaryTypeChange(e.target.value as SalaryType)}
                 className="w-full rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium text-ink focus:border-royal focus:outline-hidden"
               >
                 <option value="monthly">Monthly Salaried</option>
@@ -292,7 +325,7 @@ export function SalaryConfigModal({
                 type="number"
                 step="0.01"
                 value={dailyRate}
-                onChange={(e) => setDailyRate(e.target.value)}
+                onChange={(e) => handleDailyRateChange(e.target.value)}
                 placeholder="769.23"
                 className="w-full rounded-xl border border-line bg-white px-3 py-2 text-xs font-mono font-semibold text-ink focus:border-royal focus:outline-hidden"
               />
