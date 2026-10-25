@@ -3,6 +3,7 @@ import { StatusSelect } from "@/components/admin/StatusSelect";
 import { SendReminderButton } from "@/components/admin/SendReminderButton";
 import { ExportAppointmentsCSV } from "@/components/admin/ExportAppointmentsCSV";
 import { AppointmentUsedItemsButton } from "@/components/admin/AppointmentUsedItemsButton";
+import { AppointmentHandlerSelect } from "@/components/admin/AppointmentHandlerSelect";
 
 const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
 
@@ -10,11 +11,16 @@ export const metadata = { title: "Appointments — Admin" };
 
 export default async function AppointmentsPage() {
   const supabase = await createClient();
-  const [{ data: appointments }, { data: inventoryItems }] = await Promise.all([
+  const [
+    { data: appointments },
+    { data: inventoryItems },
+    { data: staffList },
+    { data: quotasRow }
+  ] = await Promise.all([
     supabase
       .from("appointments")
       .select(
-        "id, reference_number, appointment_date, appointment_time, status, amount_due, payment_method, treatments(name), branches(name), customers(first_name, last_name, phone)"
+        "id, reference_number, appointment_date, appointment_time, status, amount_due, payment_method, notes, treatment_id, treatments(id, name), branches(name), customers(first_name, last_name, phone)"
       )
       .order("appointment_date", { ascending: false })
       .limit(100),
@@ -22,16 +28,36 @@ export default async function AppointmentsPage() {
       .from("inventory_items")
       .select("id, name, unit, current_stock")
       .order("name", { ascending: true }),
+    supabase
+      .from("staff")
+      .select("id, full_name, is_active")
+      .eq("is_active", true)
+      .order("full_name", { ascending: true }),
+    supabase
+      .from("payroll_settings")
+      .select("value")
+      .eq("key", "service_quotas")
+      .maybeSingle(),
   ]);
 
   const allItems = inventoryItems || [];
+  const staff = (staffList || []).map((s) => ({
+    id: s.id,
+    fullName: s.full_name,
+  }));
+
+  const quotasMap = (quotasRow?.value || {}) as Record<string, {
+    handled_by?: string | null;
+  }>;
 
   return (
     <div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-serif text-xl sm:text-2xl font-semibold text-ink">Appointments</h1>
-          <p className="mt-1 text-xs sm:text-sm text-ink-soft">Most recent bookings across all branches.</p>
+          <p className="mt-1 text-xs sm:text-sm text-ink-soft">
+            Most recent bookings, assigned aestheticians/handlers, and status tracking across all branches.
+          </p>
         </div>
         <ExportAppointmentsCSV appointments={appointments || []} />
       </div>
@@ -39,11 +65,22 @@ export default async function AppointmentsPage() {
       {/* MOBILE VIEW (CARDS) */}
       <div className="mt-6 grid gap-4 lg:hidden">
         {(appointments ?? []).map((a) => {
-          const treatment = a.treatments as unknown as { name: string } | null;
+          const treatment = a.treatments as unknown as { id?: string; name: string } | null;
           const branch = a.branches as unknown as { name: string } | null;
           const customer = a.customers as unknown as
             | { first_name: string; last_name: string; phone: string }
             | null;
+
+          // Determine current handler
+          let currentHandlerId = (a as unknown as { handled_by?: string }).handled_by || "";
+          if (!currentHandlerId && a.notes) {
+            const match = a.notes.match(/\[HandledBy:([a-f0-9-]+)\]/i);
+            if (match) currentHandlerId = match[1];
+          }
+          if (!currentHandlerId && a.treatment_id && quotasMap[a.treatment_id]?.handled_by) {
+            currentHandlerId = quotasMap[a.treatment_id]?.handled_by || "";
+          }
+
           return (
             <div key={a.id} className="rounded-xl border border-line bg-white p-4 shadow-sm flex flex-col gap-3">
               <div className="flex justify-between items-start">
@@ -57,7 +94,7 @@ export default async function AppointmentsPage() {
                   {a.reference_number}
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-2 text-sm border-t border-b border-line border-dashed py-3 my-1">
                 <div>
                   <p className="text-xs text-ink-soft mb-0.5">When</p>
@@ -70,12 +107,23 @@ export default async function AppointmentsPage() {
                   <p className="text-xs text-ink-soft">{branch?.name}</p>
                 </div>
               </div>
-              
-              <div className="flex justify-between items-center mb-2">
+
+              <div className="flex justify-between items-center">
                 <span className="text-xs text-ink-soft">Amount Due</span>
                 <span className="font-mono font-bold text-ink">{peso(a.amount_due)}</span>
               </div>
-              
+
+              {/* Handled By Selector */}
+              <div className="flex justify-between items-center py-2 border-t border-line/50 text-xs">
+                <span className="text-xs font-medium text-ink-soft">Handled By:</span>
+                <AppointmentHandlerSelect
+                  appointmentId={a.id}
+                  currentHandlerId={currentHandlerId}
+                  staffList={staff}
+                  status={a.status}
+                />
+              </div>
+
               <div className="grid gap-2">
                 <StatusSelect appointmentId={a.id} status={a.status} />
                 <div className="grid grid-cols-2 gap-2">
@@ -102,44 +150,67 @@ export default async function AppointmentsPage() {
 
       {/* DESKTOP VIEW (TABLE) */}
       <div className="mt-6 hidden lg:block overflow-x-auto rounded-2xl border border-line">
-        <table className="w-full min-w-[960px] border-collapse text-sm">
+        <table className="w-full min-w-[1080px] border-collapse text-sm">
           <thead>
             <tr className="bg-pale text-left text-ink">
-              <th className="px-5 py-3 font-medium">Reference</th>
-              <th className="px-5 py-3 font-medium">Client</th>
-              <th className="px-5 py-3 font-medium">Treatment</th>
-              <th className="px-5 py-3 font-medium">Branch</th>
-              <th className="px-5 py-3 font-medium">When</th>
-              <th className="px-5 py-3 font-medium">Amount</th>
-              <th className="px-5 py-3 font-medium">Status</th>
-              <th className="px-5 py-3 font-medium">Used Items</th>
-              <th className="px-5 py-3 font-medium">Reminder</th>
+              <th className="px-4 py-3 font-medium">Reference</th>
+              <th className="px-4 py-3 font-medium">Client</th>
+              <th className="px-4 py-3 font-medium">Treatment</th>
+              <th className="px-4 py-3 font-medium">Handled By</th>
+              <th className="px-4 py-3 font-medium">Branch</th>
+              <th className="px-4 py-3 font-medium">When</th>
+              <th className="px-4 py-3 font-medium">Amount</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Used Items</th>
+              <th className="px-4 py-3 font-medium">Reminder</th>
             </tr>
           </thead>
           <tbody>
             {(appointments ?? []).map((a) => {
-              const treatment = a.treatments as unknown as { name: string } | null;
+              const treatment = a.treatments as unknown as { id?: string; name: string } | null;
               const branch = a.branches as unknown as { name: string } | null;
               const customer = a.customers as unknown as
                 | { first_name: string; last_name: string; phone: string }
                 | null;
+
+              // Determine current handler
+              let currentHandlerId = (a as unknown as { handled_by?: string }).handled_by || "";
+              if (!currentHandlerId && a.notes) {
+                const match = a.notes.match(/\[HandledBy:([a-f0-9-]+)\]/i);
+                if (match) currentHandlerId = match[1];
+              }
+              if (!currentHandlerId && a.treatment_id && quotasMap[a.treatment_id]?.handled_by) {
+                currentHandlerId = quotasMap[a.treatment_id]?.handled_by || "";
+              }
+
               return (
                 <tr key={a.id} className="border-b border-line last:border-0 hover:bg-pale/50 transition-colors">
-                  <td className="px-5 py-3 font-mono text-xs text-ink-soft">{a.reference_number}</td>
-                  <td className="px-5 py-3 text-ink">
+                  <td className="px-4 py-3 font-mono text-xs text-ink-soft">{a.reference_number}</td>
+                  <td className="px-4 py-3 text-ink">
                     {customer?.first_name} {customer?.last_name}
                     <div className="text-xs text-ink-soft">{customer?.phone}</div>
                   </td>
-                  <td className="px-5 py-3 text-ink-soft">{treatment?.name}</td>
-                  <td className="px-5 py-3 text-ink-soft">{branch?.name}</td>
-                  <td className="px-5 py-3 text-ink-soft">
+                  <td className="px-4 py-3 text-ink font-medium">{treatment?.name}</td>
+
+                  {/* Handled By Column */}
+                  <td className="px-4 py-3">
+                    <AppointmentHandlerSelect
+                      appointmentId={a.id}
+                      currentHandlerId={currentHandlerId}
+                      staffList={staff}
+                      status={a.status}
+                    />
+                  </td>
+
+                  <td className="px-4 py-3 text-ink-soft">{branch?.name}</td>
+                  <td className="px-4 py-3 text-ink-soft">
                     {a.appointment_date} · {a.appointment_time}
                   </td>
-                  <td className="px-5 py-3 text-ink-soft font-mono">{peso(a.amount_due)}</td>
-                  <td className="px-5 py-3">
+                  <td className="px-4 py-3 text-ink-soft font-mono">{peso(a.amount_due)}</td>
+                  <td className="px-4 py-3">
                     <StatusSelect appointmentId={a.id} status={a.status} />
                   </td>
-                  <td className="px-5 py-3">
+                  <td className="px-4 py-3">
                     <AppointmentUsedItemsButton
                       appointmentId={a.id}
                       referenceNumber={a.reference_number}
@@ -149,7 +220,7 @@ export default async function AppointmentsPage() {
                       allItems={allItems}
                     />
                   </td>
-                  <td className="px-5 py-3">
+                  <td className="px-4 py-3">
                     <SendReminderButton appointmentId={a.id} />
                   </td>
                 </tr>
@@ -157,7 +228,7 @@ export default async function AppointmentsPage() {
             })}
             {(appointments ?? []).length === 0 && (
               <tr>
-                <td colSpan={9} className="px-5 py-8 text-center text-sm text-ink-soft">
+                <td colSpan={10} className="px-5 py-8 text-center text-sm text-ink-soft">
                   No appointments yet.
                 </td>
               </tr>

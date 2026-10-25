@@ -244,13 +244,19 @@ export async function updateAppointmentStatus(
 
   if (error) return { error: "Could not update that appointment." };
 
-  // 2. Automated Inventory Deduction when appointment is marked completed
+  // 2. Automated Inventory Deduction and Commission Auto-Credit when appointment is marked completed
   if (status === "completed" && prevStatus !== "completed") {
     try {
       const user = await supabase.auth.getUser();
       await deductAppointmentInventory(appointmentId, user.data.user?.id);
     } catch (deductErr) {
       console.error("Auto inventory deduction failed on appointment completion:", deductErr);
+    }
+
+    try {
+      await autoCreditAppointmentCommission(appointmentId);
+    } catch (commErr) {
+      console.error("Auto commission crediting failed on appointment completion:", commErr);
     }
   } else if (prevStatus === "completed" && (status === "cancelled" || status === "no_show")) {
     try {
@@ -259,12 +265,170 @@ export async function updateAppointmentStatus(
     } catch (revErr) {
       console.error("Inventory reversal failed:", revErr);
     }
+
+    try {
+      const adminClient = createAdminClient();
+      await adminClient
+        .from("commission_records")
+        .update({ status: "rejected", notes: `Revoked: Appointment marked as ${status}` })
+        .eq("source_id", appointmentId)
+        .eq("source_type", "appointment");
+    } catch (revCommErr) {
+      console.error("Commission revocation failed:", revCommErr);
+    }
   }
 
   revalidatePath("/admin/appointments");
   revalidatePath("/admin/inventory");
+  revalidatePath("/admin/payroll");
   revalidatePath("/admin");
   return { error: null };
+}
+
+export async function autoCreditAppointmentCommission(appointmentId: string) {
+  const adminClient = createAdminClient();
+
+  const { data: appt } = await adminClient
+    .from("appointments")
+    .select("id, reference_number, branch_id, treatment_id, amount_due, appointment_date, notes, treatments(name, session_price)")
+    .eq("id", appointmentId)
+    .single();
+
+  if (!appt) return;
+
+  // 1. Fetch handler
+  let handlerId: string | null = (appt as unknown as { handled_by?: string }).handled_by || null;
+  if (!handlerId && appt.notes) {
+    const match = appt.notes.match(/\[HandledBy:([a-f0-9-]+)\]/i);
+    if (match) handlerId = match[1];
+  }
+
+  // 2. Fetch service quotas config from payroll_settings
+  const { data: quotasRow } = await adminClient
+    .from("payroll_settings")
+    .select("value")
+    .eq("key", "service_quotas")
+    .maybeSingle();
+
+  const quotasMap = (quotasRow?.value || {}) as Record<string, {
+    handled_by?: string | null;
+    commission_rate?: number;
+    commission_type?: "percentage" | "fixed";
+  }>;
+
+  const treatmentConfig = quotasMap[appt.treatment_id] || {};
+  if (!handlerId) {
+    handlerId = treatmentConfig.handled_by || null;
+  }
+
+  if (!handlerId) return; // No handler assigned yet
+
+  // 3. Compute commission
+  const treatment = appt.treatments as unknown as { name: string; session_price: number } | null;
+  const itemName = treatment?.name || "Clinic Service";
+  const baseAmount = Number(appt.amount_due || treatment?.session_price || 0);
+
+  const commRate = Number(treatmentConfig.commission_rate ?? 10);
+  const isPercentage = (treatmentConfig.commission_type || "percentage") === "percentage";
+
+  const commAmount = isPercentage
+    ? Math.round(baseAmount * (commRate / 100) * 100) / 100
+    : Math.round(commRate * 100) / 100;
+
+  if (commAmount <= 0) return;
+
+  const { data: staffData } = await adminClient
+    .from("staff")
+    .select("full_name")
+    .eq("id", handlerId)
+    .single();
+
+  const staffName = staffData?.full_name || "Therapist";
+
+  // Check existing commission
+  const { data: existingComm } = await adminClient
+    .from("commission_records")
+    .select("id")
+    .eq("source_id", appt.id)
+    .eq("source_type", "appointment")
+    .maybeSingle();
+
+  const commPayload = {
+    employee_id: handlerId,
+    branch_id: appt.branch_id || null,
+    source_type: "appointment",
+    source_id: appt.id,
+    reference_number: appt.reference_number,
+    item_name: itemName,
+    base_amount: baseAmount,
+    commission_rate: commRate,
+    is_percentage: isPercentage,
+    commission_amount: commAmount,
+    split_ratio: 1.0,
+    date_earned: appt.appointment_date || new Date().toISOString().slice(0, 10),
+    status: "approved",
+    notes: `Auto-computed for ${staffName} (Completed service: ${itemName})`,
+  };
+
+  if (existingComm) {
+    await adminClient
+      .from("commission_records")
+      .update(commPayload)
+      .eq("id", existingComm.id);
+  } else {
+    await adminClient
+      .from("commission_records")
+      .insert(commPayload);
+  }
+
+  revalidatePath("/admin/payroll");
+}
+
+export async function setAppointmentHandler(appointmentId: string, staffId: string) {
+  await requireStaff();
+  const adminClient = createAdminClient();
+
+  const { data: appt } = await adminClient
+    .from("appointments")
+    .select("id, status, notes")
+    .eq("id", appointmentId)
+    .single();
+
+  if (!appt) return { error: "Appointment not found." };
+
+  const existingNotes = appt.notes || "";
+  let updatedNotes = existingNotes;
+  if (/\[HandledBy:[^\]]+\]/i.test(existingNotes)) {
+    updatedNotes = existingNotes.replace(/\[HandledBy:[^\]]+\]/i, staffId ? `[HandledBy:${staffId}]` : "");
+  } else if (staffId) {
+    updatedNotes = existingNotes ? `${existingNotes} [HandledBy:${staffId}]` : `[HandledBy:${staffId}]`;
+  }
+
+  // Attempt column update with fallback to notes
+  const { error: colErr } = await adminClient
+    .from("appointments")
+    .update({ handled_by: staffId || null, notes: updatedNotes })
+    .eq("id", appointmentId);
+
+  if (colErr) {
+    await adminClient
+      .from("appointments")
+      .update({ notes: updatedNotes })
+      .eq("id", appointmentId);
+  }
+
+  // If appointment is already completed, auto-compute commission right now
+  if (appt.status === "completed" && staffId) {
+    try {
+      await autoCreditAppointmentCommission(appointmentId);
+    } catch (e) {
+      console.error("Failed to auto-credit commission on handler assign:", e);
+    }
+  }
+
+  revalidatePath("/admin/appointments");
+  revalidatePath("/admin/payroll");
+  return { success: true };
 }
 
 export async function getAppointmentUsedMaterials(appointmentId: string) {

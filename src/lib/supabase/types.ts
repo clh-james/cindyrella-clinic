@@ -22,6 +22,39 @@ export type Treatment = {
   duration_minutes: number | null;
   is_active: boolean;
   sort_order: number;
+  handled_by?: string | null;
+  handler_name?: string | null;
+  commission_rate?: number | null;
+  commission_type?: "percentage" | "fixed" | null;
+  quota_target?: number | null;
+  completed_count?: number;
+};
+
+export type Appointment = {
+  id: string;
+  reference_number: string;
+  customer_id: string;
+  treatment_id: string;
+  branch_id: string;
+  appointment_date: string;
+  appointment_time: string;
+  status: "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
+  payment_method: PaymentMethod;
+  payment_status: "pending" | "paid" | "refunded" | "failed";
+  amount_due: number;
+  notes: string | null;
+  handled_by?: string | null;
+  handler_name?: string | null;
+  created_at: string;
+  applied_promo_code?: string | null;
+  discount_amount?: number | null;
+  discount_reason?: string | null;
+  commission_amount?: number | null;
+  commission_status?: string | null;
+  treatments?: { name: string } | null;
+  branches?: { name: string } | null;
+  customers?: { first_name: string; last_name: string; phone: string } | null;
+  staff?: { full_name: string } | null;
 };
 
 export type PaymentMethod = "gcash" | "bank_transfer" | "cash" | "credit_card" | "maya";
