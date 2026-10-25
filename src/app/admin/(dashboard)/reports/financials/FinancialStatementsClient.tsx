@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef, useCallback } from "react";
 import {
   Scale,
   FileSpreadsheet,
@@ -20,12 +20,14 @@ import {
   ShoppingBag,
   Activity,
   PieChart,
+  Radio,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import type { IncomeStatementData, BalanceSheetData } from "@/lib/finance/types";
 import { generateFinancialStatementsExcel } from "@/lib/finance/financial-export";
 import { getFinancialStatementsAction } from "./actions";
+import { createClient } from "@/lib/supabase/client";
 
 interface FinancialStatementsClientProps {
   initialIncomeStatement: IncomeStatementData;
@@ -57,7 +59,147 @@ export function FinancialStatementsClient({
   const [asOfDate, setAsOfDate] = useState(initialBalanceSheet.asOfDate);
   const [isCustomDate, setIsCustomDate] = useState(false);
 
+  // Realtime & Live Sync States
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+  const [isLiveConnected, setIsLiveConnected] = useState<boolean>(true);
+  const [isRealtimeRefreshing, setIsRealtimeRefreshing] = useState<boolean>(false);
+  const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState<boolean>(true);
+  const [, setSyncCount] = useState<number>(0);
+
   const [isPending, startTransition] = useTransition();
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Silent background refresh for realtime updates without UI layout shifts
+  const refreshFinancialsSilent = useCallback(
+    async (toastMessage?: string) => {
+      setIsRealtimeRefreshing(true);
+      try {
+        const res = await getFinancialStatementsAction({
+          startDate,
+          endDate,
+          asOfDate,
+          branchId: selectedBranchId === "all" ? null : selectedBranchId,
+        });
+
+        if (res.success && res.data) {
+          setIncome(res.data.incomeStatement);
+          setBalanceSheet(res.data.balanceSheet);
+          setLastSyncTime(new Date());
+          setSyncCount((prev) => prev + 1);
+
+          if (toastMessage) {
+            toast.success(toastMessage, {
+              id: "realtime-finance-toast",
+              duration: 3000,
+              icon: "⚡",
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Realtime financial update error:", err);
+      } finally {
+        setIsRealtimeRefreshing(false);
+      }
+    },
+    [startDate, endDate, asOfDate, selectedBranchId]
+  );
+
+  // Debounced realtime updater to handle rapid batches cleanly
+  const triggerRealtimeUpdate = useCallback(
+    (reason: string) => {
+      if (!isAutoSyncEnabled) return;
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        refreshFinancialsSilent(`Live Sync: ${reason}`);
+      }, 700);
+    },
+    [isAutoSyncEnabled, refreshFinancialsSilent]
+  );
+
+  // Realtime Supabase Channel + Cross-Tab + Focus + Heartbeat Listener
+  useEffect(() => {
+    if (!isAutoSyncEnabled) return;
+
+    const supabase = createClient();
+
+    // 1. Listen to Postgres changes across all financial and operational tables
+    const channel = supabase
+      .channel("cindyrella-financials-realtime-hub")
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => {
+        triggerRealtimeUpdate("Appointment & treatment revenue updated");
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "pos_sales" }, () => {
+        triggerRealtimeUpdate("POS retail sale recorded");
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "pos_sale_items" }, () => {
+        triggerRealtimeUpdate("Sale item recorded");
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, () => {
+        triggerRealtimeUpdate("Expense voucher registered");
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "installment_payments" }, () => {
+        triggerRealtimeUpdate("Installment payment collected");
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "inventory_movements" }, () => {
+        triggerRealtimeUpdate("Treatment consumables updated");
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payroll_runs" }, () => {
+        triggerRealtimeUpdate("Staff payroll run updated");
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "cashier_shifts" }, () => {
+        triggerRealtimeUpdate("Cashier shift disbursement recorded");
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setIsLiveConnected(true);
+        } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+          setIsLiveConnected(false);
+        }
+      });
+
+    // 2. Cross-tab BroadcastChannel for zero-latency multi-tab sync
+    let broadcast: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+        broadcast = new BroadcastChannel("cindyrella-finance-broadcast");
+        broadcast.onmessage = (msg) => {
+          triggerRealtimeUpdate(msg.data?.reason || "POS transaction activity");
+        };
+      }
+    } catch {}
+
+    // 3. Storage event fallback for older browsers
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === "cindyrella_pos_activity" || e.key === "cindyrella_finance_activity") {
+        triggerRealtimeUpdate("Local transaction activity");
+      }
+    };
+    window.addEventListener("storage", handleStorageEvent);
+
+    // 4. Window focus / visibility change sync
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshFinancialsSilent();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleVisibilityChange);
+
+    // 5. Periodic background heartbeat sync every 20 seconds
+    const interval = setInterval(() => {
+      refreshFinancialsSilent();
+    }, 20000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      if (broadcast) broadcast.close();
+      window.removeEventListener("storage", handleStorageEvent);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleVisibilityChange);
+      clearInterval(interval);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, [isAutoSyncEnabled, triggerRealtimeUpdate, refreshFinancialsSilent]);
 
   // Presets
   const applyPreset = (preset: "this_month" | "last_month" | "q4" | "ytd") => {
@@ -107,6 +249,7 @@ export function FinancialStatementsClient({
       if (res.success && res.data) {
         setIncome(res.data.incomeStatement);
         setBalanceSheet(res.data.balanceSheet);
+        setLastSyncTime(new Date());
         toast.success("Financial statements updated");
       } else {
         toast.error(res.error || "Failed to update financial statements");
@@ -202,6 +345,34 @@ export function FinancialStatementsClient({
 
         {/* Global Action Toolbar */}
         <div className="flex flex-wrap items-center gap-2.5 no-print">
+          {/* Live Realtime Status Pill */}
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200/90 px-3 py-1.5 rounded-xl shadow-2xs">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isLiveConnected && isAutoSyncEnabled ? "bg-emerald-400" : "bg-amber-400"}`}></span>
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isLiveConnected && isAutoSyncEnabled ? "bg-emerald-500" : "bg-amber-500"}`}></span>
+            </span>
+            <div className="flex flex-col">
+              <span className="text-[11px] font-bold text-emerald-800 leading-none flex items-center gap-1">
+                <Radio size={11} className={isLiveConnected && isAutoSyncEnabled ? "text-emerald-600 animate-pulse" : "text-amber-600"} />
+                {isAutoSyncEnabled ? (isLiveConnected ? "LIVE REALTIME" : "SYNCING") : "PAUSED"}
+              </span>
+              <span className="text-[9px] text-emerald-700/80 font-mono mt-0.5">
+                Synced {lastSyncTime.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}
+              </span>
+            </div>
+          </div>
+
+          {/* Sync Now Action Button */}
+          <button
+            onClick={() => refreshFinancialsSilent("Financial statements refreshed")}
+            disabled={isPending || isRealtimeRefreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-ink-soft hover:text-ink bg-white border border-line rounded-xl hover:bg-pale transition-all shadow-sm disabled:opacity-60"
+            title="Force refresh latest financial figures"
+          >
+            <RefreshCw size={14} className={isPending || isRealtimeRefreshing ? "animate-spin text-royal" : ""} />
+            <span>{isPending || isRealtimeRefreshing ? "Syncing..." : "Sync Now"}</span>
+          </button>
+
           <Link
             href="/admin/pos"
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-ink-soft hover:text-ink bg-white border border-line rounded-xl hover:bg-pale transition-all shadow-sm"
@@ -501,15 +672,24 @@ export function FinancialStatementsClient({
             {/* Table Header */}
             <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h2 className="font-serif text-lg font-bold tracking-wide">
-                  STATEMENT OF PROFIT OR LOSS (INCOME STATEMENT)
-                </h2>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h2 className="font-serif text-lg font-bold tracking-wide">
+                    STATEMENT OF PROFIT OR LOSS (INCOME STATEMENT)
+                  </h2>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Realtime Live Feed</span>
+                  </span>
+                </div>
                 <p className="text-xs text-slate-300 mt-0.5">
                   For the Period {income.period.label} ({income.period.startDate} to {income.period.endDate})
                 </p>
               </div>
               <div className="text-right">
                 <span className="text-xs text-slate-300">All Figures in Philippine Peso (PHP ₱)</span>
+                <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                  Live Synced: {lastSyncTime.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}
+                </p>
               </div>
             </div>
 

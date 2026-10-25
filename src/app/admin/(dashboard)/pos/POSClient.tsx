@@ -353,6 +353,18 @@ export function POSClient({
       setLoading(false);
       setShowPaymentModal(false);
 
+      // Signal realtime financial statements and reports
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("cindyrella_finance_activity", Date.now().toString());
+          if ("BroadcastChannel" in window) {
+            const bc = new BroadcastChannel("cindyrella-finance-broadcast");
+            bc.postMessage({ reason: "New POS transaction completed", time: Date.now() });
+            bc.close();
+          }
+        }
+      } catch {}
+
       // Direct thermal receipt auto-print immediately after confirming payment
       if (autoPrint) {
         if (webBluetoothSupported && printerName) {

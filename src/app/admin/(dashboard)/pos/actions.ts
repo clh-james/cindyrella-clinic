@@ -175,6 +175,7 @@ export async function processPOSWalkin(input: {
 
   revalidatePath("/admin/appointments");
   revalidatePath("/admin/inventory");
+  revalidatePath("/admin/reports/financials");
   
   return { success: true, referenceNumber };
 }
@@ -332,6 +333,7 @@ export async function processPOSRetail(input: {
   }
 
   revalidatePath("/admin/inventory");
+  revalidatePath("/admin/reports/financials");
   
   return { success: true, referenceNumber };
 }
