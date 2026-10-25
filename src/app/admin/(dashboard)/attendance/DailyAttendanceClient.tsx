@@ -29,6 +29,7 @@ import {
   Send,
   Timer,
   Info,
+  Camera,
 } from "lucide-react";
 import {
   DailyAttendanceRecord,
@@ -70,6 +71,7 @@ export function DailyAttendanceClient({ initialData }: DailyAttendanceClientProp
   // Modals state
   const [selectedRecord, setSelectedRecord] = useState<DailyAttendanceRecord | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState<{ url: string; title: string; time?: string | null } | null>(null);
 
   // Review Correction Modal
   const [reviewCorrectionRecord, setReviewCorrectionRecord] = useState<DailyAttendanceRecord | null>(null);
@@ -438,7 +440,19 @@ export function DailyAttendanceClient({ initialData }: DailyAttendanceClientProp
                     </div>
                   </td>
                   <td className="py-3 px-4 font-mono font-medium">
-                    {r.time_in ? new Date(r.time_in).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }) : "--:--"}
+                    <div className="flex items-center gap-1.5">
+                      <span>{r.time_in ? new Date(r.time_in).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }) : "--:--"}</span>
+                      {r.time_in_photo_url && (
+                        <button
+                          type="button"
+                          onClick={() => setViewingPhoto({ url: r.time_in_photo_url!, title: `${r.employee_name} — Clock-In Selfie`, time: r.time_in })}
+                          className="flex items-center justify-center p-1 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition border border-emerald-200"
+                          title="View Verified Clock-In Selfie"
+                        >
+                          <Camera size={12} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 px-4">
                     {r.break_minutes > 0 ? `${r.break_minutes}m` : "--"}
@@ -447,7 +461,19 @@ export function DailyAttendanceClient({ initialData }: DailyAttendanceClientProp
                     )}
                   </td>
                   <td className="py-3 px-4 font-mono font-medium">
-                    {r.time_out ? new Date(r.time_out).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }) : "--:--"}
+                    <div className="flex items-center gap-1.5">
+                      <span>{r.time_out ? new Date(r.time_out).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }) : "--:--"}</span>
+                      {r.time_out_photo_url && (
+                        <button
+                          type="button"
+                          onClick={() => setViewingPhoto({ url: r.time_out_photo_url!, title: `${r.employee_name} — Clock-Out Selfie`, time: r.time_out })}
+                          className="flex items-center justify-center p-1 rounded-md bg-rose-50 text-rose-700 hover:bg-rose-100 transition border border-rose-200"
+                          title="View Verified Clock-Out Selfie"
+                        >
+                          <Camera size={12} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 px-4 font-mono font-bold text-ink">
                     {Number(r.hours_worked || 0).toFixed(2)}h
@@ -629,6 +655,64 @@ export function DailyAttendanceClient({ initialData }: DailyAttendanceClientProp
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {/* Photo Verification Proofs */}
+              {(selectedRecord.time_in_photo_url || selectedRecord.time_out_photo_url) && (
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                  <h4 className="font-semibold text-ink text-xs flex items-center gap-1.5">
+                    <ShieldCheck size={14} className="text-emerald-600" /> Photo Attendance Verification (Selfies)
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {selectedRecord.time_in_photo_url ? (
+                      <div className="space-y-1">
+                        <span className="text-[11px] font-semibold text-emerald-800">Time-In Selfie</span>
+                        <div
+                          className="relative cursor-pointer overflow-hidden rounded-xl border border-line group"
+                          onClick={() => setViewingPhoto({ url: selectedRecord.time_in_photo_url!, title: `${selectedRecord.employee_name} — Time In Selfie`, time: selectedRecord.time_in })}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={selectedRecord.time_in_photo_url}
+                            alt="Time In Selfie"
+                            className="w-full h-32 object-cover transition group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white text-xs font-semibold">
+                            Zoom Photo
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-300 text-[11px] text-slate-400">
+                        No Time-In photo
+                      </div>
+                    )}
+
+                    {selectedRecord.time_out_photo_url ? (
+                      <div className="space-y-1">
+                        <span className="text-[11px] font-semibold text-rose-800">Time-Out Selfie</span>
+                        <div
+                          className="relative cursor-pointer overflow-hidden rounded-xl border border-line group"
+                          onClick={() => setViewingPhoto({ url: selectedRecord.time_out_photo_url!, title: `${selectedRecord.employee_name} — Time Out Selfie`, time: selectedRecord.time_out })}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={selectedRecord.time_out_photo_url}
+                            alt="Time Out Selfie"
+                            className="w-full h-32 object-cover transition group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white text-xs font-semibold">
+                            Zoom Photo
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-300 text-[11px] text-slate-400">
+                        No Time-Out photo
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -820,6 +904,47 @@ export function DailyAttendanceClient({ initialData }: DailyAttendanceClientProp
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Lightbox Modal */}
+      {viewingPhoto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="relative max-w-lg w-full bg-slate-900 rounded-3xl overflow-hidden border border-white/20 shadow-2xl text-white">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <Camera size={16} className="text-amber-400" />
+                <h4 className="text-sm font-bold font-serif">{viewingPhoto.title}</h4>
+              </div>
+              <button
+                onClick={() => setViewingPhoto(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-4 flex flex-col items-center justify-center bg-black">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={viewingPhoto.url}
+                alt={viewingPhoto.title}
+                className="max-h-[70vh] w-auto rounded-2xl object-contain shadow-lg"
+              />
+              {viewingPhoto.time && (
+                <p className="mt-2 text-xs text-slate-400">
+                  Recorded at: {new Date(viewingPhoto.time).toLocaleString("en-PH")}
+                </p>
+              )}
+            </div>
+            <div className="p-3 bg-slate-950 flex justify-end border-t border-white/10">
+              <button
+                onClick={() => setViewingPhoto(null)}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

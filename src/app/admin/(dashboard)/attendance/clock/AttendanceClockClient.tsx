@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Send,
   X,
+  Camera,
 } from "lucide-react";
 import {
   recordTimeIn,
@@ -29,6 +30,7 @@ import {
   submitAttendanceCorrection,
 } from "../actions";
 import { AttendanceStatus, CorrectionType } from "../types";
+import { SelfieCaptureModal } from "@/components/admin/attendance/SelfieCaptureModal";
 import toast from "react-hot-toast";
 
 interface AttendanceClockClientProps {
@@ -52,6 +54,8 @@ interface AttendanceClockClientProps {
       id: string;
       time_in: string | null;
       time_out: string | null;
+      time_in_photo_url?: string | null;
+      time_out_photo_url?: string | null;
       break_start: string | null;
       break_end: string | null;
       break_minutes: number;
@@ -78,6 +82,10 @@ export function AttendanceClockClient({ initialData }: AttendanceClockClientProp
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
+  // Selfie Clock-In / Out Modal State
+  const [selfieModalMode, setSelfieModalMode] = useState<"time_in" | "time_out" | null>(null);
+  const [submittingSelfie, setSubmittingSelfie] = useState(false);
+
   // Correction Modal State
   const [isCorrectionModalOpen, setIsCorrectionModalOpen] = useState(false);
   const [correctionType, setCorrectionType] = useState<CorrectionType>("missed_time_in");
@@ -98,20 +106,45 @@ export function AttendanceClockClient({ initialData }: AttendanceClockClientProp
   const scheduledEnd = schedule?.scheduled_end?.slice(0, 5) || "18:00";
   const shiftTitle = schedule?.shift_name || "Standard Clinic Shift";
 
-  const handleTimeIn = async () => {
-    setLoadingAction("time_in");
+  // Trigger selfie capture for Time In
+  const handleTimeIn = () => {
+    setSelfieModalMode("time_in");
+  };
+
+  // Trigger selfie capture for Time Out
+  const handleTimeOut = () => {
+    setSelfieModalMode("time_out");
+  };
+
+  // Submit confirmed selfie for Time In or Time Out
+  const handleConfirmSelfie = async (photoDataUrl: string, notes?: string) => {
+    if (!selfieModalMode) return;
+    setSubmittingSelfie(true);
+
     try {
-      const res = await recordTimeIn();
-      if (!res.success) {
-        toast.error(res.error || "Failed to time in");
-      } else {
-        toast.success(res.message || "Timed in successfully!");
-        window.location.reload();
+      if (selfieModalMode === "time_in") {
+        const res = await recordTimeIn(notes, photoDataUrl);
+        if (!res.success) {
+          toast.error(res.error || "Failed to time in");
+        } else {
+          toast.success(res.message || "Timed in successfully with verified selfie!");
+          setSelfieModalMode(null);
+          window.location.reload();
+        }
+      } else if (selfieModalMode === "time_out") {
+        const res = await recordTimeOut(notes, photoDataUrl);
+        if (!res.success) {
+          toast.error(res.error || "Failed to time out");
+        } else {
+          toast.success(res.message || "Timed out successfully with verified selfie!");
+          setSelfieModalMode(null);
+          window.location.reload();
+        }
       }
     } catch {
-      toast.error("An error occurred while timing in.");
+      toast.error("An error occurred while submitting attendance selfie.");
     } finally {
-      setLoadingAction(null);
+      setSubmittingSelfie(false);
     }
   };
 
@@ -144,23 +177,6 @@ export function AttendanceClockClient({ initialData }: AttendanceClockClientProp
       }
     } catch {
       toast.error("An error occurred while ending break.");
-    } finally {
-      setLoadingAction(null);
-    }
-  };
-
-  const handleTimeOut = async () => {
-    setLoadingAction("time_out");
-    try {
-      const res = await recordTimeOut();
-      if (!res.success) {
-        toast.error(res.error || "Failed to time out");
-      } else {
-        toast.success(res.message || "Timed out successfully!");
-        window.location.reload();
-      }
-    } catch {
-      toast.error("An error occurred while timing out.");
     } finally {
       setLoadingAction(null);
     }
@@ -286,6 +302,26 @@ export function AttendanceClockClient({ initialData }: AttendanceClockClientProp
                 {getStatusBadge(status)}
               </div>
             </div>
+
+            {/* Verified Selfie Badge if clocked in */}
+            {currentRecord?.time_in_photo_url && (
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={currentRecord.time_in_photo_url}
+                  alt="Clock-in selfie"
+                  className="w-12 h-12 rounded-xl object-cover border border-emerald-300 shadow-sm shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                    <ShieldCheck size={14} className="text-emerald-600 shrink-0" /> Verified Clock-In Selfie
+                  </p>
+                  <p className="text-[11px] text-emerald-800 truncate">
+                    Photo verified &bull; {currentRecord.time_in ? new Date(currentRecord.time_in).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }) : "Recorded"}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right: Authoritative Live Digital Clock */}
@@ -312,8 +348,8 @@ export function AttendanceClockClient({ initialData }: AttendanceClockClientProp
                     : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
                 }`}
               >
-                <Play size={14} className={!isTimedIn && !isTimedOut ? "fill-white" : ""} />
-                {loadingAction === "time_in" ? "Processing..." : "TIME IN"}
+                <Camera size={15} className={!isTimedIn && !isTimedOut ? "text-amber-300" : ""} />
+                {loadingAction === "time_in" ? "Processing..." : "TIME IN (SELFIE)"}
               </button>
 
               {/* TIME OUT */}
@@ -326,8 +362,8 @@ export function AttendanceClockClient({ initialData }: AttendanceClockClientProp
                     : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
                 }`}
               >
-                <CheckCircle2 size={14} />
-                {loadingAction === "time_out" ? "Processing..." : "TIME OUT"}
+                <Camera size={15} />
+                {loadingAction === "time_out" ? "Processing..." : "TIME OUT (SELFIE)"}
               </button>
 
               {/* START BREAK */}
@@ -574,6 +610,18 @@ export function AttendanceClockClient({ initialData }: AttendanceClockClientProp
             </form>
           </div>
         </div>
+      )}
+
+      {/* Selfie Clock-In / Out Verification Modal */}
+      {selfieModalMode && (
+        <SelfieCaptureModal
+          mode={selfieModalMode}
+          employeeName={employee.fullName}
+          branchName={employee.branchName}
+          onClose={() => setSelfieModalMode(null)}
+          onConfirm={handleConfirmSelfie}
+          loading={submittingSelfie}
+        />
       )}
     </div>
   );

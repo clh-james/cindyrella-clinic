@@ -27,9 +27,49 @@ import {
 } from "@/lib/attendance/attendance-engine";
 
 /**
+ * Helper to upload attendance selfie photo to Supabase storage
+ */
+async function uploadAttendanceSelfie(
+  supabase: ReturnType<typeof createAdminClient>,
+  employeeId: string,
+  type: "time_in" | "time_out",
+  photoDataUrl?: string
+): Promise<string | null> {
+  if (!photoDataUrl || !photoDataUrl.startsWith("data:image")) return null;
+  try {
+    const base64Clean = photoDataUrl.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Clean, "base64");
+    const todayStr = new Date().toISOString().split("T")[0];
+    const timestamp = Date.now();
+    const filePath = `selfies/${employeeId}/${todayStr}_${type}_${timestamp}.jpg`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("attendance-photos")
+      .upload(filePath, buffer, {
+        contentType: "image/jpeg",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("Attendance photo upload error:", uploadError);
+      return null;
+    }
+
+    const { data: pubData } = supabase.storage
+      .from("attendance-photos")
+      .getPublicUrl(filePath);
+
+    return pubData?.publicUrl || null;
+  } catch (err) {
+    console.error("Error processing attendance photo:", err);
+    return null;
+  }
+}
+
+/**
  * Record Employee Self-Service Time In
  */
-export async function recordTimeIn(notes?: string) {
+export async function recordTimeIn(notes?: string, photoDataUrl?: string) {
   const staff = await requireStaff();
   const supabase = createAdminClient();
   const now = new Date();
@@ -71,6 +111,24 @@ export async function recordTimeIn(notes?: string) {
     return { success: false, error: validation.error };
   }
 
+  // Upload selfie if provided
+  const photoUrl = await uploadAttendanceSelfie(supabase, staff.id, "time_in", photoDataUrl);
+
+  // Construct notes with selfie metadata
+  let notePayload = notes || existingRecord?.notes || null;
+  if (photoUrl) {
+    try {
+      const existingMeta = existingRecord?.notes?.startsWith("{") ? JSON.parse(existingRecord.notes) : {};
+      notePayload = JSON.stringify({
+        ...existingMeta,
+        user_note: notes || existingMeta.user_note || "",
+        time_in_photo_url: photoUrl,
+      });
+    } catch {
+      notePayload = JSON.stringify({ user_note: notes || "", time_in_photo_url: photoUrl });
+    }
+  }
+
   const timeInIso = now.toISOString();
   const lateMinutes = calculateLateMinutes(timeInIso, scheduledStart, graceMinutes);
   const status: AttendanceStatus = lateMinutes > 0 ? "late" : "present";
@@ -89,7 +147,7 @@ export async function recordTimeIn(notes?: string) {
         shift_name: shiftName,
         scheduled_start_time: scheduledStart,
         scheduled_end_time: scheduledEnd,
-        notes: notes || existingRecord.notes,
+        notes: notePayload,
         updated_at: timeInIso,
       })
       .eq("id", existingRecord.id)
@@ -113,13 +171,22 @@ export async function recordTimeIn(notes?: string) {
         shift_name: shiftName,
         scheduled_start_time: scheduledStart,
         scheduled_end_time: scheduledEnd,
-        notes: notes || null,
+        notes: notePayload,
       })
       .select("id")
       .single();
 
     if (error) return { success: false, error: error.message };
     recordId = created.id;
+  }
+
+  // Attempt to write dedicated column if schema updated
+  if (photoUrl) {
+    try {
+      await supabase.from("attendance_records").update({ time_in_photo_url: photoUrl }).eq("id", recordId);
+    } catch {
+      // Ignored if column doesn't exist yet
+    }
   }
 
   // Log Audit Event
@@ -129,8 +196,8 @@ export async function recordTimeIn(notes?: string) {
     branch_id: staff.branchId || null,
     actor_id: staff.id,
     event_type: "ATTENDANCE_TIME_IN",
-    new_state: { time_in: timeInIso, late_minutes: lateMinutes, status },
-    notes: notes || `Clocked in at ${now.toLocaleTimeString("en-PH")}`,
+    new_state: { time_in: timeInIso, late_minutes: lateMinutes, status, time_in_photo_url: photoUrl },
+    notes: notes || `Clocked in at ${now.toLocaleTimeString("en-PH")}${photoUrl ? " (Selfie verified)" : ""}`,
   });
 
   revalidatePath("/admin/attendance");
@@ -142,6 +209,7 @@ export async function recordTimeIn(notes?: string) {
       : "Timed in successfully on time!",
     status,
     timeIn: timeInIso,
+    photoUrl,
   };
 }
 
@@ -294,7 +362,7 @@ export async function recordEndBreak(notes?: string) {
 /**
  * Record Employee Time Out
  */
-export async function recordTimeOut(notes?: string) {
+export async function recordTimeOut(notes?: string, photoDataUrl?: string) {
   const staff = await requireStaff();
   const supabase = createAdminClient();
   const now = new Date();
@@ -318,12 +386,30 @@ export async function recordTimeOut(notes?: string) {
     return { success: false, error: validation.error };
   }
 
+  // Upload selfie if provided
+  const photoUrl = await uploadAttendanceSelfie(supabase, staff.id, "time_out", photoDataUrl);
+
   const timeOutIso = now.toISOString();
   const breakMins = Number(record.break_minutes || 0);
   const hoursWorked = calculateWorkingHours(record.time_in, timeOutIso, breakMins);
   const scheduledStart = record.scheduled_start_time || "09:00:00";
   const scheduledEnd = record.scheduled_end_time || "18:00:00";
   const undertimeMinutes = calculateUndertimeMinutes(timeOutIso, scheduledEnd, scheduledStart);
+
+  // Construct notes with selfie metadata
+  let notePayload = notes ? (record.notes ? `${record.notes} | ${notes}` : notes) : record.notes;
+  if (photoUrl) {
+    try {
+      const existingMeta = record.notes?.startsWith("{") ? JSON.parse(record.notes) : {};
+      notePayload = JSON.stringify({
+        ...existingMeta,
+        user_note: notes ? `${existingMeta.user_note || ""} | ${notes}`.trim() : existingMeta.user_note || "",
+        time_out_photo_url: photoUrl,
+      });
+    } catch {
+      notePayload = JSON.stringify({ user_note: notes || "", time_out_photo_url: photoUrl });
+    }
+  }
 
   await supabase
     .from("attendance_records")
@@ -332,10 +418,19 @@ export async function recordTimeOut(notes?: string) {
       hours_worked: hoursWorked,
       undertime_minutes: undertimeMinutes,
       attendance_status: "timed_out",
-      notes: notes ? (record.notes ? `${record.notes} | ${notes}` : notes) : record.notes,
+      notes: notePayload,
       updated_at: timeOutIso,
     })
     .eq("id", record.id);
+
+  // Attempt to write dedicated column if schema updated
+  if (photoUrl) {
+    try {
+      await supabase.from("attendance_records").update({ time_out_photo_url: photoUrl }).eq("id", record.id);
+    } catch {
+      // Ignored if column doesn't exist yet
+    }
+  }
 
   await supabase.from("attendance_audit_events").insert({
     attendance_record_id: record.id,
@@ -343,8 +438,8 @@ export async function recordTimeOut(notes?: string) {
     branch_id: staff.branchId || null,
     actor_id: staff.id,
     event_type: "ATTENDANCE_TIME_OUT",
-    new_state: { time_out: timeOutIso, hours_worked: hoursWorked, undertime_minutes: undertimeMinutes },
-    notes: `Clocked out at ${now.toLocaleTimeString("en-PH")}. Total hours: ${hoursWorked.toFixed(2)}h`,
+    new_state: { time_out: timeOutIso, hours_worked: hoursWorked, undertime_minutes: undertimeMinutes, time_out_photo_url: photoUrl },
+    notes: `Clocked out at ${now.toLocaleTimeString("en-PH")}. Total hours: ${hoursWorked.toFixed(2)}h${photoUrl ? " (Selfie verified)" : ""}`,
   });
 
   revalidatePath("/admin/attendance");
@@ -353,6 +448,7 @@ export async function recordTimeOut(notes?: string) {
     success: true,
     message: `Successfully timed out! Recorded ${hoursWorked.toFixed(2)} working hours today.`,
     hoursWorked,
+    photoUrl,
   };
 }
 
@@ -696,6 +792,19 @@ export async function getStaffAttendanceDashboard(params: {
       hasPendingCorrection: r.correction_status === "pending",
     });
 
+    let timeInPhoto = r.time_in_photo_url || null;
+    let timeOutPhoto = r.time_out_photo_url || null;
+    let displayNotes = r.notes || null;
+
+    if (r.notes && typeof r.notes === "string" && r.notes.startsWith("{")) {
+      try {
+        const meta = JSON.parse(r.notes);
+        if (!timeInPhoto && meta.time_in_photo_url) timeInPhoto = meta.time_in_photo_url;
+        if (!timeOutPhoto && meta.time_out_photo_url) timeOutPhoto = meta.time_out_photo_url;
+        displayNotes = meta.user_note || null;
+      } catch {}
+    }
+
     return {
       id: r.id,
       employee_id: r.employee_id,
@@ -711,6 +820,8 @@ export async function getStaffAttendanceDashboard(params: {
       scheduled_end_time: r.scheduled_end_time || "18:00:00",
       time_in: r.time_in,
       time_out: r.time_out,
+      time_in_photo_url: timeInPhoto,
+      time_out_photo_url: timeOutPhoto,
       break_start: r.break_start,
       break_end: r.break_end,
       break_minutes: r.break_minutes || 0,
@@ -723,7 +834,7 @@ export async function getStaffAttendanceDashboard(params: {
       correction_status: r.correction_status || "none",
       is_approved_leave: r.is_approved_leave || false,
       leave_type: r.leave_type || null,
-      notes: r.notes || null,
+      notes: displayNotes,
       created_at: r.created_at,
       updated_at: r.updated_at,
     };
@@ -821,6 +932,39 @@ export async function getEmployeeSelfAttendance(dateStr?: string) {
     .order("work_date", { ascending: false })
     .limit(7);
 
+  let selfTimeInPhoto = recordRaw?.time_in_photo_url || null;
+  let selfTimeOutPhoto = recordRaw?.time_out_photo_url || null;
+  let selfDisplayNotes = recordRaw?.notes || null;
+
+  if (recordRaw?.notes && typeof recordRaw.notes === "string" && recordRaw.notes.startsWith("{")) {
+    try {
+      const meta = JSON.parse(recordRaw.notes);
+      if (!selfTimeInPhoto && meta.time_in_photo_url) selfTimeInPhoto = meta.time_in_photo_url;
+      if (!selfTimeOutPhoto && meta.time_out_photo_url) selfTimeOutPhoto = meta.time_out_photo_url;
+      selfDisplayNotes = meta.user_note || null;
+    } catch {}
+  }
+
+  const mappedRecentRecords = (recentRecords || []).map((r: any) => {
+    let tInPhoto = r.time_in_photo_url || null;
+    let tOutPhoto = r.time_out_photo_url || null;
+    let rNotes = r.notes || null;
+    if (r.notes && typeof r.notes === "string" && r.notes.startsWith("{")) {
+      try {
+        const meta = JSON.parse(r.notes);
+        if (!tInPhoto && meta.time_in_photo_url) tInPhoto = meta.time_in_photo_url;
+        if (!tOutPhoto && meta.time_out_photo_url) tOutPhoto = meta.time_out_photo_url;
+        rNotes = meta.user_note || null;
+      } catch {}
+    }
+    return {
+      ...r,
+      time_in_photo_url: tInPhoto,
+      time_out_photo_url: tOutPhoto,
+      notes: rNotes,
+    };
+  });
+
   return {
     employee: {
       id: staff.id,
@@ -836,10 +980,13 @@ export async function getEmployeeSelfAttendance(dateStr?: string) {
           ...recordRaw,
           attendance_status: status,
           breaks: recordRaw.breaks || [],
+          time_in_photo_url: selfTimeInPhoto,
+          time_out_photo_url: selfTimeOutPhoto,
+          notes: selfDisplayNotes,
         }
       : null,
     status,
-    recentRecords: recentRecords || [],
+    recentRecords: mappedRecentRecords,
   };
 }
 

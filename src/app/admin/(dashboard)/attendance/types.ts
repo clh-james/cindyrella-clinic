@@ -132,6 +132,8 @@ export interface DailyAttendanceRecord {
   scheduled_end_time: string;
   time_in: string | null;
   time_out: string | null;
+  time_in_photo_url?: string | null;
+  time_out_photo_url?: string | null;
   break_start: string | null;
   break_end: string | null;
   break_minutes: number;
