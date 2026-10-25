@@ -190,11 +190,17 @@ export async function calculateIncomeStatement(
 
   (appointments || []).forEach(a => {
     if (a.payment_status === "paid" || a.status === "completed") {
-      const amt = Number(a.amount_due) || 0;
-      serviceRevenue += amt;
-      tallyPayment(a.payment_method, amt);
+      const amtPaid = Number(a.amount_due) || 0;
+      const discount = Number(a.discount_amount) || 0;
+      // In POS and Appointments, amount_due is the net amount billed to the customer.
+      // Under standard accounting:
+      // Gross Service Revenue is the catalog/menu price before discount (amtPaid + discount).
+      // Promotional Discounts & Vouchers records the total discount applied.
+      // Net Operating Revenue = Gross Revenue - Discounts, which matches the actual cash/revenue collected.
+      serviceRevenue += (amtPaid + discount);
+      discountsAndPromos += discount;
+      tallyPayment(a.payment_method, amtPaid);
     }
-    discountsAndPromos += Number(a.discount_amount) || 0;
   });
 
   let retailProductRevenue = 0;
@@ -202,13 +208,16 @@ export async function calculateIncomeStatement(
   let retailProductsWholesaleCost = 0;
 
   (posSales || []).forEach(s => {
-    const amt = Number(s.total_amount) || 0;
-    discountsAndPromos += Number(s.discount_amount) || 0;
-    tallyPayment(s.payment_method, amt);
+    const amtPaid = Number(s.total_amount) || 0;
+    const discount = Number(s.discount_amount) || 0;
+    discountsAndPromos += discount;
+    tallyPayment(s.payment_method, amtPaid);
 
     const items = s.pos_sale_items || [];
+    let itemsGross = 0;
     items.forEach((item: any) => {
-      const lineTotal = Number(item.total_price) || 0;
+      const lineTotal = Number(item.total_price) || ((Number(item.quantity) || 1) * (Number(item.unit_price) || 0));
+      itemsGross += lineTotal;
       if (item.item_type === "package") {
         packageRevenue += lineTotal;
       } else {
@@ -220,6 +229,11 @@ export async function calculateIncomeStatement(
         }
       }
     });
+
+    // If pos_sales record had no pos_sale_items attached, credit total_amount + discount to retail gross
+    if (items.length === 0) {
+      retailProductRevenue += (amtPaid + discount);
+    }
   });
 
   let installmentCollections = 0;
