@@ -130,7 +130,7 @@ export async function calculateIncomeStatement(
     `)
     .gte("expense_date", startDate)
     .lte("expense_date", endDate)
-    .in("status", ["approved", "paid", "partially_paid"]);
+    .neq("status", "rejected");
 
   if (branchScope.id) {
     expQuery = expQuery.eq("branch_id", branchScope.id);
@@ -140,8 +140,8 @@ export async function calculateIncomeStatement(
   // 8. Fetch Payroll Runs
   let payrollQuery = supabase
     .from("payroll_runs")
-    .select("id, total_gross, total_net, period_start, period_end, status, branch_id")
-    .in("status", ["approved", "paid"])
+    .select("id, total_gross_pay, total_net_pay, period_start, period_end, status, branch_id")
+    .in("status", ["approved", "paid", "released"])
     .gte("period_end", startDate)
     .lte("period_start", endDate);
 
@@ -290,21 +290,38 @@ export async function calculateIncomeStatement(
   const categoryTotals = new Map<string, { name: string; amount: number; count: number }>();
   let totalExpensesSum = 0;
 
+  let payrollSalaries = 0;
+  (payrollRuns || []).forEach(pr => {
+    payrollSalaries += Number((pr as any).total_gross_pay) || Number((pr as any).total_net_pay) || Number((pr as any).total_gross) || Number((pr as any).total_net) || 0;
+  });
+
   (expenses || []).forEach(e => {
+    // Only include expenses that are either paid or approved (exclude unpaid rejected)
+    const isApprovedOrPaid = 
+      e.payment_status === "paid" || 
+      e.status === "approved" || 
+      e.status === "paid" || 
+      e.status === "partially_paid";
+    if (!isApprovedOrPaid) return;
+
     const amt = Number(e.amount) || 0;
+    const catName = (e.expense_categories as any)?.name || "General Clinic Operations";
+
+    // Deduplicate payroll: if this expense is already linked to payroll disbursements
+    if (catName.toLowerCase().includes("payroll") || catName.toLowerCase().includes("salary")) {
+      if (payrollSalaries === 0) {
+        payrollSalaries = amt;
+      }
+      return;
+    }
+
     totalExpensesSum += amt;
     const catId = e.category_id || "uncategorized";
-    const catName = (e.expense_categories as any)?.name || "General Clinic Operations";
 
     const curr = categoryTotals.get(catId) || { name: catName, amount: 0, count: 0 };
     curr.amount += amt;
     curr.count += 1;
     categoryTotals.set(catId, curr);
-  });
-
-  let payrollSalaries = 0;
-  (payrollRuns || []).forEach(pr => {
-    payrollSalaries += Number(pr.total_gross) || Number(pr.total_net) || 0;
   });
 
   let pettyCashDisbursements = 0;
