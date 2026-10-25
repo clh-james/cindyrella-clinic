@@ -164,6 +164,7 @@ export interface ReceiptPayload {
   isAppointment?: boolean;
   appointmentNo?: string;
   customerName?: string;
+  clientClassification?: string;
   cashierName?: string;
   items: Array<{ name: string; qty: number; price: number; amount: number }>;
   subtotal: number;
@@ -269,6 +270,17 @@ export function buildReceiptEscPos(receiptData: ReceiptPayload): Uint8Array {
       padLine("Customer:", (receiptData.customerName || "Walk-in Customer").slice(0, 18)) + "\n"
     )
   );
+  if (receiptData.clientClassification) {
+    const rawClass = receiptData.clientClassification.toLowerCase();
+    const formattedClass = rawClass.includes("boost")
+      ? "Boost: Main"
+      : rawClass === "booked"
+      ? "Booked"
+      : "Walk-in";
+    buffer.push(
+      ...encoder.encode(padLine("Client Type:", formattedClass) + "\n")
+    );
+  }
   if (receiptData.cashierName) {
     buffer.push(
       ...encoder.encode(padLine("Cashier:", receiptData.cashierName.slice(0, 18)) + "\n")

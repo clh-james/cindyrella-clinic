@@ -36,9 +36,25 @@ export function POSClient({
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "maya">("cash");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [clientClassification, setClientClassification] = useState<"walk-in" | "booked" | "boosting_from_main">("walk-in");
   const [selectedBranch, setSelectedBranch] = useState(staffBranchId || branches[0]?.id || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Classification helpers
+  const getClassificationLabel = (c?: string | null) => {
+    const norm = (c || "").trim().toLowerCase();
+    if (norm === "booked") return "Booked";
+    if (norm.includes("boost")) return "Boosting from Main";
+    return "Walk-in";
+  };
+
+  const getClassificationBadgeClass = (c?: string | null) => {
+    const norm = (c || "").trim().toLowerCase();
+    if (norm === "booked") return "bg-indigo-50 text-indigo-700 border-indigo-200";
+    if (norm.includes("boost")) return "bg-purple-50 text-purple-700 border-purple-200";
+    return "bg-sky-50 text-sky-700 border-sky-200";
+  };
   
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,12 +72,20 @@ export function POSClient({
     paymentMethod: string;
     change: number;
     customerName: string;
+    clientClassification: "walk-in" | "booked" | "boosting_from_main";
   } | null>(null);
 
   // History State
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [transactions, setTransactions] = useState<{ reference_number: string; type: string; date: Date; method: string; amount: number }[]>([]);
+  const [transactions, setTransactions] = useState<{ 
+    reference_number: string; 
+    type: string; 
+    date: Date; 
+    method: string; 
+    amount: number;
+    client_classification?: string;
+  }[]>([]);
 
   // Thermal Printer & Auto-Print States
   const [autoPrint, setAutoPrint] = useState<boolean>(() => {
