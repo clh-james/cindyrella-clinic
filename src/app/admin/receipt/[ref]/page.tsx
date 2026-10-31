@@ -31,7 +31,22 @@ export default async function ReceiptPage({ params }: { params: Promise<{ ref: s
   }
 
   if (appt) {
-    return <ReceiptClient type="appointment" data={appt} />;
+    let handlerStaff = null;
+    let handlerId = appt.handled_by;
+    if (!handlerId && appt.notes) {
+      const match = appt.notes.match(/\[HandledBy:([a-f0-9-]+)\]/i);
+      if (match) handlerId = match[1];
+    }
+    if (handlerId) {
+      const { data: staffRecord } = await supabase
+        .from("staff")
+        .select("id, full_name, role")
+        .eq("id", handlerId)
+        .maybeSingle();
+      handlerStaff = staffRecord;
+    }
+
+    return <ReceiptClient type="appointment" data={{ ...appt, handlerStaff }} />;
   }
 
   // 2. Try finding in pos_sales

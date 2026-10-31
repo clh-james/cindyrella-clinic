@@ -23,6 +23,7 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
   const branch = data.branches;
   const customer = data.customers;
   const staff = data.staff;
+  const handlerStaff = data.handler || data.handlerStaff;
 
   const receiptNo = data.reference_number;
   const dateStr = new Date(data.created_at || data.appointment_date + "T" + data.appointment_time).toLocaleString('en-US', {
@@ -144,6 +145,7 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
             : "Walk-in Customer",
           clientClassification: formattedClassification,
           cashierName: staff?.full_name,
+          handledByName: handlerStaff?.full_name,
           items,
           subtotal,
           discount,
@@ -289,6 +291,12 @@ export function ReceiptClient({ type, data }: { type: "appointment" | "retail"; 
               <div className="flex justify-between">
                 <span>Cashier:</span>
                 <span className="truncate">{staff.full_name}</span>
+              </div>
+            )}
+            {handlerStaff && (
+              <div className="flex justify-between">
+                <span>Attending:</span>
+                <span className="truncate">{handlerStaff.full_name}</span>
               </div>
             )}
           </div>

@@ -9,11 +9,12 @@ export default async function POSPage() {
   const user = await requireStaff();
   
   // Fetch required data for POS
-  const [{ data: treatments }, { data: inventory }, { data: branches }, { data: staffData }] = await Promise.all([
+  const [{ data: treatments }, { data: inventory }, { data: branches }, { data: staffData }, { data: staffList }] = await Promise.all([
     supabase.from("treatments").select("*").eq("is_active", true).order("name"),
     supabase.from("inventory_items").select("*").not("retail_price", "is", null).order("name"),
     supabase.from("branches").select("*").eq("is_active", true),
-    supabase.from("staff").select("branch_id, full_name").eq("id", user.id).single()
+    supabase.from("staff").select("branch_id, full_name").eq("id", user.id).single(),
+    supabase.from("staff").select("id, full_name, role, branch_id").eq("is_active", true).order("full_name")
   ]);
 
   return (
@@ -22,6 +23,7 @@ export default async function POSPage() {
         treatments={treatments ?? []} 
         inventory={inventory ?? []} 
         branches={branches ?? []}
+        staffList={staffList ?? []}
         staffBranchId={staffData?.branch_id ?? null}
         cashierName={staffData?.full_name ?? user.fullName ?? "Cashier"}
       />

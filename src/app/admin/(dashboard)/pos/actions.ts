@@ -19,6 +19,7 @@ export async function processPOSWalkin(input: {
   customerName: string;
   customerPhone: string;
   clientClassification?: "walk-in" | "booked" | "boosting_from_main" | string;
+  handledBy?: string;
   paymentMethod: string;
   amountDue: number;
   discountAmount?: number;
@@ -84,10 +85,14 @@ export async function processPOSWalkin(input: {
   const referenceNumber = generateReference();
   const date = new Date();
   const safeClassification = input.clientClassification || "walk-in";
+  const safeHandlerId = input.handledBy?.trim() || null;
   
-  // Save all items and classification in notes
+  // Save all items, classification, and handler in notes
   const itemsJson = JSON.stringify(input.items);
-  const notesWithClassification = `${itemsJson}\n[Classification:${safeClassification}]`;
+  let notesWithClassification = `${itemsJson}\n[Classification:${safeClassification}]`;
+  if (safeHandlerId) {
+    notesWithClassification += `\n[HandledBy:${safeHandlerId}]`;
+  }
   
   // Safe payment method mapping for PostgreSQL enum payment_method
   // PostgreSQL enum has ('cash', 'credit_card', 'bank_transfer', 'gcash')
@@ -108,6 +113,7 @@ export async function processPOSWalkin(input: {
     discount_amount: Math.round(Number(input.discountAmount || 0)),
     discount_reason: input.discountReason || null,
     client_classification: safeClassification,
+    handled_by: safeHandlerId,
     status: "completed",
     payment_status: "paid",
     notes: notesWithClassification
@@ -119,10 +125,10 @@ export async function processPOSWalkin(input: {
     .select("id")
     .single();
 
-  // If column client_classification doesn't exist yet, retry without it
+  // If column client_classification or handled_by doesn't exist yet, retry without them
   if (appointmentResult.error && appointmentResult.error.code === "42703") {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { client_classification: _, ...fallbackPayload } = appointmentPayload;
+    const { client_classification: _c, handled_by: _h, ...fallbackPayload } = appointmentPayload;
     appointmentResult = await supabase
       .from("appointments")
       .insert(fallbackPayload)
@@ -148,7 +154,7 @@ export async function processPOSWalkin(input: {
 
     if (appointmentResult.error && appointmentResult.error.code === "42703") {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { client_classification: _, ...finalPayload } = fallbackMaya;
+      const { client_classification: _c, handled_by: _h, ...finalPayload } = fallbackMaya;
       appointmentResult = await supabase
         .from("appointments")
         .insert(finalPayload)
@@ -171,6 +177,16 @@ export async function processPOSWalkin(input: {
     await deductAppointmentInventory(appointment.id, user.data.user?.id);
   } catch (dErr) {
     console.error("POS inventory deduction error:", dErr);
+  }
+
+  // 4. Auto-credit commission to handler's payroll if assigned
+  if (safeHandlerId) {
+    try {
+      const { autoCreditAppointmentCommission } = await import("@/app/admin/actions");
+      await autoCreditAppointmentCommission(appointment.id);
+    } catch (commErr) {
+      console.error("POS auto-credit commission error:", commErr);
+    }
   }
 
   revalidatePath("/admin/appointments");
@@ -366,7 +382,7 @@ export async function getRecentTransactions() {
   let apptsData: any[] = [];
   const { data: apptsWithClass, error: apptWithClassError } = await supabase
     .from("appointments")
-    .select("reference_number, amount_due, payment_method, created_at, notes, client_classification")
+    .select("reference_number, amount_due, payment_method, created_at, notes, client_classification, handled_by, staff:handled_by(full_name)")
     .eq("status", "completed")
     .eq("payment_status", "paid")
     .order("created_at", { ascending: false })
@@ -394,6 +410,7 @@ export async function getRecentTransactions() {
       method: s.payment_method,
       type: "Retail Sale",
       client_classification: s.client_classification || (s.discount_reason?.match(/\[Classification:([^\]]+)\]/i)?.[1]) || "walk-in",
+      handled_by_name: null,
       date: new Date(s.created_at)
     })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -409,6 +426,7 @@ export async function getRecentTransactions() {
         method: a.payment_method,
         type: "Walk-in Treatment",
         client_classification: classification || "walk-in",
+        handled_by_name: a.staff?.full_name || null,
         date: new Date(a.created_at)
       };
     })

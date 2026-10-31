@@ -166,6 +166,7 @@ export interface ReceiptPayload {
   customerName?: string;
   clientClassification?: string;
   cashierName?: string;
+  handledByName?: string;
   items: Array<{ name: string; qty: number; price: number; amount: number }>;
   subtotal: number;
   discount: number;
@@ -284,6 +285,11 @@ export function buildReceiptEscPos(receiptData: ReceiptPayload): Uint8Array {
   if (receiptData.cashierName) {
     buffer.push(
       ...encoder.encode(padLine("Cashier:", receiptData.cashierName.slice(0, 18)) + "\n")
+    );
+  }
+  if (receiptData.handledByName) {
+    buffer.push(
+      ...encoder.encode(padLine("Attending:", receiptData.handledByName.slice(0, 18)) + "\n")
     );
   }
 

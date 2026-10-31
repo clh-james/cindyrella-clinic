@@ -8,7 +8,8 @@ import {
   ShoppingCart, Minus, Plus, CreditCard, Banknote, ScanLine, 
   Loader2, Search, X, CheckCircle2,
   Trash2, AlertTriangle, Package as PackageIcon,
-  BriefcaseMedical, User, History, ReceiptText, Printer, Bluetooth, Scale
+  BriefcaseMedical, User, History, ReceiptText, Printer, Bluetooth, Scale,
+  UserCheck
 } from "lucide-react";
 import { processPOSWalkin, processPOSRetail, getRecentTransactions } from "./actions";
 import { 
@@ -22,12 +23,14 @@ export function POSClient({
   treatments, 
   inventory, 
   branches,
+  staffList = [],
   staffBranchId,
   cashierName
 }: { 
-  treatments: { id: string; name: string; category: string; session_price: number; image_url?: string }[], 
+  treatments: { id: string; name: string; category: string; session_price: number; image_url?: string; handled_by?: string | null }[], 
   inventory: { id: string; name: string; category: string; retail_price?: number; current_stock: number; low_stock_threshold: number; image_url?: string }[], 
   branches: { id: string; name: string; address?: string; phone?: string }[],
+  staffList?: { id: string; full_name: string; role?: string; branch_id?: string | null }[],
   staffBranchId?: string | null;
   cashierName?: string;
 }) {
@@ -37,7 +40,19 @@ export function POSClient({
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [clientClassification, setClientClassification] = useState<"walk-in" | "booked" | "boosting_from_main">("walk-in");
+  const [handledBy, setHandledBy] = useState<string>("");
   const [selectedBranch, setSelectedBranch] = useState(staffBranchId || branches[0]?.id || "");
+
+  // Prioritize active branch staff at top of selection
+  const sortedStaffList = useMemo(() => {
+    return [...staffList].sort((a, b) => {
+      const aCurrentBranch = a.branch_id === selectedBranch;
+      const bCurrentBranch = b.branch_id === selectedBranch;
+      if (aCurrentBranch && !bCurrentBranch) return -1;
+      if (!aCurrentBranch && bCurrentBranch) return 1;
+      return a.full_name.localeCompare(b.full_name);
+    });
+  }, [staffList, selectedBranch]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -73,6 +88,7 @@ export function POSClient({
     change: number;
     customerName: string;
     clientClassification: "walk-in" | "booked" | "boosting_from_main";
+    handledByName?: string | null;
   } | null>(null);
 
   // History State
@@ -85,6 +101,7 @@ export function POSClient({
     method: string; 
     amount: number;
     client_classification?: string;
+    handled_by_name?: string | null;
   }[]>([]);
 
   // Thermal Printer & Auto-Print States
@@ -206,8 +223,12 @@ export function POSClient({
       : 0;
   const total = Math.max(0, Math.round(subtotal - discountAmount));
 
-  const addToCart = (item: { id: string; name: string; price: number; maxStock?: number }) => {
+  const addToCart = (item: { id: string; name: string; price: number; maxStock?: number; handled_by?: string | null }) => {
     if (mode === "walkin") {
+      // Auto-suggest treatment default handler if user hasn't selected a therapist yet
+      if (!handledBy && item.handled_by) {
+        setHandledBy(item.handled_by);
+      }
       setCart(prev => {
         const existing = prev.find(i => i.id === item.id);
         if (existing) {
@@ -274,6 +295,7 @@ export function POSClient({
     setError(null);
 
     let res;
+    const attendingStaff = staffList.find(s => s.id === handledBy);
     if (mode === "walkin") {
       res = await processPOSWalkin({
         items: cart,
@@ -281,6 +303,7 @@ export function POSClient({
         customerName: customerName || "Walk-in Customer",
         customerPhone: customerPhone || "N/A",
         clientClassification,
+        handledBy: handledBy || undefined,
         paymentMethod,
         amountDue: total,
         discountAmount,
@@ -325,6 +348,7 @@ export function POSClient({
         customerName: customerName || (mode === "walkin" ? "Walk-in Customer" : "Retail Customer"),
         clientClassification,
         cashierName: cashierName || "Cashier",
+        handledByName: attendingStaff?.full_name || undefined,
         items: cart.map(item => ({
           name: item.name,
           qty: item.quantity,
@@ -348,7 +372,8 @@ export function POSClient({
         paymentMethod,
         change: changeAmount > 0 ? changeAmount : 0,
         customerName: customerName || (mode === "walkin" ? "Walk-in Customer" : "Retail Customer"),
-        clientClassification
+        clientClassification,
+        handledByName: attendingStaff?.full_name || null,
       });
       setLoading(false);
       setShowPaymentModal(false);
@@ -381,6 +406,7 @@ export function POSClient({
     setCustomerName("");
     setCustomerPhone("");
     setClientClassification("walk-in");
+    setHandledBy("");
     setSuccessData(null);
     setSearchQuery("");
     setPrintStatus(null);
@@ -415,6 +441,15 @@ export function POSClient({
                 {getClassificationLabel(successData.clientClassification)}
               </span>
             </div>
+            {successData.handledByName && (
+              <div className="flex justify-between items-center py-2 border-b border-line border-dashed">
+                <span className="text-ink-soft">Attending Staff</span>
+                <span className="font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 text-xs flex items-center gap-1">
+                  <UserCheck size={13} />
+                  {successData.handledByName}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between items-center py-2 border-b border-line border-dashed">
               <span className="text-ink-soft">Total Paid</span>
               <span className="font-medium text-ink text-lg">₱{successData.totalPaid.toLocaleString()}</span>
@@ -508,6 +543,25 @@ export function POSClient({
             <div className="text-center mb-5">
               <p className="text-ink-soft font-medium mb-1">Total Amount Due</p>
               <p className="text-4xl font-bold font-mono text-royal">₱{total.toLocaleString()}</p>
+            </div>
+
+            {/* Cashier & Attending Staff Attribution */}
+            <div className="mb-4 bg-white p-3 rounded-xl border border-line shadow-2xs text-xs space-y-1.5">
+              <div className="flex justify-between items-center text-ink-soft">
+                <span>Cashier (POS Operator):</span>
+                <span className="font-medium text-ink">{cashierName || "Cashier"}</span>
+              </div>
+              {mode === "walkin" && (
+                <div className="flex justify-between items-center text-ink-soft">
+                  <span className="flex items-center gap-1 text-purple-700 font-medium">
+                    <UserCheck size={13} />
+                    Service Handler:
+                  </span>
+                  <span className={`font-semibold ${handledBy ? "text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200" : "text-ink-soft"}`}>
+                    {staffList.find(s => s.id === handledBy)?.full_name || "Unassigned"}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Client Classification Selector */}
@@ -799,7 +853,7 @@ export function POSClient({
               {mode === "walkin" && filteredTreatments.map(t => (
                 <button 
                   key={t.id} 
-                  onClick={() => addToCart({ id: t.id, name: t.name, price: t.session_price })}
+                  onClick={() => addToCart({ id: t.id, name: t.name, price: t.session_price, handled_by: t.handled_by })}
                   className="group flex flex-col bg-white border border-line rounded-xl sm:rounded-2xl overflow-hidden hover:border-royal hover:shadow-lg transition-all text-left relative"
                 >
                   <div className="h-20 sm:h-28 bg-gradient-to-br from-pale to-white flex items-center justify-center relative overflow-hidden">
@@ -996,6 +1050,42 @@ export function POSClient({
                 onChange={e => setCustomerPhone(e.target.value)} 
                 className="w-full rounded-xl border border-line px-3 sm:px-4 py-2 sm:py-2.5 text-sm outline-none focus:border-royal focus:ring-2 focus:ring-royal/20 transition-all shadow-sm bg-white" 
               />
+
+              {/* Service Handler / Attending Staff Selector */}
+              {mode === "walkin" && (
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-ink-soft uppercase tracking-wider">
+                    <span className="flex items-center gap-1 text-purple-700">
+                      <UserCheck className="w-3.5 h-3.5" />
+                      Attending Staff / Handler
+                    </span>
+                    {handledBy && (
+                      <button 
+                        type="button" 
+                        onClick={() => setHandledBy("")} 
+                        className="text-[10px] text-ink-soft hover:text-red-500 font-normal transition-colors"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <select
+                    value={handledBy}
+                    onChange={e => setHandledBy(e.target.value)}
+                    className="w-full rounded-xl border border-line px-3 sm:px-4 py-2 sm:py-2 text-xs sm:text-sm outline-none focus:border-royal focus:ring-2 focus:ring-royal/20 transition-all shadow-sm bg-white font-medium text-ink cursor-pointer"
+                  >
+                    <option value="">Unassigned (No specific therapist)</option>
+                    {sortedStaffList.map(s => {
+                      const staffBranch = branches.find(b => b.id === s.branch_id);
+                      return (
+                        <option key={s.id} value={s.id}>
+                          {s.full_name} ({s.role || "Staff"}{staffBranch?.name ? ` • ${staffBranch.name}` : ""})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1200,7 +1290,7 @@ export function POSClient({
                             {getClassificationLabel(t.client_classification)}
                           </span>
                         </div>
-                        <div className="text-xs font-medium text-ink-soft flex items-center gap-2">
+                        <div className="text-xs font-medium text-ink-soft flex items-center gap-2 flex-wrap">
                           <span>
                             {t.date.toLocaleString('en-US', { 
                               month: 'short', day: 'numeric', 
@@ -1209,6 +1299,15 @@ export function POSClient({
                           </span>
                           <span className="w-1 h-1 rounded-full bg-line"></span>
                           <span className="capitalize">{t.method.replace('_', ' ')}</span>
+                          {t.handled_by_name && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-line"></span>
+                              <span className="text-purple-700 font-semibold flex items-center gap-1">
+                                <UserCheck size={12} />
+                                Attending: {t.handled_by_name}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
