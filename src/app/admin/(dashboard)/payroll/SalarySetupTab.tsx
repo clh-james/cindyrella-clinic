@@ -240,6 +240,20 @@ export function SalarySetupTab({
                       ) : (
                         <span className="text-ink-soft">—</span>
                       )}
+                      {c.notes && (
+                        <div className="text-[10px] text-amber-700 font-sans mt-0.5 space-y-0.5">
+                          {c.notes.match(/(\d+(?:\.\d+)?)\s*(?:pesos|php)?\s*uniform/i) && (
+                            <span className="inline-block bg-amber-50 text-amber-800 px-1 py-0.2 rounded border border-amber-200">
+                              -₱{c.notes.match(/(\d+(?:\.\d+)?)\s*(?:pesos|php)?\s*uniform/i)![1]} Uniform
+                            </span>
+                          )}
+                          {c.notes.match(/(\d+(?:\.\d+)?)\s*(?:pesos|php)?\s*(?:cash\s*advance|ca\b|loan\s*advance|advance|vale)/i) && (
+                            <span className="inline-block bg-rose-50 text-rose-800 px-1 py-0.2 rounded border border-rose-200 ml-1">
+                              -₱{c.notes.match(/(\d+(?:\.\d+)?)\s*(?:pesos|php)?\s*(?:cash\s*advance|ca\b|loan\s*advance|advance|vale)/i)![1]} CA
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-3 text-[11px] text-ink-soft">

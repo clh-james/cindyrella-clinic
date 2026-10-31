@@ -282,12 +282,22 @@ export function computeEmployeePayrollItem(
     withholdingTax = taxRes.taxAmount;
   }
 
-  // 9. Non-statutory & Recurring Deductions (e.g. Uniform installment, loans)
+  // 9. Non-statutory & Recurring Deductions (e.g. Uniform installment, loans / cash advances)
   let uniformDeduction = 0;
+  let loanAdvanceDeduction = 0;
   if (comp.notes) {
-    const uMatch = comp.notes.match(/(\d+(?:\.\d+)?)\s*(?:pesos|php)?\s*uniform/i) || comp.notes.match(/uniform[^\d]*(\d+(?:\.\d+)?)/i);
+    const uMatch =
+      comp.notes.match(/(\d+(?:\.\d+)?)\s*(?:pesos|php)?\s*uniform/i) ||
+      comp.notes.match(/uniform[^\d]*(\d+(?:\.\d+)?)/i);
     if (uMatch) {
       uniformDeduction = parseFloat(uMatch[1]) || 0;
+    }
+
+    const caMatch =
+      comp.notes.match(/(\d+(?:\.\d+)?)\s*(?:pesos|php)?\s*(?:cash\s*advance|ca\b|loan\s*advance|advance|vale)/i) ||
+      comp.notes.match(/(?:cash\s*advance|ca\b|loan\s*advance|advance|vale)[^\d]*(\d+(?:\.\d+)?)/i);
+    if (caMatch) {
+      loanAdvanceDeduction = parseFloat(caMatch[1]) || 0;
     }
   }
 
@@ -300,7 +310,8 @@ export function computeEmployeePayrollItem(
         withholdingTax +
         lateUndertimeTotal +
         absenceDeduction +
-        uniformDeduction) *
+        uniformDeduction +
+        loanAdvanceDeduction) *
         100
     ) / 100;
 
@@ -406,10 +417,18 @@ export function computeEmployeePayrollItem(
       is_statutory: false,
     });
   }
+  if (loanAdvanceDeduction > 0) {
+    deductionsBreakdown.push({
+      code: "CASH_ADVANCE",
+      label: `Cash Advance / Vale (₱${loanAdvanceDeduction.toFixed(2)})`,
+      amount: loanAdvanceDeduction,
+      is_statutory: false,
+    });
+  }
   if (uniformDeduction > 0) {
     deductionsBreakdown.push({
       code: "UNIFORM",
-      label: "Uniform Deduction",
+      label: `Uniform Deduction (₱${uniformDeduction.toFixed(2)})`,
       amount: uniformDeduction,
       is_statutory: false,
     });
@@ -455,7 +474,7 @@ export function computeEmployeePayrollItem(
     withholding_tax: withholdingTax,
     late_undertime_deduction: lateUndertimeTotal,
     absence_deduction: absenceDeduction,
-    loan_advance_deduction: 0.0,
+    loan_advance_deduction: loanAdvanceDeduction,
     other_deductions: uniformDeduction,
     total_deductions: totalDeductions,
     net_pay: netPay,

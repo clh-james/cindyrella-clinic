@@ -70,6 +70,21 @@ export function SalaryConfigModal({
   const [bankAccountName, setBankAccountName] = useState(compensation?.bank_account_name || "");
   const [notes, setNotes] = useState(compensation?.notes || "");
 
+  const initialUniform = () => {
+    if (!compensation?.notes) return "";
+    const m = compensation.notes.match(/(\d+(?:\.\d+)?)\s*(?:pesos|php)?\s*uniform/i) || compensation.notes.match(/uniform[^\d]*(\d+(?:\.\d+)?)/i);
+    return m ? m[1] : "";
+  };
+
+  const initialCA = () => {
+    if (!compensation?.notes) return "";
+    const m = compensation.notes.match(/(\d+(?:\.\d+)?)\s*(?:pesos|php)?\s*(?:cash\s*advance|ca\b|loan\s*advance|advance|vale)/i) || compensation.notes.match(/(?:cash\s*advance|ca\b|loan\s*advance|advance|vale)[^\d]*(\d+(?:\.\d+)?)/i);
+    return m ? m[1] : "";
+  };
+
+  const [uniformAmount, setUniformAmount] = useState(initialUniform);
+  const [cashAdvanceAmount, setCashAdvanceAmount] = useState(initialCA);
+
   const [loading, setLoading] = useState(false);
 
   // Auto calculate daily and hourly when basic salary changes
@@ -139,6 +154,28 @@ export function SalaryConfigModal({
     setLoading(true);
 
     try {
+      // Assemble structured non-statutory deductions into notes string
+      const noteParts: string[] = [];
+      const uNum = parseFloat(uniformAmount) || 0;
+      if (uNum > 0) noteParts.push(`${uNum} pesos uniform deduction per cut-off`);
+      const caNum = parseFloat(cashAdvanceAmount) || 0;
+      if (caNum > 0) noteParts.push(`${caNum} pesos cash advance`);
+
+      let customNotes = notes || "";
+      if (customNotes) {
+        customNotes = customNotes
+          .replace(/(\d+(?:\.\d+)?)\s*(?:pesos|php)?\s*uniform[^\r\n|]*/gi, "")
+          .replace(/uniform[^\d]*(\d+(?:\.\d+)?)[^\r\n|]*/gi, "")
+          .replace(/(\d+(?:\.\d+)?)\s*(?:pesos|php)?\s*(?:cash\s*advance|loan\s*advance|advance|vale)[^\r\n|]*/gi, "")
+          .replace(/(?:cash\s*advance|loan\s*advance|advance|vale)[^\d]*(\d+(?:\.\d+)?)[^\r\n|]*/gi, "")
+          .replace(/^[\|\s]+|[\|\s]+$/g, "")
+          .trim();
+      }
+      if (customNotes) {
+        noteParts.push(customNotes);
+      }
+      const finalNotes = noteParts.join(" | ");
+
       const res = await saveEmployeeCompensation({
         id: compensation?.id,
         employee_id: employeeId,
@@ -164,7 +201,7 @@ export function SalaryConfigModal({
         bank_name: bankName,
         bank_account_number: bankAccountNumber,
         bank_account_name: bankAccountName,
-        notes,
+        notes: finalNotes,
       });
 
       if (!res.success) {
@@ -511,6 +548,63 @@ export function SalaryConfigModal({
                 placeholder="Official Account Name"
                 className="w-full rounded-xl border border-line px-3 py-2 text-xs font-medium text-ink"
               />
+            </div>
+          </div>
+
+          {/* Recurring Non-Statutory Deductions (Uniform, Cash Advance / Vale) */}
+          <div className="rounded-2xl border border-line bg-pale/25 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-xs text-ink uppercase tracking-wider">
+                  Recurring Non-Statutory Deductions (Per Cut-Off)
+                </h3>
+                <p className="text-[10px] text-ink-soft">
+                  Regular installments and advances deducted directly from employee take-home pay
+                </p>
+              </div>
+              <span className="text-[10px] font-bold text-royal bg-royal/10 px-2 py-0.5 rounded-full font-mono">
+                Auto-Deducted
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              <div>
+                <label className="block text-xs font-semibold text-ink mb-1">
+                  Uniform Installment (₱ / cutoff)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 font-mono font-bold text-ink-soft">₱</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="10"
+                    value={uniformAmount}
+                    onChange={(e) => setUniformAmount(e.target.value)}
+                    placeholder="100"
+                    className="w-full rounded-xl border border-line pl-7 pr-3 py-2 text-xs font-mono font-bold text-ink bg-white focus:border-royal focus:outline-hidden"
+                  />
+                </div>
+                <p className="text-[10px] text-ink-soft mt-0.5">e.g. ₱100 uniform deduction per cut-off</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink mb-1">
+                  Cash Advance / Vale (₱ / cutoff)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 font-mono font-bold text-ink-soft">₱</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={cashAdvanceAmount}
+                    onChange={(e) => setCashAdvanceAmount(e.target.value)}
+                    placeholder="100"
+                    className="w-full rounded-xl border border-line pl-7 pr-3 py-2 text-xs font-mono font-bold text-ink bg-white focus:border-royal focus:outline-hidden"
+                  />
+                </div>
+                <p className="text-[10px] text-ink-soft mt-0.5">e.g. ₱100 cash advance amortization per cut-off</p>
+              </div>
             </div>
           </div>
 

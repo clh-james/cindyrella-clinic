@@ -177,6 +177,18 @@ export function PayslipPrintView({ item, run, onClose }: PayslipPrintViewProps) 
                     <span className="font-mono text-red-600">-{formatPHP(item.absence_deduction)}</span>
                   </div>
                 )}
+                {item.loan_advance_deduction > 0 && (
+                  <div className="flex justify-between pt-1.5">
+                    <span className="text-ink-soft">Cash Advance / Vale</span>
+                    <span className="font-mono text-red-600">-{formatPHP(item.loan_advance_deduction)}</span>
+                  </div>
+                )}
+                {item.other_deductions > 0 && (
+                  <div className="flex justify-between pt-1.5">
+                    <span className="text-ink-soft">Uniform / Other Deductions</span>
+                    <span className="font-mono text-red-600">-{formatPHP(item.other_deductions)}</span>
+                  </div>
+                )}
                 {item.total_deductions === 0 && (
                   <div className="py-2 text-center text-xs text-ink-soft italic">No deductions applied.</div>
                 )}
