@@ -9,6 +9,7 @@ import {
   Copy,
 } from "lucide-react";
 import { OVERTIME_LABELS, OVERTIME_MULTIPLIERS, OvertimeType } from "@/lib/payroll/philippine-tax";
+import { updatePayrollPolicySettings } from "./actions";
 import toast from "react-hot-toast";
 
 interface SettingsTabProps {
@@ -19,10 +20,31 @@ export function SettingsTab({ canManageSettings }: SettingsTabProps) {
   const [schedule, setSchedule] = useState<"split_50_50" | "first_cutoff_only" | "second_cutoff_only">("split_50_50");
   const [workingDays, setWorkingDays] = useState("26");
   const [dailyHours, setDailyHours] = useState("8");
+  const [lateRate, setLateRate] = useState("10");
   const [otApprovalRequired, setOtApprovalRequired] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
-    toast.success("Payroll configuration policies updated!");
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const res = await updatePayrollPolicySettings({
+        schedule,
+        workingDays: parseInt(workingDays, 10) || 26,
+        dailyHours: parseInt(dailyHours, 10) || 8,
+        lateRatePerMinute: parseFloat(lateRate) || 10,
+        otApprovalRequired,
+      });
+
+      if (res.success) {
+        toast.success(`Payroll policy updated! Late penalty set to ₱${lateRate}/min.`);
+      } else {
+        toast.error(res.error || "Failed to update payroll policies.");
+      }
+    } catch {
+      toast.error("Error updating payroll policies.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const copyMigrationSQL = () => {
@@ -166,7 +188,32 @@ export function SettingsTab({ canManageSettings }: SettingsTabProps) {
               </div>
             </div>
 
-            <div className="pt-2">
+            {/* Late / Tardiness Penalty Rate */}
+            <div className="rounded-xl border border-line bg-pale/20 p-3 space-y-2">
+              <label className="block font-semibold text-ink text-xs">
+                Tardiness / Late Penalty Policy
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="relative w-36">
+                  <span className="absolute left-3 top-2 font-mono font-bold text-ink-soft">₱</span>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={lateRate}
+                    onChange={(e) => setLateRate(e.target.value)}
+                    disabled={!canManageSettings}
+                    className="w-full rounded-xl border border-line pl-7 pr-3 py-1.5 font-mono font-bold text-ink"
+                  />
+                </div>
+                <span className="text-xs text-ink-soft font-semibold">pesos per minute late</span>
+              </div>
+              <p className="text-[11px] text-amber-800 bg-amber-50 rounded-lg p-2 border border-amber-200">
+                ⚡ <strong>Active Clinic Rule:</strong> Staff are penalized exactly <strong>₱{lateRate} per minute late</strong> (e.g., 11 minutes late = <strong>₱{(parseFloat(lateRate) || 10) * 11}.00</strong> deduction on payslip).
+              </p>
+            </div>
+
+            <div className="pt-1">
               <label className="flex items-center gap-2 cursor-pointer font-medium text-ink">
                 <input
                   type="checkbox"
@@ -184,9 +231,10 @@ export function SettingsTab({ canManageSettings }: SettingsTabProps) {
                 <button
                   type="button"
                   onClick={handleSave}
-                  className="flex items-center gap-1.5 rounded-xl bg-royal px-4 py-2 font-bold text-white hover:bg-royal/90 shadow-sm transition-colors"
+                  disabled={isSaving}
+                  className="flex items-center gap-1.5 rounded-xl bg-royal px-4 py-2 font-bold text-white hover:bg-royal/90 shadow-sm transition-colors disabled:opacity-50"
                 >
-                  <Save size={14} /> Save Policy Settings
+                  <Save size={14} /> {isSaving ? "Saving..." : "Save Policy Settings"}
                 </button>
               </div>
             )}

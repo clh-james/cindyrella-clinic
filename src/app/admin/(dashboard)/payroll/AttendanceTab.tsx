@@ -230,7 +230,14 @@ export function AttendanceTab({
                     <td className="py-3.5 px-3 font-mono">
                       {isLateOrUndertime ? (
                         <div className="text-red-600 font-semibold text-[11px]">
-                          {a.late_minutes > 0 && <span>+{a.late_minutes}m late </span>}
+                          {a.late_minutes > 0 && (
+                            <span>
+                              +{a.late_minutes}m late{" "}
+                              <span className="text-[10px] text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200">
+                                -₱{(a.late_minutes * 10).toLocaleString()}
+                              </span>{" "}
+                            </span>
+                          )}
                           {a.undertime_minutes > 0 && <span>+{a.undertime_minutes}m UT</span>}
                         </div>
                       ) : (

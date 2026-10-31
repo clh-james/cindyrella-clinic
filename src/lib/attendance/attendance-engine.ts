@@ -33,24 +33,50 @@ export function isOvernightShift(scheduledStart: string, scheduledEnd: string): 
   return endMins <= startMins;
 }
 
+export const APP_TIMEZONE = "Asia/Manila";
+
+/**
+ * Returns hours and minutes from midnight (0..1439) in the clinic timezone (Asia/Manila, UTC+8).
+ */
+export function getMinutesFromMidnightInTimezone(
+  dateOrIsoStr: string | Date,
+  timeZone: string = APP_TIMEZONE
+): number {
+  if (!dateOrIsoStr) return 0;
+  const d = typeof dateOrIsoStr === "string" ? new Date(dateOrIsoStr) : dateOrIsoStr;
+  if (isNaN(d.getTime())) return 0;
+
+  try {
+    const formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const formatted = formatter.format(d);
+    const parts = formatted.split(":");
+    const hours = parseInt(parts[0], 10) || 0;
+    const minutes = parseInt(parts[1], 10) || 0;
+    return hours * 60 + minutes;
+  } catch {
+    return d.getHours() * 60 + d.getMinutes();
+  }
+}
+
 /**
  * Calculates late minutes considering the schedule grace period.
  * If employee clocks in after scheduled_start + grace_period,
- * late minutes are calculated from the scheduled_start time.
+ * late minutes are calculated from the scheduled_start time in Asia/Manila (UTC+8).
  */
 export function calculateLateMinutes(
   timeInStr: string | null | undefined,
   scheduledStartStr: string,
-  gracePeriodMinutes: number = 15,
+  gracePeriodMinutes: number = 0,
   shiftDateStr?: string
 ): number {
   if (!timeInStr) return 0;
 
-  const actualDate = new Date(timeInStr);
-  const actualHours = actualDate.getHours();
-  const actualMinutes = actualDate.getMinutes();
-  const actualTotalMins = actualHours * 60 + actualMinutes;
-
+  const actualTotalMins = getMinutesFromMidnightInTimezone(timeInStr);
   const scheduledStartMins = parseTimeToMinutes(scheduledStartStr);
   const diff = actualTotalMins - scheduledStartMins;
 
@@ -64,7 +90,7 @@ export function calculateLateMinutes(
 }
 
 /**
- * Calculates undertime minutes (leaving earlier than scheduled end).
+ * Calculates undertime minutes (leaving earlier than scheduled end) in Asia/Manila (UTC+8).
  */
 export function calculateUndertimeMinutes(
   timeOutStr: string | null | undefined,
@@ -73,8 +99,7 @@ export function calculateUndertimeMinutes(
 ): number {
   if (!timeOutStr) return 0;
 
-  const actualDate = new Date(timeOutStr);
-  const actualTotalMins = actualDate.getHours() * 60 + actualDate.getMinutes();
+  const actualTotalMins = getMinutesFromMidnightInTimezone(timeOutStr);
   const scheduledEndMins = parseTimeToMinutes(scheduledEndStr);
 
   const overnight = isOvernightShift(scheduledStartStr, scheduledEndStr);
@@ -158,7 +183,8 @@ export function determineAttendanceStatus(params: {
 
   // 6. Timed in but no time out:
   if (params.timeIn && !params.timeOut) {
-    const workDateObj = new Date(`${params.workDate}T${params.scheduledEnd}`);
+    const endStr = params.scheduledEnd.length === 5 ? `${params.scheduledEnd}:00` : params.scheduledEnd;
+    const workDateObj = new Date(`${params.workDate}T${endStr}+08:00`);
     const overnight = isOvernightShift(params.scheduledStart, params.scheduledEnd);
     if (overnight) {
       workDateObj.setDate(workDateObj.getDate() + 1);
@@ -175,7 +201,8 @@ export function determineAttendanceStatus(params: {
 
   // 7. Not Yet Timed In or Absent
   if (!params.timeIn) {
-    const workDateObj = new Date(`${params.workDate}T${params.scheduledEnd}`);
+    const endStr = params.scheduledEnd.length === 5 ? `${params.scheduledEnd}:00` : params.scheduledEnd;
+    const workDateObj = new Date(`${params.workDate}T${endStr}+08:00`);
     const overnight = isOvernightShift(params.scheduledStart, params.scheduledEnd);
     if (overnight) {
       workDateObj.setDate(workDateObj.getDate() + 1);

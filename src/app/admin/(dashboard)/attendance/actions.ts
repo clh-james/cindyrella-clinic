@@ -86,9 +86,9 @@ export async function recordTimeIn(notes?: string, photoDataUrl?: string) {
     .limit(1)
     .maybeSingle();
 
-  const scheduledStart = schedule?.scheduled_start || "09:00:00";
-  const scheduledEnd = schedule?.scheduled_end || "18:00:00";
-  const graceMinutes = schedule?.grace_period_minutes ?? 15;
+  const scheduledStart = schedule?.scheduled_start || "10:00:00";
+  const scheduledEnd = schedule?.scheduled_end || "20:00:00";
+  const graceMinutes = schedule?.grace_period_minutes ?? 0;
   const shiftName = schedule?.shift_name || "Standard Clinic Shift";
 
   // 2. Check existing record today
@@ -392,8 +392,8 @@ export async function recordTimeOut(notes?: string, photoDataUrl?: string) {
   const timeOutIso = now.toISOString();
   const breakMins = Number(record.break_minutes || 0);
   const hoursWorked = calculateWorkingHours(record.time_in, timeOutIso, breakMins);
-  const scheduledStart = record.scheduled_start_time || "09:00:00";
-  const scheduledEnd = record.scheduled_end_time || "18:00:00";
+  const scheduledStart = record.scheduled_start_time || "10:00:00";
+  const scheduledEnd = record.scheduled_end_time || "20:00:00";
   const undertimeMinutes = calculateUndertimeMinutes(timeOutIso, scheduledEnd, scheduledStart);
 
   // Construct notes with selfie metadata
@@ -609,8 +609,8 @@ export async function reviewAttendanceCorrection(params: {
         const timeOut = correction.requested_time_out || record.time_out;
         const breakMins = Number(record.break_minutes || 0);
         const hoursWorked = calculateWorkingHours(timeIn, timeOut, breakMins);
-        const scheduledStart = record.scheduled_start_time || "09:00:00";
-        const scheduledEnd = record.scheduled_end_time || "18:00:00";
+        const scheduledStart = record.scheduled_start_time || "10:00:00";
+        const scheduledEnd = record.scheduled_end_time || "20:00:00";
         const lateMins = calculateLateMinutes(timeIn, scheduledStart);
         const undertimeMins = calculateUndertimeMinutes(timeOut, scheduledEnd, scheduledStart);
         const status = determineAttendanceStatus({
@@ -786,8 +786,8 @@ export async function getStaffAttendanceDashboard(params: {
       timeOut: r.time_out,
       breakStart: r.break_start,
       breakEnd: r.break_end,
-      scheduledStart: r.scheduled_start_time || "09:00:00",
-      scheduledEnd: r.scheduled_end_time || "18:00:00",
+      scheduledStart: r.scheduled_start_time || "10:00:00",
+      scheduledEnd: r.scheduled_end_time || "20:00:00",
       isApprovedLeave: r.is_approved_leave,
       hasPendingCorrection: r.correction_status === "pending",
     });
@@ -816,8 +816,8 @@ export async function getStaffAttendanceDashboard(params: {
       work_date: r.work_date,
       scheduled_shift_id: r.scheduled_shift_id,
       shift_name: r.shift_name || "Standard Clinic Shift",
-      scheduled_start_time: r.scheduled_start_time || "09:00:00",
-      scheduled_end_time: r.scheduled_end_time || "18:00:00",
+      scheduled_start_time: r.scheduled_start_time || "10:00:00",
+      scheduled_end_time: r.scheduled_end_time || "20:00:00",
       time_in: r.time_in,
       time_out: r.time_out,
       time_in_photo_url: timeInPhoto,
@@ -909,8 +909,8 @@ export async function getEmployeeSelfAttendance(dateStr?: string) {
   }
 
   // 4. Determine authoritative status
-  const scheduledStart = schedule?.scheduled_start || recordRaw?.scheduled_start_time || "09:00:00";
-  const scheduledEnd = schedule?.scheduled_end || recordRaw?.scheduled_end_time || "18:00:00";
+  const scheduledStart = schedule?.scheduled_start || recordRaw?.scheduled_start_time || "10:00:00";
+  const scheduledEnd = schedule?.scheduled_end || recordRaw?.scheduled_end_time || "20:00:00";
 
   const status = determineAttendanceStatus({
     workDate: queryDate,

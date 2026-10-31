@@ -30,6 +30,7 @@ export interface CalculationOptions {
   frequency: "semi_monthly" | "monthly" | "weekly" | "custom";
   contributionSchedule?: "split_50_50" | "first_cutoff_only" | "second_cutoff_only";
   cutoffIndex?: number; // 1 for 1st half, 2 for 2nd half
+  lateRatePerMinute?: number; // Clinic policy: 10 pesos per minute late (default 10)
 }
 
 export function computeEmployeePayrollItem(
@@ -160,10 +161,15 @@ export function computeEmployeePayrollItem(
 
   // 5. Tardy, Undertime, and Absence Deductions
   const minuteRate = standardHourlyRate > 0 ? standardHourlyRate / 60 : 0;
-  const lateDeduction = Math.round(totalLateMinutes * minuteRate * 100) / 100;
+  // Clinic policy: ₱10 per minute late (e.g. 11 mins late = ₱110.00 deduction)
+  const lateRatePerMinute =
+    options.lateRatePerMinute !== undefined ? options.lateRatePerMinute : 10;
+  const lateDeduction =
+    Math.round(totalLateMinutes * lateRatePerMinute * 100) / 100;
   const undertimeDeduction =
     Math.round(totalUndertimeMinutes * minuteRate * 100) / 100;
-  const lateUndertimeTotal = lateDeduction + undertimeDeduction;
+  const lateUndertimeTotal =
+    Math.round((lateDeduction + undertimeDeduction) * 100) / 100;
 
   // Unexcused Absence Deduction (for monthly salaried employees)
   let absenceDeduction = 0;
@@ -376,9 +382,18 @@ export function computeEmployeePayrollItem(
     });
   }
   if (lateUndertimeTotal > 0) {
+    let lateLabel = `Tardiness & Undertime (${totalLateMinutes + totalUndertimeMinutes} mins)`;
+    if (totalLateMinutes > 0 && totalUndertimeMinutes === 0) {
+      lateLabel = `Tardiness / Late Penalty (${totalLateMinutes} min${totalLateMinutes === 1 ? "" : "s"} @ ₱${lateRatePerMinute}/min)`;
+    } else if (totalLateMinutes === 0 && totalUndertimeMinutes > 0) {
+      lateLabel = `Undertime Deduction (${totalUndertimeMinutes} mins)`;
+    } else if (totalLateMinutes > 0 && totalUndertimeMinutes > 0) {
+      lateLabel = `Tardiness (${totalLateMinutes}m @ ₱${lateRatePerMinute}/min: ₱${lateDeduction.toFixed(2)}) & Undertime (${totalUndertimeMinutes}m: ₱${undertimeDeduction.toFixed(2)})`;
+    }
+
     deductionsBreakdown.push({
       code: "LATE_UT",
-      label: `Tardiness & Undertime (${totalLateMinutes + totalUndertimeMinutes} mins)`,
+      label: lateLabel,
       amount: lateUndertimeTotal,
       is_statutory: false,
     });

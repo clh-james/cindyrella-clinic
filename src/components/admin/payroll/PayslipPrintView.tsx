@@ -161,7 +161,13 @@ export function PayslipPrintView({ item, run, onClose }: PayslipPrintViewProps) 
                 )}
                 {item.late_undertime_deduction > 0 && (
                   <div className="flex justify-between pt-1.5">
-                    <span className="text-ink-soft">Tardiness & Undertime</span>
+                    <span className="text-ink-soft">
+                      {item.attendance_summary?.late_minutes && !item.attendance_summary?.undertime_minutes
+                        ? `Late Penalty (${item.attendance_summary.late_minutes}m @ ₱10/min)`
+                        : item.attendance_summary?.late_minutes
+                        ? `Tardiness (${item.attendance_summary.late_minutes}m @ ₱10/min) & Undertime`
+                        : "Tardiness & Undertime"}
+                    </span>
                     <span className="font-mono text-red-600">-{formatPHP(item.late_undertime_deduction)}</span>
                   </div>
                 )}

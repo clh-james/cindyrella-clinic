@@ -338,6 +338,23 @@ export async function calculatePayrollRun(payrollRunId: string) {
     const startDay = new Date(run.period_start).getDate();
     const cutoffIndex = startDay > 10 ? 2 : 1;
 
+    // Fetch late penalty rate from payroll_settings (defaults to 10 pesos/minute)
+    let lateRatePerMinute = 10;
+    try {
+      const { data: scheduleSetting } = await supabase
+        .from("payroll_settings")
+        .select("value")
+        .eq("key", "schedule_policy")
+        .maybeSingle();
+
+      const spVal = scheduleSetting?.value as Record<string, unknown> | undefined;
+      if (spVal && typeof spVal.late_rate_per_minute === "number") {
+        lateRatePerMinute = spVal.late_rate_per_minute;
+      }
+    } catch {
+      lateRatePerMinute = 10;
+    }
+
     // 5. Calculate each employee item
     const computedItems: PayrollItem[] = [];
     const attList = (attendance || []) as AttendanceRecord[];
@@ -354,6 +371,7 @@ export async function calculatePayrollRun(payrollRunId: string) {
         periodEnd: run.period_end,
         frequency: run.cutoff_frequency,
         cutoffIndex,
+        lateRatePerMinute,
       });
 
       computedItems.push(item);
@@ -692,6 +710,52 @@ export async function update13thMonthAdjustment(
     return { success: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error adjusting 13th month pay";
+    return { success: false, error: message };
+  }
+}
+
+export async function updatePayrollPolicySettings(payload: {
+  schedule?: "split_50_50" | "first_cutoff_only" | "second_cutoff_only";
+  workingDays?: number;
+  dailyHours?: number;
+  lateRatePerMinute?: number;
+  otApprovalRequired?: boolean;
+}) {
+  await requireStaff();
+  const supabase = createAdminClient();
+
+  try {
+    const { data: existing } = await supabase
+      .from("payroll_settings")
+      .select("value")
+      .eq("key", "schedule_policy")
+      .maybeSingle();
+
+    const currentVal = (existing?.value || {}) as Record<string, unknown>;
+    const updatedVal = {
+      ...currentVal,
+      ...(payload.workingDays !== undefined && { working_days_per_month: payload.workingDays }),
+      ...(payload.dailyHours !== undefined && { standard_daily_hours: payload.dailyHours }),
+      ...(payload.schedule !== undefined && { contribution_schedule: payload.schedule }),
+      ...(payload.lateRatePerMinute !== undefined && { late_rate_per_minute: payload.lateRatePerMinute }),
+      ...(payload.otApprovalRequired !== undefined && { require_ot_approval: payload.otApprovalRequired }),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("payroll_settings")
+      .upsert({
+        key: "schedule_policy",
+        value: updatedVal,
+        description: "Cutoff rules, late penalty rate (₱10/min), and contribution schedule",
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "key" });
+
+    if (error) throw error;
+    revalidatePath("/admin/payroll");
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to update payroll policy settings";
     return { success: false, error: message };
   }
 }
