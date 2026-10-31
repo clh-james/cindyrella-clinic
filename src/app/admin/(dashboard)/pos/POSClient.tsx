@@ -12,6 +12,8 @@ import {
   UserCheck
 } from "lucide-react";
 import { processPOSWalkin, processPOSRetail, getRecentTransactions } from "./actions";
+import { setAppointmentHandler } from "@/app/admin/actions";
+import toast from "react-hot-toast";
 import { 
   printViaBluetooth, 
   isWebBluetoothSupported, 
@@ -94,13 +96,16 @@ export function POSClient({
   // History State
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [updatingTxId, setUpdatingTxId] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<{ 
+    id?: string;
     reference_number: string; 
     type: string; 
     date: Date; 
     method: string; 
     amount: number;
     client_classification?: string;
+    handled_by_id?: string | null;
     handled_by_name?: string | null;
   }[]>([]);
 
@@ -288,6 +293,38 @@ export function POSClient({
       setTransactions(transactions);
     }
     setHistoryLoading(false);
+  };
+
+  const handleUpdateTransactionHandler = async (txId: string, newStaffId: string) => {
+    setUpdatingTxId(txId);
+    try {
+      const res = await setAppointmentHandler(txId, newStaffId);
+      if (res.success) {
+        const staffObj = staffList.find(s => s.id === newStaffId);
+        setTransactions(prev => prev.map(t => {
+          if (t.id === txId) {
+            return {
+              ...t,
+              handled_by_id: newStaffId,
+              handled_by_name: staffObj?.full_name || null
+            };
+          }
+          return t;
+        }));
+        if (newStaffId) {
+          toast.success(`Assigned to ${staffObj?.full_name || "staff"}! Commission updated in payroll.`);
+        } else {
+          toast.success("Handler unassigned.");
+        }
+      } else {
+        toast.error(res.error || "Failed to update attending staff.");
+      }
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      toast.error(e.message || "Failed to update attending staff.");
+    } finally {
+      setUpdatingTxId(null);
+    }
   };
 
   const processPayment = async () => {
@@ -1299,16 +1336,33 @@ export function POSClient({
                           </span>
                           <span className="w-1 h-1 rounded-full bg-line"></span>
                           <span className="capitalize">{t.method.replace('_', ' ')}</span>
-                          {t.handled_by_name && (
-                            <>
-                              <span className="w-1 h-1 rounded-full bg-line"></span>
-                              <span className="text-purple-700 font-semibold flex items-center gap-1">
-                                <UserCheck size={12} />
-                                Attending: {t.handled_by_name}
-                              </span>
-                            </>
-                          )}
                         </div>
+
+                        {/* Interactive Attending Staff Selector for Past Walk-in Treatments */}
+                        {t.type === "Walk-in Treatment" && t.id && (
+                          <div className="mt-2.5 pt-2 border-t border-line/60 flex items-center gap-2 flex-wrap">
+                            <span className="text-[11px] font-medium text-ink-soft flex items-center gap-1 shrink-0">
+                              <UserCheck size={12} className="text-purple-600" />
+                              Attending:
+                            </span>
+                            <select
+                              value={t.handled_by_id || ""}
+                              disabled={updatingTxId === t.id}
+                              onChange={(e) => handleUpdateTransactionHandler(t.id!, e.target.value)}
+                              className="rounded-lg border border-line bg-pale/70 px-2 py-1 text-xs font-medium text-ink outline-none focus:border-purple-400 focus:bg-white focus:ring-1 focus:ring-purple-200 transition-all cursor-pointer max-w-[220px] truncate"
+                            >
+                              <option value="">Unassigned</option>
+                              {sortedStaffList.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.full_name} ({s.role || "Staff"})
+                                </option>
+                              ))}
+                            </select>
+                            {updatingTxId === t.id && (
+                              <Loader2 size={13} className="animate-spin text-purple-600 shrink-0" />
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="font-mono font-bold text-lg text-ink bg-pale px-3 py-1 rounded-lg">

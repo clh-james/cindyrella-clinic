@@ -382,22 +382,22 @@ export async function getRecentTransactions() {
   let apptsData: any[] = [];
   const { data: apptsWithClass, error: apptWithClassError } = await supabase
     .from("appointments")
-    .select("reference_number, amount_due, payment_method, created_at, notes, client_classification, handled_by, staff:handled_by(full_name)")
+    .select("id, reference_number, amount_due, payment_method, created_at, notes, client_classification, handled_by, staff:handled_by(full_name)")
     .eq("status", "completed")
     .eq("payment_status", "paid")
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(30);
 
   if (!apptWithClassError && apptsWithClass) {
     apptsData = apptsWithClass;
   } else {
     const { data: appointments, error: apptError } = await supabase
       .from("appointments")
-      .select("reference_number, amount_due, payment_method, created_at, notes")
+      .select("id, reference_number, amount_due, payment_method, created_at, notes")
       .eq("status", "completed")
       .eq("payment_status", "paid")
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(30);
     if (!apptError && appointments) apptsData = appointments;
   }
 
@@ -405,11 +405,13 @@ export async function getRecentTransactions() {
   const combined = [
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...salesData.map((s: any) => ({
+      id: s.id,
       reference_number: s.reference_number,
       amount: s.total_amount,
       method: s.payment_method,
       type: "Retail Sale",
       client_classification: s.client_classification || (s.discount_reason?.match(/\[Classification:([^\]]+)\]/i)?.[1]) || "walk-in",
+      handled_by_id: null,
       handled_by_name: null,
       date: new Date(s.created_at)
     })),
@@ -420,12 +422,19 @@ export async function getRecentTransactions() {
         const match = a.notes.match(/\[Classification:([^\]]+)\]/i);
         if (match) classification = match[1];
       }
+      let handlerId = a.handled_by || "";
+      if (!handlerId && a.notes) {
+        const match = a.notes.match(/\[HandledBy:([a-f0-9-]+)\]/i);
+        if (match) handlerId = match[1];
+      }
       return {
+        id: a.id,
         reference_number: a.reference_number,
         amount: a.amount_due,
         method: a.payment_method,
         type: "Walk-in Treatment",
         client_classification: classification || "walk-in",
+        handled_by_id: handlerId,
         handled_by_name: a.staff?.full_name || null,
         date: new Date(a.created_at)
       };

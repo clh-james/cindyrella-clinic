@@ -418,11 +418,23 @@ export async function setAppointmentHandler(appointmentId: string, staffId: stri
   }
 
   // If appointment is already completed, auto-compute commission right now
-  if (appt.status === "completed" && staffId) {
-    try {
-      await autoCreditAppointmentCommission(appointmentId);
-    } catch (e) {
-      console.error("Failed to auto-credit commission on handler assign:", e);
+  if (appt.status === "completed") {
+    if (staffId) {
+      try {
+        await autoCreditAppointmentCommission(appointmentId);
+      } catch (e) {
+        console.error("Failed to auto-credit commission on handler assign:", e);
+      }
+    } else {
+      try {
+        await adminClient
+          .from("commission_records")
+          .delete()
+          .eq("source_id", appointmentId)
+          .eq("source_type", "appointment");
+      } catch (e) {
+        console.error("Failed to remove commission for unassigned handler:", e);
+      }
     }
   }
 
