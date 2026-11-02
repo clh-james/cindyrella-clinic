@@ -338,8 +338,9 @@ export async function calculatePayrollRun(payrollRunId: string) {
     const startDay = new Date(run.period_start).getDate();
     const cutoffIndex = startDay > 10 ? 2 : 1;
 
-    // Fetch late penalty rate from payroll_settings (defaults to 10 pesos/minute)
+    // Fetch late penalty rate and daily shift hours from payroll_settings
     let lateRatePerMinute = 10;
+    let standardDailyHours = 10;
     try {
       const { data: scheduleSetting } = await supabase
         .from("payroll_settings")
@@ -351,8 +352,12 @@ export async function calculatePayrollRun(payrollRunId: string) {
       if (spVal && typeof spVal.late_rate_per_minute === "number") {
         lateRatePerMinute = spVal.late_rate_per_minute;
       }
+      if (spVal && typeof spVal.standard_daily_hours === "number") {
+        standardDailyHours = spVal.standard_daily_hours;
+      }
     } catch {
       lateRatePerMinute = 10;
+      standardDailyHours = 10;
     }
 
     // 5. Calculate each employee item
@@ -372,6 +377,7 @@ export async function calculatePayrollRun(payrollRunId: string) {
         frequency: run.cutoff_frequency,
         cutoffIndex,
         lateRatePerMinute,
+        standardDailyHours,
       });
 
       computedItems.push(item);

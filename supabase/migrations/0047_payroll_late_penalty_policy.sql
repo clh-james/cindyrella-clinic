@@ -20,7 +20,7 @@ BEGIN
     VALUES (
       'schedule_policy',
       '{
-        "standard_daily_hours": 8,
+        "standard_daily_hours": 10,
         "working_days_per_month": 26,
         "contribution_schedule": "split_50_50",
         "late_rate_per_minute": 10,

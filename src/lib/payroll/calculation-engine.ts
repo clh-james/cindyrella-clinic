@@ -31,6 +31,7 @@ export interface CalculationOptions {
   contributionSchedule?: "split_50_50" | "first_cutoff_only" | "second_cutoff_only";
   cutoffIndex?: number; // 1 for 1st half, 2 for 2nd half
   lateRatePerMinute?: number; // Clinic policy: 10 pesos per minute late (default 10)
+  standardDailyHours?: number; // Clinic standard shift hours (default 10)
 }
 
 export function computeEmployeePayrollItem(
@@ -100,11 +101,12 @@ export function computeEmployeePayrollItem(
       ? Math.round((comp.basic_salary / 26) * 100) / 100
       : 0;
 
+  const standardDailyHours = options.standardDailyHours || 10;
   const standardHourlyRate =
     comp.hourly_rate > 0
       ? comp.hourly_rate
       : standardDailyRate > 0
-      ? Math.round((standardDailyRate / 8) * 100) / 100
+      ? Math.round((standardDailyRate / standardDailyHours) * 100) / 100
       : 0;
 
   if (comp.salary_type === "monthly") {
