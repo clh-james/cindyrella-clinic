@@ -10,7 +10,8 @@ export async function fetchAppointmentsForExport() {
 
   // Get user role and branch
   const { data: staffData } = await supabase.from("staff").select("branch_id, roles(name)").eq("id", user.id).single();
-  const staffRole = Array.isArray(staffData?.roles) ? staffData?.roles[0]?.name : (staffData?.roles as { name: string } | null)?.name;
+  const rolesObj = staffData?.roles as any;
+  const staffRole = Array.isArray(rolesObj) ? rolesObj[0]?.name : rolesObj?.name;
   const role = (staffRole || user.role || "STAFF").toUpperCase();
   const branchId = staffData?.branch_id;
 

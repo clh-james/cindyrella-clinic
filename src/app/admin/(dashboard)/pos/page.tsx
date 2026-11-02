@@ -17,12 +17,16 @@ export default async function POSPage() {
     supabase.from("staff").select("id, full_name, branch_id, roles(name)").eq("is_active", true).order("full_name")
   ]);
 
-  const formattedStaffList = (staffList ?? []).map((s: { id: string; full_name: string; branch_id?: string | null; roles?: { name: string } | { name: string }[] | null }) => ({
-    id: s.id,
-    full_name: s.full_name,
-    branch_id: s.branch_id,
-    role: Array.isArray(s.roles) ? s.roles[0]?.name : s.roles?.name || "Staff",
-  }));
+  const formattedStaffList = (staffList ?? []).map((s: any) => {
+    const rolesObj = s.roles;
+    const roleName = Array.isArray(rolesObj) ? rolesObj[0]?.name : rolesObj?.name;
+    return {
+      id: s.id,
+      full_name: s.full_name,
+      branch_id: s.branch_id,
+      role: roleName || "Staff",
+    };
+  });
 
   return (
     <div className="h-full w-full">
