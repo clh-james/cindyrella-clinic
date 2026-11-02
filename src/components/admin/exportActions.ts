@@ -9,8 +9,9 @@ export async function fetchAppointmentsForExport() {
   const user = await requireStaff();
 
   // Get user role and branch
-  const { data: staffData } = await supabase.from("staff").select("role, branch_id").eq("id", user.id).single();
-  const role = staffData?.role || "STAFF";
+  const { data: staffData } = await supabase.from("staff").select("branch_id, roles(name)").eq("id", user.id).single();
+  const staffRole = Array.isArray(staffData?.roles) ? staffData?.roles[0]?.name : (staffData?.roles as { name: string } | null)?.name;
+  const role = (staffRole || user.role || "STAFF").toUpperCase();
   const branchId = staffData?.branch_id;
 
   let query = supabase.from("appointments").select(`
