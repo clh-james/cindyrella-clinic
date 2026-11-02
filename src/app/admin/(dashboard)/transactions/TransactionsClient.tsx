@@ -4,10 +4,49 @@
 import { useState, useTransition, useMemo, useEffect } from "react";
 import { voidTransaction } from "./actions";
 import { setAppointmentHandler } from "@/app/admin/actions";
-import { Search, ReceiptText, Ban, AlertTriangle, UserCheck, User, Loader2 } from "lucide-react";
+import { Search, ReceiptText, Ban, AlertTriangle, UserCheck, User, Loader2, Calendar, Filter, X } from "lucide-react";
 import toast from "react-hot-toast";
 
 const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
+
+function getDateSearchStrings(dateObj: Date): { iso: string; search: string } {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const d = String(dateObj.getDate()).padStart(2, "0");
+  const iso = `${y}-${m}-${d}`;
+
+  const shortMonth = dateObj.toLocaleDateString("en-US", { month: "short" });
+  const longMonth = dateObj.toLocaleDateString("en-US", { month: "long" });
+  const dayNum = dateObj.getDate();
+
+  const search = [
+    iso,
+    `${shortMonth} ${dayNum}`,
+    `${longMonth} ${dayNum}`,
+    `${shortMonth} ${dayNum}, ${y}`,
+    `${longMonth} ${dayNum}, ${y}`,
+    `${m}/${d}/${y}`,
+    `${dateObj.getMonth() + 1}/${dayNum}`,
+    shortMonth,
+    longMonth,
+    String(y),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return { iso, search };
+}
+
+function getMethodSearchString(method?: string): string {
+  const m = (method || "").toLowerCase();
+  const extra: string[] = [];
+  if (m.includes("card")) extra.push("card credit card debit mastercard visa");
+  if (m === "cash") extra.push("cash pera");
+  if (m.includes("maya")) extra.push("maya paymaya e-wallet");
+  if (m.includes("gcash")) extra.push("gcash e-wallet");
+  if (m.includes("bank")) extra.push("bank transfer bdo bpi online bank");
+  return `${m} ${extra.join(" ")}`.toLowerCase();
+}
 
 export function TransactionsClient({ 
   sales, 
@@ -19,6 +58,8 @@ export function TransactionsClient({
   staffList?: { id: string; full_name: string; role?: string; branch_id?: string | null }[];
 }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedMethod, setSelectedMethod] = useState("all");
+  const [selectedDate, setSelectedDate] = useState("");
   const [isPending, startTransition] = useTransition();
   const [updatingHandlerId, setUpdatingHandlerId] = useState<string | null>(null);
 
@@ -98,17 +139,24 @@ export function TransactionsClient({
           if (m) classification = m[1];
         }
         const handlerName = staffMap.get(s.created_by) || null;
+        const dateObj = new Date(s.created_at);
+        const { iso, search: dateSearch } = getDateSearchStrings(dateObj);
+        const methodSearch = getMethodSearchString(s.payment_method);
+
         return {
           id: s.id,
           ref: s.reference_number,
           amount: s.total_amount,
           method: s.payment_method,
+          methodSearch,
           type: "retail",
           treatment: extractRetailItems(s),
           handlerId: s.created_by || "",
           handlerName: handlerName || "Store Staff",
           classification: classification || "walk-in",
-          date: new Date(s.created_at),
+          date: dateObj,
+          dateISO: iso,
+          dateSearch,
           status: s.status,
           customer: s.customers ? `${s.customers.first_name} ${s.customers.last_name}` : "Walk-in"
         };
@@ -130,17 +178,24 @@ export function TransactionsClient({
           }
         }
 
+        const dateObj = new Date(a.created_at);
+        const { iso, search: dateSearch } = getDateSearchStrings(dateObj);
+        const methodSearch = getMethodSearchString(a.payment_method);
+
         return {
           id: a.id,
           ref: a.reference_number,
           amount: a.amount_due,
           method: a.payment_method,
+          methodSearch,
           type: "appointment",
           treatment: extractAppointmentTreatments(a),
           handlerId: handlerId || "",
           handlerName: handlerName || "Unassigned",
           classification: classification || "walk-in",
-          date: new Date(a.created_at),
+          date: dateObj,
+          dateISO: iso,
+          dateSearch,
           status: a.payment_status,
           customer: a.customers ? `${a.customers.first_name} ${a.customers.last_name}` : "Unknown"
         };
@@ -177,13 +232,48 @@ export function TransactionsClient({
     }
   };
 
-  const filtered = txList.filter(t => 
-    t.ref?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.treatment?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.handlerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.classification?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = txList.filter(t => {
+    // Filter by payment method dropdown
+    if (selectedMethod !== "all") {
+      const normMethod = (t.method || "").toLowerCase();
+      if (selectedMethod === "card") {
+        if (!normMethod.includes("card")) return false;
+      } else if (selectedMethod === "cash") {
+        if (normMethod !== "cash") return false;
+      } else if (selectedMethod === "maya") {
+        if (!normMethod.includes("maya")) return false;
+      } else if (selectedMethod === "gcash") {
+        if (!normMethod.includes("gcash")) return false;
+      } else if (selectedMethod === "bank_transfer") {
+        if (!normMethod.includes("bank") && !normMethod.includes("transfer")) return false;
+      } else if (normMethod !== selectedMethod) {
+        return false;
+      }
+    }
+
+    // Filter by date picker
+    if (selectedDate && t.dateISO !== selectedDate) {
+      return false;
+    }
+
+    // Free-form search query
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase().trim();
+      const matchRef = t.ref?.toLowerCase().includes(q);
+      const matchCustomer = t.customer?.toLowerCase().includes(q);
+      const matchTreatment = t.treatment?.toLowerCase().includes(q);
+      const matchHandler = t.handlerName?.toLowerCase().includes(q);
+      const matchClass = t.classification?.toLowerCase().includes(q);
+      const matchMethod = t.methodSearch?.includes(q) || t.method?.toLowerCase().includes(q);
+      const matchDate = t.dateSearch?.includes(q);
+
+      if (!matchRef && !matchCustomer && !matchTreatment && !matchHandler && !matchClass && !matchMethod && !matchDate) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 
   const handleVoid = () => {
     if (!voidTarget || !voidReason) return toast.error("Reason is required");
@@ -201,20 +291,79 @@ export function TransactionsClient({
 
   return (
     <div className="space-y-6 relative">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="font-serif text-2xl font-bold text-ink">Transactions</h1>
           <p className="text-sm text-ink-soft mt-1">View, refund, or void sales and bookings.</p>
         </div>
-        <div className="relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-          <input
-            type="text"
-            placeholder="Search reference or customer..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 pr-4 py-2 bg-white border border-line rounded-lg text-sm focus:outline-none focus:border-royal focus:ring-1 focus:ring-royal w-full sm:w-72"
-          />
+        
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+          {/* Text Search Bar (Ref, Customer, Treatment, Date, Method) */}
+          <div className="relative flex-1 min-w-[240px] sm:w-72">
+            <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+            <input
+              type="text"
+              placeholder="Search reference, customer, treatment, date, method..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 pr-4 py-2 bg-white border border-line rounded-xl text-xs sm:text-sm focus:outline-none focus:border-royal focus:ring-1 focus:ring-royal w-full shadow-sm placeholder:text-ink-soft/60"
+            />
+          </div>
+
+          {/* Quick Date Picker Filter */}
+          <div className="relative flex items-center">
+            <Calendar size={14} className="absolute left-3 text-ink-soft pointer-events-none" />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="pl-8 pr-2 py-2 bg-white border border-line rounded-xl text-xs font-medium text-ink focus:outline-none focus:border-royal focus:ring-1 focus:ring-royal shadow-sm cursor-pointer"
+              title="Filter by exact date"
+            />
+            {selectedDate && (
+              <button
+                type="button"
+                onClick={() => setSelectedDate("")}
+                className="ml-1 text-ink-soft hover:text-red-500 p-1 transition-colors"
+                title="Clear date filter"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Payment Method Dropdown Filter */}
+          <div className="relative flex items-center">
+            <Filter size={13} className="absolute left-3 text-ink-soft pointer-events-none" />
+            <select
+              value={selectedMethod}
+              onChange={(e) => setSelectedMethod(e.target.value)}
+              className="pl-7 pr-3 py-2 bg-white border border-line rounded-xl text-xs font-medium text-ink focus:outline-none focus:border-royal focus:ring-1 focus:ring-royal shadow-sm cursor-pointer"
+            >
+              <option value="all">All Methods</option>
+              <option value="cash">Cash</option>
+              <option value="card">Card / Credit Card</option>
+              <option value="maya">Maya</option>
+              <option value="gcash">GCash</option>
+              <option value="bank_transfer">Bank Transfer</option>
+            </select>
+          </div>
+
+          {/* Reset All Filters Button */}
+          {(searchTerm || selectedDate || selectedMethod !== "all") && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm("");
+                setSelectedDate("");
+                setSelectedMethod("all");
+              }}
+              className="px-2.5 py-2 text-xs font-medium text-ink-soft hover:text-ink hover:bg-pale border border-line rounded-xl transition-colors shadow-sm"
+              title="Reset all filters"
+            >
+              Reset
+            </button>
+          )}
         </div>
       </div>
 
