@@ -1,20 +1,34 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { voidTransaction } from "./actions";
-import { Search, ReceiptText, Ban, AlertTriangle } from "lucide-react";
+import { setAppointmentHandler } from "@/app/admin/actions";
+import { Search, ReceiptText, Ban, AlertTriangle, UserCheck, User, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
 
-export function TransactionsClient({ sales, appointments }: { sales: any[], appointments: any[] }) {
+export function TransactionsClient({ 
+  sales, 
+  appointments,
+  staffList = []
+}: { 
+  sales: any[]; 
+  appointments: any[];
+  staffList?: { id: string; full_name: string; role?: string; branch_id?: string | null }[];
+}) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [updatingHandlerId, setUpdatingHandlerId] = useState<string | null>(null);
 
   const [voidModalOpen, setVoidModalOpen] = useState(false);
   const [voidTarget, setVoidTarget] = useState<{id: string, type: "retail"|"appointment"} | null>(null);
   const [voidReason, setVoidReason] = useState("");
+
+  const staffMap = useMemo(() => {
+    return new Map(staffList.map((s) => [s.id, s.full_name]));
+  }, [staffList]);
 
   const getClassificationBadge = (c?: string) => {
     const norm = (c || "").toLowerCase();
@@ -74,52 +88,100 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
     return "Retail Products";
   };
 
-  // Combine and sort
-  const combined = [
-    ...sales.map(s => {
-      let classification = s.client_classification;
-      if (!classification && s.discount_reason) {
-        const m = s.discount_reason.match(/\[Classification:([^\]]+)\]/i);
-        if (m) classification = m[1];
-      }
-      return {
-        id: s.id,
-        ref: s.reference_number,
-        amount: s.total_amount,
-        method: s.payment_method,
-        type: "retail",
-        treatment: extractRetailItems(s),
-        classification: classification || "walk-in",
-        date: new Date(s.created_at),
-        status: s.status,
-        customer: s.customers ? `${s.customers.first_name} ${s.customers.last_name}` : "Walk-in"
-      };
-    }),
-    ...appointments.map(a => {
-      let classification = a.client_classification;
-      if (!classification && a.notes) {
-        const m = a.notes.match(/\[Classification:([^\]]+)\]/i);
-        if (m) classification = m[1];
-      }
-      return {
-        id: a.id,
-        ref: a.reference_number,
-        amount: a.amount_due,
-        method: a.payment_method,
-        type: "appointment",
-        treatment: extractAppointmentTreatments(a),
-        classification: classification || "walk-in",
-        date: new Date(a.created_at),
-        status: a.payment_status,
-        customer: a.customers ? `${a.customers.first_name} ${a.customers.last_name}` : "Unknown"
-      };
-    })
-  ].sort((a, b) => b.date.getTime() - a.date.getTime());
+  // Build combined transactions
+  const initialCombined = useMemo(() => {
+    return [
+      ...sales.map(s => {
+        let classification = s.client_classification;
+        if (!classification && s.discount_reason) {
+          const m = s.discount_reason.match(/\[Classification:([^\]]+)\]/i);
+          if (m) classification = m[1];
+        }
+        const handlerName = staffMap.get(s.created_by) || null;
+        return {
+          id: s.id,
+          ref: s.reference_number,
+          amount: s.total_amount,
+          method: s.payment_method,
+          type: "retail",
+          treatment: extractRetailItems(s),
+          handlerId: s.created_by || "",
+          handlerName: handlerName || "Store Staff",
+          classification: classification || "walk-in",
+          date: new Date(s.created_at),
+          status: s.status,
+          customer: s.customers ? `${s.customers.first_name} ${s.customers.last_name}` : "Walk-in"
+        };
+      }),
+      ...appointments.map(a => {
+        let classification = a.client_classification;
+        if (!classification && a.notes) {
+          const m = a.notes.match(/\[Classification:([^\]]+)\]/i);
+          if (m) classification = m[1];
+        }
 
-  const filtered = combined.filter(t => 
+        let handlerId = a.handled_by || a.staff?.id || "";
+        let handlerName = a.staff?.full_name || "";
+        if (!handlerName && a.notes) {
+          const m = a.notes.match(/\[HandledBy:([a-f0-9\-]+)\]/i);
+          if (m) {
+            handlerId = m[1];
+            handlerName = staffMap.get(m[1]) || "";
+          }
+        }
+
+        return {
+          id: a.id,
+          ref: a.reference_number,
+          amount: a.amount_due,
+          method: a.payment_method,
+          type: "appointment",
+          treatment: extractAppointmentTreatments(a),
+          handlerId: handlerId || "",
+          handlerName: handlerName || "Unassigned",
+          classification: classification || "walk-in",
+          date: new Date(a.created_at),
+          status: a.payment_status,
+          customer: a.customers ? `${a.customers.first_name} ${a.customers.last_name}` : "Unknown"
+        };
+      })
+    ].sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [sales, appointments, staffMap]);
+
+  const [txList, setTxList] = useState(initialCombined);
+
+  useEffect(() => {
+    setTxList(initialCombined);
+  }, [initialCombined]);
+
+  const handleUpdateHandler = async (txId: string, staffId: string) => {
+    setUpdatingHandlerId(txId);
+    try {
+      const res = await setAppointmentHandler(txId, staffId);
+      if (res && "error" in res && res.error) {
+        toast.error(res.error);
+      } else {
+        const assignedName = staffMap.get(staffId) || "Unassigned";
+        toast.success(`Attending therapist updated to ${assignedName}.`);
+        setTxList(prev => prev.map(item => {
+          if (item.id === txId) {
+            return { ...item, handlerId: staffId, handlerName: assignedName };
+          }
+          return item;
+        }));
+      }
+    } catch {
+      toast.error("Failed to update attending therapist.");
+    } finally {
+      setUpdatingHandlerId(null);
+    }
+  };
+
+  const filtered = txList.filter(t => 
     t.ref?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.treatment?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.handlerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.classification?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -165,6 +227,7 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
                 <th className="px-6 py-4">Reference</th>
                 <th className="px-6 py-4">Customer</th>
                 <th className="px-6 py-4">Treatment / Items</th>
+                <th className="px-6 py-4">Handled By</th>
                 <th className="px-6 py-4">Type</th>
                 <th className="px-6 py-4">Method</th>
                 <th className="px-6 py-4 text-right">Amount</th>
@@ -175,7 +238,7 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
             <tbody className="divide-y divide-line">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-ink-soft">
+                  <td colSpan={10} className="px-6 py-8 text-center text-ink-soft">
                     <div className="flex flex-col items-center gap-2">
                       <ReceiptText size={32} className="text-ink-soft/50" />
                       <p>No transactions found.</p>
@@ -199,6 +262,39 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
                       <div className="truncate font-medium text-ink" title={t.treatment}>
                         {t.treatment}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-ink">
+                      {t.type === "appointment" ? (
+                        <div className="flex items-center gap-1.5">
+                          <UserCheck size={14} className={t.handlerId ? "text-purple-600 shrink-0" : "text-ink-soft/40 shrink-0"} />
+                          <select
+                            value={t.handlerId || ""}
+                            disabled={updatingHandlerId === t.id}
+                            onChange={(e) => handleUpdateHandler(t.id, e.target.value)}
+                            className={`rounded-lg border px-2 py-1 text-xs font-medium outline-none transition-all cursor-pointer max-w-[170px] truncate ${
+                              t.handlerId
+                                ? "border-purple-200 bg-purple-50/70 text-purple-900 focus:border-purple-400 focus:bg-white"
+                                : "border-amber-300 bg-amber-50 text-amber-800 focus:border-amber-500 focus:bg-white"
+                            }`}
+                            title={t.handlerName ? `Handled by: ${t.handlerName}` : "Unassigned - Click to assign therapist"}
+                          >
+                            <option value="">Unassigned</option>
+                            {staffList.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.full_name}
+                              </option>
+                            ))}
+                          </select>
+                          {updatingHandlerId === t.id && (
+                            <Loader2 size={12} className="animate-spin text-purple-600 shrink-0" />
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs font-medium text-ink-soft flex items-center gap-1.5">
+                          <User size={13} className="text-ink-soft/50 shrink-0" />
+                          <span className="truncate max-w-[150px]">{t.handlerName || "Store Staff"}</span>
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-ink-soft capitalize">{t.type}</td>
                     <td className="px-6 py-4 text-ink-soft capitalize">{t.method}</td>
