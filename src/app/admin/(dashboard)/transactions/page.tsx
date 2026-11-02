@@ -9,14 +9,14 @@ export default async function TransactionsPage() {
   // Fetch retail sales
   const { data: sales } = await supabase
     .from("pos_sales")
-    .select("*, customers(first_name, last_name)")
+    .select("*, customers(first_name, last_name), pos_sale_items(quantity, inventory_items(name))")
     .order("created_at", { ascending: false })
     .limit(100);
 
   // Fetch walk-in / paid appointments
   const { data: appointments } = await supabase
     .from("appointments")
-    .select("*, customers(first_name, last_name)")
+    .select("*, customers(first_name, last_name), treatments(name)")
     .in("payment_status", ["paid", "voided", "refunded"])
     .order("created_at", { ascending: false })
     .limit(100);

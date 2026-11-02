@@ -27,6 +27,53 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
     return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-sky-50 text-sky-700 border-sky-200">Walk-in</span>;
   };
 
+  const extractAppointmentTreatments = (a: any): string => {
+    if (a.notes) {
+      const trimmed = a.notes.trim();
+      if (trimmed.startsWith("[")) {
+        try {
+          let bracketCount = 0;
+          let endIndex = -1;
+          for (let i = 0; i < trimmed.length; i++) {
+            if (trimmed[i] === "[") bracketCount++;
+            else if (trimmed[i] === "]") {
+              bracketCount--;
+              if (bracketCount === 0) {
+                endIndex = i;
+                break;
+              }
+            }
+          }
+          const jsonSub = endIndex !== -1 ? trimmed.slice(0, endIndex + 1) : trimmed;
+          const parsed = JSON.parse(jsonSub);
+          if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.name) {
+            return parsed
+              .map((item: any) => (item.quantity > 1 ? `${item.name} (x${item.quantity})` : item.name))
+              .join(", ");
+          }
+        } catch {
+          // fallback
+        }
+      }
+    }
+
+    const tName = Array.isArray(a.treatments) ? a.treatments[0]?.name : a.treatments?.name;
+    if (tName) return tName;
+    return a.service_name || a.treatment_name || "Appointment Service";
+  };
+
+  const extractRetailItems = (s: any): string => {
+    if (s.pos_sale_items && Array.isArray(s.pos_sale_items) && s.pos_sale_items.length > 0) {
+      return s.pos_sale_items
+        .map((it: any) => {
+          const name = it.inventory_items?.name || "Item";
+          return it.quantity > 1 ? `${name} (x${it.quantity})` : name;
+        })
+        .join(", ");
+    }
+    return "Retail Products";
+  };
+
   // Combine and sort
   const combined = [
     ...sales.map(s => {
@@ -41,6 +88,7 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
         amount: s.total_amount,
         method: s.payment_method,
         type: "retail",
+        treatment: extractRetailItems(s),
         classification: classification || "walk-in",
         date: new Date(s.created_at),
         status: s.status,
@@ -59,6 +107,7 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
         amount: a.amount_due,
         method: a.payment_method,
         type: "appointment",
+        treatment: extractAppointmentTreatments(a),
         classification: classification || "walk-in",
         date: new Date(a.created_at),
         status: a.payment_status,
@@ -70,6 +119,7 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
   const filtered = combined.filter(t => 
     t.ref?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.treatment?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.classification?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -114,6 +164,7 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
                 <th className="px-6 py-4">Date</th>
                 <th className="px-6 py-4">Reference</th>
                 <th className="px-6 py-4">Customer</th>
+                <th className="px-6 py-4">Treatment / Items</th>
                 <th className="px-6 py-4">Type</th>
                 <th className="px-6 py-4">Method</th>
                 <th className="px-6 py-4 text-right">Amount</th>
@@ -124,7 +175,7 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
             <tbody className="divide-y divide-line">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-ink-soft">
+                  <td colSpan={9} className="px-6 py-8 text-center text-ink-soft">
                     <div className="flex flex-col items-center gap-2">
                       <ReceiptText size={32} className="text-ink-soft/50" />
                       <p>No transactions found.</p>
@@ -142,6 +193,11 @@ export function TransactionsClient({ sales, appointments }: { sales: any[], appo
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">{t.customer}</span>
                         {getClassificationBadge(t.classification)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-ink max-w-[280px]">
+                      <div className="truncate font-medium text-ink" title={t.treatment}>
+                        {t.treatment}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-ink-soft capitalize">{t.type}</td>
