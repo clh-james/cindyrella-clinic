@@ -833,7 +833,7 @@ export function POSClient({
                 onClick={() => { setMode("walkin"); setSelectedCategory("All"); }}
                 className={`flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${mode === "walkin" ? "bg-royal text-white shadow-md" : "text-ink-soft hover:bg-pale"}`}
               >
-                Walk-in
+                Treatments
               </button>
               <button 
                 onClick={() => { setMode("retail"); setSelectedCategory("All"); }}
