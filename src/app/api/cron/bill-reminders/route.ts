@@ -21,20 +21,25 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleCron(req: NextRequest) {
-  // 1. Authorization check
-  const authHeader = req.headers.get("authorization");
+  // 1. Strict Authorization check (fail closed)
   const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error("[cron/bill-reminders:error] CRON_SECRET environment variable is not configured.");
+    return NextResponse.json(
+      { error: "Server configuration error: CRON_SECRET is required to trigger cron jobs." },
+      { status: 500 }
+    );
+  }
 
-  if (cronSecret) {
-    const bearer = authHeader ? authHeader.replace("Bearer ", "").trim() : null;
-    const urlSecret = req.nextUrl.searchParams.get("secret");
+  const authHeader = req.headers.get("authorization");
+  const bearer = authHeader ? authHeader.replace("Bearer ", "").trim() : null;
+  const urlSecret = req.nextUrl.searchParams.get("secret");
 
-    if (bearer !== cronSecret && urlSecret !== cronSecret) {
-      return NextResponse.json(
-        { error: "Unauthorized cron execution request." },
-        { status: 401 }
-      );
-    }
+  if (bearer !== cronSecret && urlSecret !== cronSecret) {
+    return NextResponse.json(
+      { error: "Unauthorized cron execution request." },
+      { status: 401 }
+    );
   }
 
   const todayStr = getLocalDateString(new Date(), APP_TIMEZONE);

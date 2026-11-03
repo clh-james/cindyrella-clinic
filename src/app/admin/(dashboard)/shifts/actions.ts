@@ -2,6 +2,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { requireStaff } from "@/lib/auth";
+import { hasServerPermission } from "@/lib/rbac";
 import { revalidatePath } from "next/cache";
 
 export async function openShift(data: { startingCash: number, branchId: string }) {
@@ -149,6 +151,12 @@ export async function closeShift(data: { shiftId: string, actualCash: number, no
 }
 
 export async function approveVariance(shiftId: string) {
+  const staff = await requireStaff();
+  const canApprove = await hasServerPermission("cashier.approve_variance");
+  if (!canApprove && staff.role !== "super_admin" && staff.role !== "admin" && staff.role !== "manager") {
+    return { error: "Forbidden: You do not have permission to approve shift variances." };
+  }
+
   const supabase = await createClient();
   const { data: userAuth } = await supabase.auth.getUser();
   if (!userAuth.user) return { error: "Not authenticated" };

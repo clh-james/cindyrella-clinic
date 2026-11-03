@@ -2,12 +2,18 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaff } from "@/lib/auth";
+import { hasServerPermission } from "@/lib/rbac";
 import { revalidatePath } from "next/cache";
 
 export async function upsertTreatment(formData: FormData) {
-  await requireStaff();
-  
+  const staff = await requireStaff();
   const id = formData.get("id") as string | null;
+  const requiredPerm = id ? "services.edit" : "services.create";
+  const canPerform = await hasServerPermission(requiredPerm);
+
+  if (!canPerform && staff.role !== "super_admin" && staff.role !== "admin" && staff.role !== "manager") {
+    return { error: `Forbidden: You do not have permission to ${id ? "edit" : "create"} services.` };
+  }
   const name = formData.get("name") as string;
   const category = formData.get("category") as string;
   const duration_minutes = formData.get("duration_minutes") ? parseInt(formData.get("duration_minutes") as string) : null;
@@ -147,7 +153,11 @@ export async function upsertTreatment(formData: FormData) {
 }
 
 export async function deleteTreatment(id: string) {
-  await requireStaff();
+  const staff = await requireStaff();
+  const canDelete = await hasServerPermission("services.delete");
+  if (!canDelete && staff.role !== "super_admin" && staff.role !== "admin") {
+    return { error: "Forbidden: You do not have permission to delete services." };
+  }
   
   const supabase = createAdminClient();
   const { error } = await supabase.from("treatments").delete().eq("id", id);

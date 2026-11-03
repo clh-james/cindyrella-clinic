@@ -94,15 +94,54 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
     }
   }
 
+  // Fetch authoritative treatment details and calculate trusted price on server
+  const [{ data: treatment, error: tErr }, { data: branch }] = await Promise.all([
+    supabase
+      .from("treatments")
+      .select("id, name, session_price, duration_minutes, is_active")
+      .eq("id", input.treatmentId)
+      .maybeSingle(),
+    supabase.from("branches").select("id, name").eq("id", input.branchId).maybeSingle(),
+  ]);
+
+  if (tErr || !treatment || !treatment.is_active) {
+    return { ok: false, error: "The selected treatment is unavailable. Please select another service." };
+  }
+
+  // Authoritative price calculation (protects against parameter tampering)
+  let authoritativeAmountDue = Number(treatment.session_price || 0);
+
+  if (input.applied_promo_code) {
+    const { data: promo } = await supabase
+      .from("promo_codes")
+      .select("*")
+      .or(`id.eq.${input.applied_promo_code},code.eq.${input.applied_promo_code.toUpperCase()}`)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (promo) {
+      const isNotExpired = !promo.valid_until || new Date(promo.valid_until) >= new Date();
+      const isWithinUses = promo.max_uses === null || promo.current_uses < promo.max_uses;
+      if (isNotExpired && isWithinUses) {
+        if (promo.discount_type === "percentage") {
+          const discount = Math.round(authoritativeAmountDue * (Number(promo.discount_value) / 100));
+          authoritativeAmountDue = Math.max(0, authoritativeAmountDue - discount);
+        } else if (promo.discount_type === "fixed") {
+          authoritativeAmountDue = Math.max(0, authoritativeAmountDue - Number(promo.discount_value));
+        }
+      }
+    }
+  }
+
   // Calculate new points (1 point per ₱100)
-  const earnedPoints = Math.floor(input.amountDue / 100);
+  const earnedPoints = Math.floor(authoritativeAmountDue / 100);
   
   if (customer.id && earnedPoints > 0) {
     await supabase.rpc('increment_loyalty_points', { 
       customer_id_param: customer.id, 
       points_param: earnedPoints 
     });
-    // In absence of RPC, we can just do a direct update:
+    // In absence of RPC, fallback direct update:
     await supabase.from("customers").update({
       loyalty_points: (customer.loyalty_points || 0) + earnedPoints
     }).eq("id", customer.id);
@@ -120,7 +159,7 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
       appointment_date: input.date,
       appointment_time: input.time,
       payment_method: input.paymentMethod,
-      amount_due: input.amountDue,
+      amount_due: authoritativeAmountDue,
       applied_promo_code: input.applied_promo_code || null,
     })
     .select("id")
@@ -132,13 +171,7 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
   
   if (input.applied_promo_code) {
     await supabase.rpc('increment_promo_usage', { promo_id: input.applied_promo_code });
-    // In absence of RPC, we can just do a direct update if we first read the current count, but for safety in production you'd use RPC.
   }
-
-  const [{ data: treatment }, { data: branch }] = await Promise.all([
-    supabase.from("treatments").select("name, duration_minutes").eq("id", input.treatmentId).maybeSingle(),
-    supabase.from("branches").select("name").eq("id", input.branchId).maybeSingle(),
-  ]);
 
   // 4. Online payment methods get a PayMongo checkout session; cash doesn't.
   let checkoutUrl: string | undefined;
@@ -146,7 +179,7 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
 
   if (input.paymentMethod !== "cash") {
     const session = await createCheckoutSession({
-      amount: input.amountDue,
+      amount: authoritativeAmountDue,
       description: treatment?.name ?? "IV Drip Therapy",
       referenceNumber,
       method: input.paymentMethod,
@@ -156,7 +189,7 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
 
     await supabase.from("payments").insert({
       appointment_id: appointment.id,
-      amount: input.amountDue,
+      amount: authoritativeAmountDue,
       method: input.paymentMethod,
       status: "pending",
       external_reference: session?.id ?? null,
@@ -166,7 +199,7 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
   } else {
     await supabase.from("payments").insert({
       appointment_id: appointment.id,
-      amount: input.amountDue,
+      amount: authoritativeAmountDue,
       method: input.paymentMethod,
       status: "pending",
     });
