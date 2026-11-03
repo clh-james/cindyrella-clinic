@@ -37,7 +37,7 @@ const NAVIGATION_GROUPS = [
     name: "BUSINESS",
     items: [
       { name: "Services", href: "/admin/services", icon: Sparkles, permission: "services.view" },
-      { name: "Packages", href: "#", icon: PackageOpen, permission: "packages.view", unimplemented: true },
+      { name: "Packages", href: "/admin/packages", icon: PackageOpen, permission: "packages.view" },
       { name: "Memberships", href: "#", icon: Crown, permission: "memberships.view", unimplemented: true },
       { name: "Promos", href: "/admin/promos", icon: Gift, permission: "promos.view" },
       { name: "Inventory", href: "/admin/inventory", icon: Boxes, permission: "inventory.view", badge: "inventory" },
