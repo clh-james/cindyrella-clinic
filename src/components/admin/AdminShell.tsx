@@ -17,8 +17,22 @@ import { Can, usePermissions } from "@/components/rbac/Can";
 import { NotificationCenter } from "./NotificationCenter";
 import { ChangePasswordModal } from "./ChangePasswordModal";
 
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string; size?: number | string }>;
+  permission: string;
+  badge?: "appointments" | "inventory" | string;
+  unimplemented?: boolean;
+}
+
+interface NavGroup {
+  name: string;
+  items: NavItem[];
+}
+
 // Navigation definition
-const NAVIGATION_GROUPS = [
+const NAVIGATION_GROUPS: NavGroup[] = [
   {
     name: "OVERVIEW",
     items: [
@@ -38,7 +52,7 @@ const NAVIGATION_GROUPS = [
     items: [
       { name: "Services", href: "/admin/services", icon: Sparkles, permission: "services.view" },
       { name: "Packages", href: "/admin/packages", icon: PackageOpen, permission: "packages.view" },
-      { name: "Memberships", href: "#", icon: Crown, permission: "memberships.view", unimplemented: true },
+      { name: "Memberships", href: "/admin/memberships", icon: Crown, permission: "memberships.view" },
       { name: "Promos", href: "/admin/promos", icon: Gift, permission: "promos.view" },
       { name: "Inventory", href: "/admin/inventory", icon: Boxes, permission: "inventory.view", badge: "inventory" },
     ]
