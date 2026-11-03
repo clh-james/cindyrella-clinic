@@ -52,3 +52,4 @@ export interface RedemptionRecord {
   notes?: string;
   redeemed_at: string;
 }
+
