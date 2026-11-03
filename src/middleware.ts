@@ -52,6 +52,7 @@ export async function middleware(request: NextRequest) {
         '/admin/reports': 'reports.view',
         '/admin/roles': 'users.assign_role',
         '/admin/audit-logs': 'audit_logs.view',
+        '/admin/branches': 'branches.view',
         '/admin/shifts': 'cashier.view',
       };
 

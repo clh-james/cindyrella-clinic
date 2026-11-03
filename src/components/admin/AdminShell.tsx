@@ -84,7 +84,7 @@ const NAVIGATION_GROUPS = [
     name: "SYSTEM",
     items: [
       { name: "Notifications", href: "#", icon: Bell, permission: "notifications.view", unimplemented: true },
-      { name: "Branches", href: "#", icon: Building2, permission: "branches.view", unimplemented: true },
+      { name: "Branches", href: "/admin/branches", icon: Building2, permission: "branches.view" },
       { name: "Settings", href: "/admin/settings", icon: Settings, permission: "settings.view" },
     ]
   }
