@@ -84,7 +84,7 @@ const NAVIGATION_GROUPS: NavGroup[] = [
     name: "MARKETING",
     items: [
       { name: "Gallery", href: "/admin/gallery", icon: Images, permission: "gallery.view" },
-      { name: "Announcements", href: "#", icon: Megaphone, permission: "announcements.view", unimplemented: true },
+      { name: "Announcements", href: "/admin/announcements", icon: Megaphone, permission: "announcements.view" },
     ]
   },
   {
@@ -97,7 +97,7 @@ const NAVIGATION_GROUPS: NavGroup[] = [
   {
     name: "SYSTEM",
     items: [
-      { name: "Notifications", href: "#", icon: Bell, permission: "notifications.view", unimplemented: true },
+      { name: "Notifications", href: "/admin/notifications", icon: Bell, permission: "notifications.view" },
       { name: "Branches", href: "/admin/branches", icon: Building2, permission: "branches.view" },
       { name: "Settings", href: "/admin/settings", icon: Settings, permission: "settings.view" },
     ]
