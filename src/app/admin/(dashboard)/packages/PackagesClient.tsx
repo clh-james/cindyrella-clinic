@@ -12,6 +12,7 @@ import { SellPackageModal } from "./SellPackageModal";
 export function PackagesClient({
   initialPackages,
   templates,
+  allTreatments = [],
   customers,
   branches,
   staffList,
@@ -19,6 +20,7 @@ export function PackagesClient({
 }: {
   initialPackages: CustomerPackage[];
   templates: PackageTemplateItem[];
+  allTreatments?: { id: string; name: string; session_price: number; category?: string }[];
   customers: { id: string; first_name: string; last_name: string; phone: string }[];
   branches: { id: string; name: string }[];
   staffList: { id: string; full_name: string; role?: string }[];
@@ -32,6 +34,7 @@ export function PackagesClient({
   const [branchFilter, setBranchFilter] = useState("all");
 
   const [sellModalOpen, setSellModalOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [redeemTarget, setRedeemTarget] = useState<CustomerPackage | null>(null);
 
   // Filtered packages
@@ -145,7 +148,10 @@ export function PackagesClient({
         </div>
 
         <button
-          onClick={() => setSellModalOpen(true)}
+          onClick={() => {
+            setSelectedTemplateId(null);
+            setSellModalOpen(true);
+          }}
           className="inline-flex items-center justify-center gap-2 bg-royal hover:bg-royal/90 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"
         >
           <Plus size={16} />
@@ -215,7 +221,7 @@ export function PackagesClient({
           }`}
         >
           <PackageOpen size={16} />
-          Available 5+1 & 10+2 Offers ({templates.length})
+          Available Package Offers ({templates.length})
         </button>
       </div>
 
@@ -444,11 +450,25 @@ export function PackagesClient({
                         </div>
                       </div>
                     )}
+
+                    {t.preset_options && t.preset_options.map((opt, i) => (
+                      <div key={i} className="p-3 bg-pale/50 rounded-xl border border-royal/30 bg-royal/5">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-ink">{opt.label} ({opt.sessions} Sessions)</span>
+                          <span className="font-mono font-bold text-royal text-sm">
+                            ₱{opt.price.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 <button
-                  onClick={() => setSellModalOpen(true)}
+                  onClick={() => {
+                    setSelectedTemplateId(t.treatment_id);
+                    setSellModalOpen(true);
+                  }}
                   className="w-full mt-4 py-2 rounded-xl border border-royal text-royal hover:bg-royal hover:text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5"
                 >
                   <Plus size={14} />
@@ -490,8 +510,13 @@ export function PackagesClient({
           customers={customers}
           branches={branches}
           templates={templates}
+          allTreatments={allTreatments}
+          initialTreatmentId={selectedTemplateId}
           currentBranchId={currentBranchId}
-          onClose={() => setSellModalOpen(false)}
+          onClose={() => {
+            setSellModalOpen(false);
+            setSelectedTemplateId(null);
+          }}
           onSuccess={() => {
             // Reload page on assign
             window.location.reload();

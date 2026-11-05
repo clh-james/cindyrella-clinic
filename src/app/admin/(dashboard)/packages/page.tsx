@@ -32,24 +32,48 @@ export default async function PackagesPage() {
     console.error("Failed to load customer packages:", err);
   }
 
-  // 2. Fetch treatment presets (5+1 and 10+2)
+  // 2. Fetch treatment presets (5+1, 10+2, and special packages like Penile 2 Sessions)
   let templates: PackageTemplateItem[] = [];
+  let allTreatments: { id: string; name: string; session_price: number; category?: string }[] = [];
   try {
     const { data: treatments } = await supabase
       .from("treatments")
-      .select("id, name, session_price, five_plus_one_price, ten_plus_two_price")
+      .select("id, name, session_price, five_plus_one_price, ten_plus_two_price, category")
       .eq("is_active", true)
-      .or("five_plus_one_price.not.is.null,ten_plus_two_price.not.is.null")
       .order("name");
 
     if (treatments) {
-      templates = treatments.map((t) => ({
-        treatment_id: t.id,
-        treatment_name: t.name,
+      allTreatments = treatments.map((t) => ({
+        id: t.id,
+        name: t.name,
         session_price: Number(t.session_price || 0),
-        five_plus_one_price: t.five_plus_one_price ? Number(t.five_plus_one_price) : null,
-        ten_plus_two_price: t.ten_plus_two_price ? Number(t.ten_plus_two_price) : null,
+        category: t.category || "General",
       }));
+
+      templates = treatments
+        .filter((t) => t.five_plus_one_price || t.ten_plus_two_price || t.name.toLowerCase().includes("penile"))
+        .map((t) => {
+          const isPenileEnhancement = t.name.toLowerCase().includes("penile enhancement") && !t.name.toLowerCase().includes("medication");
+          const presetOptions = isPenileEnhancement
+            ? [
+                {
+                  label: "2 Sessions Package",
+                  sessions: 2,
+                  price: 70000,
+                },
+              ]
+            : undefined;
+
+          return {
+            treatment_id: t.id,
+            treatment_name: t.name,
+            category: t.category || "General",
+            session_price: Number(t.session_price || 0),
+            five_plus_one_price: t.five_plus_one_price ? Number(t.five_plus_one_price) : null,
+            ten_plus_two_price: t.ten_plus_two_price ? Number(t.ten_plus_two_price) : null,
+            preset_options: presetOptions,
+          };
+        });
     }
   } catch (err) {
     console.error("Failed to load package templates:", err);
@@ -76,6 +100,7 @@ export default async function PackagesPage() {
     <PackagesClient
       initialPackages={customerPackages}
       templates={templates}
+      allTreatments={allTreatments}
       customers={customers || []}
       branches={branches || []}
       staffList={formattedStaffList}

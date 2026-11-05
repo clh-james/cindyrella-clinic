@@ -10,6 +10,8 @@ export function SellPackageModal({
   customers,
   branches,
   templates,
+  allTreatments = [],
+  initialTreatmentId,
   currentBranchId,
   onClose,
   onSuccess,
@@ -17,6 +19,8 @@ export function SellPackageModal({
   customers: { id: string; first_name: string; last_name: string; phone: string }[];
   branches: { id: string; name: string }[];
   templates: PackageTemplateItem[];
+  allTreatments?: { id: string; name: string; session_price: number; category?: string }[];
+  initialTreatmentId?: string | null;
   currentBranchId?: string | null;
   onClose: () => void;
   onSuccess: () => void;
@@ -28,13 +32,22 @@ export function SellPackageModal({
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
 
   const [packageType, setPackageType] = useState<"preset" | "custom">("preset");
-  const [selectedTemplateIndex, setSelectedTemplateIndex] = useState<number>(0);
-  const [presetTier, setPresetTier] = useState<"5+1" | "10+2">("5+1");
+
+  // Initial template selection index
+  const initialIndex = useMemo(() => {
+    if (!initialTreatmentId) return 0;
+    const found = templates.findIndex((t) => t.treatment_id === initialTreatmentId);
+    return found !== -1 ? found : 0;
+  }, [initialTreatmentId, templates]);
+
+  const [selectedTemplateIndex, setSelectedTemplateIndex] = useState<number>(initialIndex);
+  const [presetTier, setPresetTier] = useState<string>("5+1");
 
   // Custom package states
+  const [customTreatmentId, setCustomTreatmentId] = useState("");
   const [customName, setCustomName] = useState("");
-  const [customSessions, setCustomSessions] = useState(6);
-  const [customPrice, setCustomPrice] = useState(5000);
+  const [customSessions, setCustomSessions] = useState(2);
+  const [customPrice, setCustomPrice] = useState(70000);
 
   const [branchId, setBranchId] = useState(currentBranchId || branches[0]?.id || "");
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -55,6 +68,20 @@ export function SellPackageModal({
 
   const calculatedPreset = useMemo(() => {
     if (!selectedTemplate) return { name: "Custom Package", sessions: 6, price: 0, treatmentId: "" };
+
+    // Check if this template has specialized preset options (e.g. Penile 2 Sessions)
+    if (selectedTemplate.preset_options && selectedTemplate.preset_options.length > 0) {
+      const matchOpt =
+        selectedTemplate.preset_options.find((o) => o.label === presetTier) ||
+        selectedTemplate.preset_options[0];
+      return {
+        name: `${selectedTemplate.treatment_name} (${matchOpt.label})`,
+        sessions: matchOpt.sessions,
+        price: matchOpt.price,
+        treatmentId: selectedTemplate.treatment_id,
+      };
+    }
+
     if (presetTier === "10+2" && selectedTemplate.ten_plus_two_price) {
       return {
         name: `${selectedTemplate.treatment_name} (10+2 Package)`,
@@ -88,7 +115,8 @@ export function SellPackageModal({
     const finalName = packageType === "preset" ? calculatedPreset.name : customName;
     const finalSessions = packageType === "preset" ? calculatedPreset.sessions : customSessions;
     const finalPrice = packageType === "preset" ? calculatedPreset.price : customPrice;
-    const finalTreatmentId = packageType === "preset" ? calculatedPreset.treatmentId : undefined;
+    const finalTreatmentId =
+      packageType === "preset" ? calculatedPreset.treatmentId : (customTreatmentId || undefined);
 
     startTransition(async () => {
       const res = await sellCustomerPackage({
@@ -266,30 +294,55 @@ export function SellPackageModal({
                   </select>
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPresetTier("5+1")}
-                    className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold transition-all ${
-                      presetTier === "5+1"
-                        ? "bg-royal text-white border-royal shadow-xs"
-                        : "bg-white text-ink border-line hover:bg-pale"
-                    }`}
-                  >
-                    5 + 1 Sessions (6 Total)
-                  </button>
-                  {selectedTemplate?.ten_plus_two_price && (
-                    <button
-                      type="button"
-                      onClick={() => setPresetTier("10+2")}
-                      className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold transition-all ${
-                        presetTier === "10+2"
-                          ? "bg-royal text-white border-royal shadow-xs"
-                          : "bg-white text-ink border-line hover:bg-pale"
-                      }`}
-                    >
-                      10 + 2 Sessions (12 Total)
-                    </button>
+                <div className="flex gap-2 flex-wrap">
+                  {selectedTemplate?.preset_options && selectedTemplate.preset_options.length > 0 ? (
+                    selectedTemplate.preset_options.map((opt) => {
+                      const isSelected =
+                        presetTier === opt.label ||
+                        (!selectedTemplate.preset_options?.some((o) => o.label === presetTier) &&
+                          opt === selectedTemplate.preset_options?.[0]);
+                      return (
+                        <button
+                          key={opt.label}
+                          type="button"
+                          onClick={() => setPresetTier(opt.label)}
+                          className={`flex-1 min-w-[140px] py-2 px-3 rounded-lg border text-xs font-bold transition-all ${
+                            isSelected
+                              ? "bg-royal text-white border-royal shadow-xs"
+                              : "bg-white text-ink border-line hover:bg-pale"
+                          }`}
+                        >
+                          {opt.label} ({opt.sessions} Sessions)
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setPresetTier("5+1")}
+                        className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold transition-all ${
+                          presetTier === "5+1"
+                            ? "bg-royal text-white border-royal shadow-xs"
+                            : "bg-white text-ink border-line hover:bg-pale"
+                        }`}
+                      >
+                        5 + 1 Sessions (6 Total)
+                      </button>
+                      {selectedTemplate?.ten_plus_two_price && (
+                        <button
+                          type="button"
+                          onClick={() => setPresetTier("10+2")}
+                          className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold transition-all ${
+                            presetTier === "10+2"
+                              ? "bg-royal text-white border-royal shadow-xs"
+                              : "bg-white text-ink border-line hover:bg-pale"
+                          }`}
+                        >
+                          10 + 2 Sessions (12 Total)
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -302,12 +355,43 @@ export function SellPackageModal({
               </div>
             ) : (
               <div className="space-y-3 bg-pale/40 p-3.5 rounded-xl border border-line">
+                {allTreatments.length > 0 && (
+                  <div>
+                    <label className="block text-[11px] font-semibold text-ink-soft mb-1">
+                      Base Service / Treatment (Optional Quick-Fill)
+                    </label>
+                    <select
+                      value={customTreatmentId}
+                      onChange={(e) => {
+                        const tid = e.target.value;
+                        setCustomTreatmentId(tid);
+                        const found = allTreatments.find((t) => t.id === tid);
+                        if (found) {
+                          const isPenile = found.name.toLowerCase().includes("penile");
+                          const defaultSessions = isPenile ? 2 : 5;
+                          const defaultPrice = (found.session_price || 0) * defaultSessions;
+                          setCustomName(`${found.name} (${defaultSessions} Sessions)`);
+                          setCustomSessions(defaultSessions);
+                          setCustomPrice(defaultPrice);
+                        }
+                      }}
+                      className="w-full bg-white border border-line rounded-lg px-3 py-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-royal/30 focus:border-royal"
+                    >
+                      <option value="">-- Choose a Service (e.g. Penile Enhancement) or type below --</option>
+                      {allTreatments.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} (₱{Number(t.session_price || 0).toLocaleString()} / session)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="block text-[11px] font-semibold text-ink-soft mb-1">Package Name</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. VIP Ultimate Drip Combo (8 Sessions)"
+                    placeholder="e.g. Penile Enhancement (2 Sessions)"
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
                     className="w-full bg-white border border-line rounded-lg px-3 py-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-royal/30 focus:border-royal"
@@ -322,7 +406,15 @@ export function SellPackageModal({
                       min={1}
                       max={50}
                       value={customSessions}
-                      onChange={(e) => setCustomSessions(Number(e.target.value))}
+                      onChange={(e) => {
+                        const s = Number(e.target.value);
+                        setCustomSessions(s);
+                        // If treatment selected and user hasn't overridden price manually, re-calculate
+                        if (customTreatmentId) {
+                          const found = allTreatments.find((t) => t.id === customTreatmentId);
+                          if (found) setCustomPrice((found.session_price || 0) * s);
+                        }
+                      }}
                       className="w-full bg-white border border-line rounded-lg px-3 py-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-royal/30 focus:border-royal"
                     />
                   </div>

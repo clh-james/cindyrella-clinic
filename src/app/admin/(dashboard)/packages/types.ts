@@ -31,12 +31,20 @@ export interface CustomerPackage {
   } | null;
 }
 
+export interface PackageOption {
+  label: string;
+  sessions: number;
+  price: number;
+}
+
 export interface PackageTemplateItem {
   treatment_id: string;
   treatment_name: string;
   session_price: number;
+  category?: string;
   five_plus_one_price?: number | null;
   ten_plus_two_price?: number | null;
+  preset_options?: PackageOption[];
 }
 
 export interface RedemptionRecord {
