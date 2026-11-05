@@ -9,10 +9,10 @@ import {
   Loader2, Search, X, CheckCircle2,
   Trash2, AlertTriangle, Package as PackageIcon,
   BriefcaseMedical, User, History, ReceiptText, Printer, Bluetooth, Scale,
-  UserCheck
+  UserCheck, Users
 } from "lucide-react";
 import { processPOSWalkin, processPOSRetail, getRecentTransactions } from "./actions";
-import { setAppointmentHandler } from "@/app/admin/actions";
+import { setAppointmentHandler, setAppointmentHandlers, type HandlerAssignment } from "@/app/admin/actions";
 import toast from "react-hot-toast";
 import { 
   printViaBluetooth, 
@@ -43,7 +43,91 @@ export function POSClient({
   const [customerPhone, setCustomerPhone] = useState("");
   const [clientClassification, setClientClassification] = useState<"walk-in" | "booked" | "boosting_from_main">("walk-in");
   const [handledBy, setHandledBy] = useState<string>("");
+  const [assistantHandlers, setAssistantHandlers] = useState<{ staffId: string; splitPercent: number }[]>([]);
+  const [primaryHandlerSplit, setPrimaryHandlerSplit] = useState<number>(100);
   const [selectedBranch, setSelectedBranch] = useState(staffBranchId || branches[0]?.id || "");
+
+  const handleSetPrimaryHandler = (staffId: string) => {
+    setHandledBy(staffId);
+    if (!staffId) {
+      setAssistantHandlers([]);
+      setPrimaryHandlerSplit(100);
+    } else if (assistantHandlers.length === 0) {
+      setPrimaryHandlerSplit(100);
+    }
+  };
+
+  const handleAddAssistant = () => {
+    if (assistantHandlers.length === 0) {
+      setAssistantHandlers([{ staffId: "", splitPercent: 30 }]);
+      setPrimaryHandlerSplit(70); // Option 2: 70/30 default
+    } else if (assistantHandlers.length === 1) {
+      setAssistantHandlers([...assistantHandlers, { staffId: "", splitPercent: 20 }]);
+      setPrimaryHandlerSplit(60); // 60/20/20 default
+    }
+  };
+
+  const handleRemoveAssistant = (index: number) => {
+    const updated = assistantHandlers.filter((_, i) => i !== index);
+    setAssistantHandlers(updated);
+    if (updated.length === 0) {
+      setPrimaryHandlerSplit(100);
+    } else if (updated.length === 1) {
+      setPrimaryHandlerSplit(70);
+      setAssistantHandlers([{ ...updated[0], splitPercent: 30 }]);
+    }
+  };
+
+  const handleUpdateAssistantStaff = (index: number, staffId: string) => {
+    setAssistantHandlers(prev => prev.map((a, i) => i === index ? { ...a, staffId } : a));
+  };
+
+  const applySplitPreset = (primaryPct: number, asstPcts: number[]) => {
+    setPrimaryHandlerSplit(primaryPct);
+    setAssistantHandlers(prev =>
+      prev.map((a, i) => ({ ...a, splitPercent: asstPcts[i] || 20 }))
+    );
+  };
+
+  const handleClearHandlers = () => {
+    setHandledBy("");
+    setAssistantHandlers([]);
+    setPrimaryHandlerSplit(100);
+  };
+
+  const allHandlersPayload: HandlerAssignment[] = useMemo(() => {
+    if (!handledBy) return [];
+    const validAssistants = assistantHandlers.filter(a => Boolean(a.staffId));
+    if (validAssistants.length === 0) {
+      return [{ staffId: handledBy, role: "primary", splitPercent: 100 }];
+    }
+    return [
+      { staffId: handledBy, role: "primary", splitPercent: primaryHandlerSplit },
+      ...validAssistants.map(a => ({
+        staffId: a.staffId,
+        role: "assistant" as const,
+        splitPercent: a.splitPercent,
+      })),
+    ];
+  }, [handledBy, assistantHandlers, primaryHandlerSplit]);
+
+  const attendingStaffSummary = useMemo(() => {
+    if (!handledBy) return "";
+    const primaryStaff = staffList.find(s => s.id === handledBy);
+    const primaryName = primaryStaff?.full_name || "Lead Therapist";
+
+    const validAssistants = assistantHandlers.filter(a => Boolean(a.staffId));
+    if (validAssistants.length === 0) {
+      return primaryName;
+    }
+
+    const asstSummary = validAssistants.map(a => {
+      const s = staffList.find(st => st.id === a.staffId);
+      return `${s?.full_name || "Assistant"} (Asst ${a.splitPercent}%)`;
+    }).join(", ");
+
+    return `${primaryName} (Lead ${primaryHandlerSplit}%), ${asstSummary}`;
+  }, [handledBy, assistantHandlers, primaryHandlerSplit, staffList]);
 
   // Prioritize active branch staff at top of selection
   const sortedStaffList = useMemo(() => {
@@ -332,7 +416,6 @@ export function POSClient({
     setError(null);
 
     let res;
-    const attendingStaff = staffList.find(s => s.id === handledBy);
     if (mode === "walkin") {
       res = await processPOSWalkin({
         items: cart,
@@ -341,6 +424,7 @@ export function POSClient({
         customerPhone: customerPhone || "N/A",
         clientClassification,
         handledBy: handledBy || undefined,
+        handlers: allHandlersPayload,
         paymentMethod,
         amountDue: total,
         discountAmount,
@@ -385,7 +469,7 @@ export function POSClient({
         customerName: customerName || (mode === "walkin" ? "Walk-in Customer" : "Retail Customer"),
         clientClassification,
         cashierName: cashierName || "Cashier",
-        handledByName: attendingStaff?.full_name || undefined,
+        handledByName: attendingStaffSummary || undefined,
         items: cart.map(item => ({
           name: item.name,
           qty: item.quantity,
@@ -410,7 +494,7 @@ export function POSClient({
         change: changeAmount > 0 ? changeAmount : 0,
         customerName: customerName || (mode === "walkin" ? "Walk-in Customer" : "Retail Customer"),
         clientClassification,
-        handledByName: attendingStaff?.full_name || null,
+        handledByName: attendingStaffSummary || null,
       });
       setLoading(false);
       setShowPaymentModal(false);
@@ -444,6 +528,8 @@ export function POSClient({
     setCustomerPhone("");
     setClientClassification("walk-in");
     setHandledBy("");
+    setAssistantHandlers([]);
+    setPrimaryHandlerSplit(100);
     setSuccessData(null);
     setSearchQuery("");
     setPrintStatus(null);
@@ -595,7 +681,7 @@ export function POSClient({
                     Service Handler:
                   </span>
                   <span className={`font-semibold ${handledBy ? "text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200" : "text-ink-soft"}`}>
-                    {staffList.find(s => s.id === handledBy)?.full_name || "Unassigned"}
+                    {attendingStaffSummary || "Unassigned"}
                   </span>
                 </div>
               )}
@@ -1088,39 +1174,166 @@ export function POSClient({
                 className="w-full rounded-xl border border-line px-3 sm:px-4 py-2 sm:py-2.5 text-sm outline-none focus:border-royal focus:ring-2 focus:ring-royal/20 transition-all shadow-sm bg-white" 
               />
 
-              {/* Service Handler / Attending Staff Selector */}
+              {/* Service Handler / Attending Staff Selector (Supports Multiple Tandem Handlers with Option 2 Split) */}
               {mode === "walkin" && (
-                <div className="space-y-1 pt-1">
+                <div className="space-y-2 pt-1 bg-purple-50/50 p-3 rounded-xl border border-purple-100">
                   <div className="flex items-center justify-between text-[11px] font-semibold text-ink-soft uppercase tracking-wider">
-                    <span className="flex items-center gap-1 text-purple-700">
+                    <span className="flex items-center gap-1 text-purple-800">
                       <UserCheck className="w-3.5 h-3.5" />
-                      Attending Staff / Handler
+                      Attending Staff ({assistantHandlers.length > 0 ? `${1 + assistantHandlers.length} Handlers` : "Solo"})
                     </span>
                     {handledBy && (
                       <button 
                         type="button" 
-                        onClick={() => setHandledBy("")} 
+                        onClick={handleClearHandlers} 
                         className="text-[10px] text-ink-soft hover:text-red-500 font-normal transition-colors"
                       >
-                        Clear
+                        Clear All
                       </button>
                     )}
                   </div>
-                  <select
-                    value={handledBy}
-                    onChange={e => setHandledBy(e.target.value)}
-                    className="w-full rounded-xl border border-line px-3 sm:px-4 py-2 sm:py-2 text-xs sm:text-sm outline-none focus:border-royal focus:ring-2 focus:ring-royal/20 transition-all shadow-sm bg-white font-medium text-ink cursor-pointer"
-                  >
-                    <option value="">Unassigned (No specific therapist)</option>
-                    {sortedStaffList.map(s => {
-                      const staffBranch = branches.find(b => b.id === s.branch_id);
-                      return (
-                        <option key={s.id} value={s.id}>
-                          {s.full_name} ({s.role || "Staff"}{staffBranch?.name ? ` • ${staffBranch.name}` : ""})
-                        </option>
-                      );
-                    })}
-                  </select>
+
+                  {/* Primary Handler (Lead Therapist) */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="font-bold text-purple-900 flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full bg-purple-600 inline-block" />
+                        Primary Handler (Lead)
+                      </span>
+                      {assistantHandlers.length > 0 && (
+                        <span className="font-bold text-purple-800 bg-purple-100 border border-purple-200 px-1.5 py-0.5 rounded text-[10px]">
+                          {primaryHandlerSplit}% Commission
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={handledBy}
+                      onChange={e => handleSetPrimaryHandler(e.target.value)}
+                      className="w-full rounded-xl border border-line px-3 py-2 text-xs outline-none focus:border-royal focus:ring-1 focus:ring-royal transition-all shadow-2xs bg-white font-medium text-ink cursor-pointer"
+                    >
+                      <option value="">Unassigned (No specific therapist)</option>
+                      {sortedStaffList.map(s => {
+                        const staffBranch = branches.find(b => b.id === s.branch_id);
+                        return (
+                          <option key={s.id} value={s.id}>
+                            {s.full_name} ({s.role || "Staff"}{staffBranch?.name ? ` • ${staffBranch.name}` : ""})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {/* Assistant Handlers (Tandem Staff) */}
+                  {assistantHandlers.map((asst, idx) => (
+                    <div key={idx} className="space-y-1 pt-1.5 border-t border-purple-200/60">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="font-semibold text-indigo-900 flex items-center gap-1">
+                          <span className="h-2 w-2 rounded-full bg-indigo-500 inline-block" />
+                          Assistant {idx + 1}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-indigo-700 bg-indigo-100 border border-indigo-200 px-1.5 py-0.5 rounded text-[10px]">
+                            {asst.splitPercent}% Commission
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAssistant(idx)}
+                            className="text-red-500 hover:text-red-700 p-0.5 rounded hover:bg-red-50 transition-colors"
+                            title="Remove assistant"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </div>
+                      <select
+                        value={asst.staffId}
+                        onChange={e => handleUpdateAssistantStaff(idx, e.target.value)}
+                        className="w-full rounded-xl border border-line px-3 py-2 text-xs outline-none focus:border-royal focus:ring-1 focus:ring-royal transition-all shadow-2xs bg-white font-medium text-ink cursor-pointer"
+                      >
+                        <option value="">Select Assistant Staff</option>
+                        {sortedStaffList
+                          .filter(s => s.id !== handledBy && !assistantHandlers.some((a, aIdx) => aIdx !== idx && a.staffId === s.id))
+                          .map(s => {
+                            const staffBranch = branches.find(b => b.id === s.branch_id);
+                            return (
+                              <option key={s.id} value={s.id}>
+                                {s.full_name} ({s.role || "Staff"}{staffBranch?.name ? ` • ${staffBranch.name}` : ""})
+                              </option>
+                            );
+                          })}
+                      </select>
+                    </div>
+                  ))}
+
+                  {/* Split Presets (Option 2: 70/30) */}
+                  {assistantHandlers.length > 0 && (
+                    <div className="pt-1.5 flex items-center justify-between gap-1 flex-wrap">
+                      <span className="text-[10px] font-bold text-purple-900 uppercase">Hatian / Split:</span>
+                      <div className="flex items-center gap-1">
+                        {assistantHandlers.length === 1 ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => applySplitPreset(70, [30])}
+                              className={`text-[10px] px-2 py-0.5 rounded-md font-bold transition-all ${
+                                primaryHandlerSplit === 70
+                                  ? "bg-purple-700 text-white shadow-2xs"
+                                  : "bg-white text-ink-soft border border-line hover:bg-mist"
+                              }`}
+                            >
+                              70% / 30% (Option 2)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applySplitPreset(50, [50])}
+                              className={`text-[10px] px-2 py-0.5 rounded-md font-bold transition-all ${
+                                primaryHandlerSplit === 50
+                                  ? "bg-purple-700 text-white shadow-2xs"
+                                  : "bg-white text-ink-soft border border-line hover:bg-mist"
+                              }`}
+                            >
+                              50% / 50%
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applySplitPreset(80, [20])}
+                              className={`text-[10px] px-2 py-0.5 rounded-md font-bold transition-all ${
+                                primaryHandlerSplit === 80
+                                  ? "bg-purple-700 text-white shadow-2xs"
+                                  : "bg-white text-ink-soft border border-line hover:bg-mist"
+                              }`}
+                            >
+                              80% / 20%
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => applySplitPreset(60, [20, 20])}
+                            className={`text-[10px] px-2 py-0.5 rounded-md font-bold transition-all ${
+                              primaryHandlerSplit === 60
+                                ? "bg-purple-700 text-white shadow-2xs"
+                                : "bg-white text-ink-soft border border-line hover:bg-mist"
+                            }`}
+                          >
+                            60% / 20% / 20% (3 Staff)
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add Assistant Button */}
+                  {handledBy && assistantHandlers.length < 2 && (
+                    <button
+                      type="button"
+                      onClick={handleAddAssistant}
+                      className="w-full mt-1.5 py-1.5 px-3 rounded-lg border border-dashed border-purple-300 text-purple-700 bg-white/70 hover:bg-purple-100/60 text-xs font-semibold flex items-center justify-center gap-1 transition-all"
+                    >
+                      <Plus size={13} />
+                      {assistantHandlers.length === 0 ? "+ Magdagdag ng Assistant (2nd Staff)" : "+ Magdagdag ng 3rd Staff"}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1345,19 +1558,26 @@ export function POSClient({
                               <UserCheck size={12} className="text-purple-600" />
                               Attending:
                             </span>
-                            <select
-                              value={t.handled_by_id || ""}
-                              disabled={updatingTxId === t.id}
-                              onChange={(e) => handleUpdateTransactionHandler(t.id!, e.target.value)}
-                              className="rounded-lg border border-line bg-pale/70 px-2 py-1 text-xs font-medium text-ink outline-none focus:border-purple-400 focus:bg-white focus:ring-1 focus:ring-purple-200 transition-all cursor-pointer max-w-[220px] truncate"
-                            >
-                              <option value="">Unassigned</option>
-                              {sortedStaffList.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.full_name} ({s.role || "Staff"})
-                                </option>
-                              ))}
-                            </select>
+                            {t.handled_by_name && (t.handled_by_name.includes("Lead") || t.handled_by_name.includes("+")) ? (
+                              <span className="font-semibold text-purple-900 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200 text-xs flex items-center gap-1">
+                                <Users size={12} className="text-purple-600" />
+                                {t.handled_by_name}
+                              </span>
+                            ) : (
+                              <select
+                                value={t.handled_by_id || ""}
+                                disabled={updatingTxId === t.id}
+                                onChange={(e) => handleUpdateTransactionHandler(t.id!, e.target.value)}
+                                className="rounded-lg border border-line bg-pale/70 px-2 py-1 text-xs font-medium text-ink outline-none focus:border-purple-400 focus:bg-white focus:ring-1 focus:ring-purple-200 transition-all cursor-pointer max-w-[220px] truncate"
+                              >
+                                <option value="">Unassigned</option>
+                                {sortedStaffList.map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.full_name} ({s.role || "Staff"})
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                             {updatingTxId === t.id && (
                               <Loader2 size={13} className="animate-spin text-purple-600 shrink-0" />
                             )}

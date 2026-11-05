@@ -71,11 +71,19 @@ export default async function AppointmentsPage() {
             | { first_name: string; last_name: string; phone: string }
             | null;
 
-          // Determine current handler
+          // Determine current handler & multiple handlers
           let currentHandlerId = (a as unknown as { handled_by?: string }).handled_by || "";
-          if (!currentHandlerId && a.notes) {
+          let initialHandlers: { staffId: string; role: "primary" | "assistant"; splitPercent: number }[] = [];
+          if (a.notes) {
             const match = a.notes.match(/\[HandledBy:([a-f0-9-]+)\]/i);
             if (match) currentHandlerId = match[1];
+
+            const hMatch = a.notes.match(/\[Handlers:([^\]]+)\]/i);
+            if (hMatch) {
+              try {
+                initialHandlers = JSON.parse(hMatch[1]);
+              } catch {}
+            }
           }
           if (!currentHandlerId && a.treatment_id && quotasMap[a.treatment_id]?.handled_by) {
             currentHandlerId = quotasMap[a.treatment_id]?.handled_by || "";
@@ -148,6 +156,7 @@ export default async function AppointmentsPage() {
                 <AppointmentHandlerSelect
                   appointmentId={a.id}
                   currentHandlerId={currentHandlerId}
+                  initialHandlers={initialHandlers}
                   staffList={staff}
                   status={a.status}
                 />
@@ -202,11 +211,19 @@ export default async function AppointmentsPage() {
                 | { first_name: string; last_name: string; phone: string }
                 | null;
 
-              // Determine current handler
+              // Determine current handler & multiple handlers
               let currentHandlerId = (a as unknown as { handled_by?: string }).handled_by || "";
-              if (!currentHandlerId && a.notes) {
+              let initialHandlers: { staffId: string; role: "primary" | "assistant"; splitPercent: number }[] = [];
+              if (a.notes) {
                 const match = a.notes.match(/\[HandledBy:([a-f0-9-]+)\]/i);
                 if (match) currentHandlerId = match[1];
+
+                const hMatch = a.notes.match(/\[Handlers:([^\]]+)\]/i);
+                if (hMatch) {
+                  try {
+                    initialHandlers = JSON.parse(hMatch[1]);
+                  } catch {}
+                }
               }
               if (!currentHandlerId && a.treatment_id && quotasMap[a.treatment_id]?.handled_by) {
                 currentHandlerId = quotasMap[a.treatment_id]?.handled_by || "";
@@ -255,6 +272,7 @@ export default async function AppointmentsPage() {
                     <AppointmentHandlerSelect
                       appointmentId={a.id}
                       currentHandlerId={currentHandlerId}
+                      initialHandlers={initialHandlers}
                       staffList={staff}
                       status={a.status}
                     />

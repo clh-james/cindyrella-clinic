@@ -285,6 +285,12 @@ export async function updateAppointmentStatus(
   return { error: null };
 }
 
+export interface HandlerAssignment {
+  staffId: string;
+  role: "primary" | "assistant";
+  splitPercent: number;
+}
+
 export async function autoCreditAppointmentCommission(appointmentId: string) {
   const adminClient = createAdminClient();
 
@@ -296,11 +302,29 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
 
   if (!appt) return;
 
-  // 1. Fetch handler
-  let handlerId: string | null = (appt as unknown as { handled_by?: string }).handled_by || null;
-  if (!handlerId && appt.notes) {
-    const match = appt.notes.match(/\[HandledBy:([a-f0-9-]+)\]/i);
-    if (match) handlerId = match[1];
+  // 1. Fetch handlers (either multiple from notes JSON or single)
+  let handlers: HandlerAssignment[] = [];
+  if (appt.notes) {
+    const handlersMatch = appt.notes.match(/\[Handlers:([^\]]+)\]/i);
+    if (handlersMatch) {
+      try {
+        handlers = JSON.parse(handlersMatch[1]);
+      } catch {
+        handlers = [];
+      }
+    }
+  }
+
+  // Fallback to single handler if no [Handlers] JSON
+  if (handlers.length === 0) {
+    let handlerId: string | null = (appt as unknown as { handled_by?: string }).handled_by || null;
+    if (!handlerId && appt.notes) {
+      const match = appt.notes.match(/\[HandledBy:([a-f0-9-]+)\]/i);
+      if (match) handlerId = match[1];
+    }
+    if (handlerId) {
+      handlers = [{ staffId: handlerId, role: "primary", splitPercent: 100 }];
+    }
   }
 
   // 2. Fetch service quotas config from payroll_settings
@@ -317,13 +341,13 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
   }>;
 
   const treatmentConfig = quotasMap[appt.treatment_id] || {};
-  if (!handlerId) {
-    handlerId = treatmentConfig.handled_by || null;
+  if (handlers.length === 0 && treatmentConfig.handled_by) {
+    handlers = [{ staffId: treatmentConfig.handled_by, role: "primary", splitPercent: 100 }];
   }
 
-  if (!handlerId) return; // No handler assigned yet
+  if (handlers.length === 0) return; // No handler assigned yet
 
-  // 3. Compute commission
+  // 3. Compute total commission pool
   const treatment = appt.treatments as unknown as { name: string; session_price: number } | null;
   const itemName = treatment?.name || "Clinic Service";
   const baseAmount = Number(appt.amount_due || treatment?.session_price || 0);
@@ -331,60 +355,70 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
   const commRate = Number(treatmentConfig.commission_rate ?? 10);
   const isPercentage = (treatmentConfig.commission_type || "percentage") === "percentage";
 
-  const commAmount = isPercentage
+  const totalCommAmount = isPercentage
     ? Math.round(baseAmount * (commRate / 100) * 100) / 100
     : Math.round(commRate * 100) / 100;
 
-  if (commAmount <= 0) return;
+  if (totalCommAmount <= 0) return;
 
-  const { data: staffData } = await adminClient
-    .from("staff")
-    .select("full_name")
-    .eq("id", handlerId)
-    .single();
-
-  const staffName = staffData?.full_name || "Therapist";
-
-  // Check existing commission
-  const { data: existingComm } = await adminClient
+  // 4. Delete existing commission records for this appointment to avoid duplicates
+  await adminClient
     .from("commission_records")
-    .select("id")
+    .delete()
     .eq("source_id", appt.id)
-    .eq("source_type", "appointment")
-    .maybeSingle();
+    .eq("source_type", "appointment");
 
-  const commPayload = {
-    employee_id: handlerId,
-    branch_id: appt.branch_id || null,
-    source_type: "appointment",
-    source_id: appt.id,
-    reference_number: appt.reference_number,
-    item_name: itemName,
-    base_amount: baseAmount,
-    commission_rate: commRate,
-    is_percentage: isPercentage,
-    commission_amount: commAmount,
-    split_ratio: 1.0,
-    date_earned: appt.appointment_date || new Date().toISOString().slice(0, 10),
-    status: "approved",
-    notes: `Auto-computed for ${staffName} (Completed service: ${itemName})`,
-  };
+  // 5. Fetch staff names in bulk
+  const staffIds = handlers.map((h) => h.staffId).filter(Boolean);
+  const { data: staffList } = await adminClient
+    .from("staff")
+    .select("id, full_name")
+    .in("id", staffIds);
 
-  if (existingComm) {
-    await adminClient
-      .from("commission_records")
-      .update(commPayload)
-      .eq("id", existingComm.id);
-  } else {
-    await adminClient
-      .from("commission_records")
-      .insert(commPayload);
+  const staffNameMap = new Map<string, string>();
+  for (const s of staffList || []) {
+    staffNameMap.set(s.id, s.full_name);
+  }
+
+  // 6. Insert split commission records for each handler
+  const totalPercent =
+    handlers.reduce((acc, h) => acc + (Number(h.splitPercent) || 0), 0) || 100;
+
+  for (const h of handlers) {
+    if (!h.staffId) continue;
+    const rawPercent = Number(h.splitPercent) || (100 / handlers.length);
+    const ratio = Math.round((rawPercent / totalPercent) * 1000) / 1000;
+    const individualComm = Math.round(totalCommAmount * (rawPercent / totalPercent) * 100) / 100;
+    const staffName = staffNameMap.get(h.staffId) || "Therapist";
+
+    const roleLabel = h.role === "primary" ? "Primary/Lead" : "Assistant";
+    const notes = `Auto-computed for ${staffName} (${roleLabel}: ${Math.round((rawPercent / totalPercent) * 100)}% split on ${itemName})`;
+
+    await adminClient.from("commission_records").insert({
+      employee_id: h.staffId,
+      branch_id: appt.branch_id || null,
+      source_type: "appointment",
+      source_id: appt.id,
+      reference_number: appt.reference_number,
+      item_name: itemName,
+      base_amount: baseAmount,
+      commission_rate: commRate,
+      is_percentage: isPercentage,
+      commission_amount: individualComm,
+      split_ratio: ratio,
+      date_earned: appt.appointment_date || new Date().toISOString().slice(0, 10),
+      status: "approved",
+      notes,
+    });
   }
 
   revalidatePath("/admin/payroll");
 }
 
-export async function setAppointmentHandler(appointmentId: string, staffId: string) {
+export async function setAppointmentHandlers(
+  appointmentId: string,
+  handlers: HandlerAssignment[]
+) {
   await requireStaff();
   const adminClient = createAdminClient();
 
@@ -396,18 +430,24 @@ export async function setAppointmentHandler(appointmentId: string, staffId: stri
 
   if (!appt) return { error: "Appointment not found." };
 
+  const validHandlers = handlers.filter((h) => Boolean(h.staffId));
+  const primary = validHandlers.find((h) => h.role === "primary") || validHandlers[0];
+  const primaryId = primary?.staffId || null;
+
   const existingNotes = appt.notes || "";
-  let updatedNotes = existingNotes;
-  if (/\[HandledBy:[^\]]+\]/i.test(existingNotes)) {
-    updatedNotes = existingNotes.replace(/\[HandledBy:[^\]]+\]/i, staffId ? `[HandledBy:${staffId}]` : "");
-  } else if (staffId) {
-    updatedNotes = existingNotes ? `${existingNotes} [HandledBy:${staffId}]` : `[HandledBy:${staffId}]`;
+  let updatedNotes = existingNotes
+    .replace(/\[Handlers:[^\]]+\]/gi, "")
+    .replace(/\[HandledBy:[^\]]+\]/gi, "")
+    .trim();
+
+  if (validHandlers.length > 0) {
+    updatedNotes = `${updatedNotes}\n[HandledBy:${primaryId}]\n[Handlers:${JSON.stringify(validHandlers)}]`.trim();
   }
 
   // Attempt column update with fallback to notes
   const { error: colErr } = await adminClient
     .from("appointments")
-    .update({ handled_by: staffId || null, notes: updatedNotes })
+    .update({ handled_by: primaryId, notes: updatedNotes })
     .eq("id", appointmentId);
 
   if (colErr) {
@@ -419,7 +459,7 @@ export async function setAppointmentHandler(appointmentId: string, staffId: stri
 
   // If appointment is already completed, auto-compute commission right now
   if (appt.status === "completed") {
-    if (staffId) {
+    if (validHandlers.length > 0) {
       try {
         await autoCreditAppointmentCommission(appointmentId);
       } catch (e) {
@@ -441,6 +481,15 @@ export async function setAppointmentHandler(appointmentId: string, staffId: stri
   revalidatePath("/admin/appointments");
   revalidatePath("/admin/payroll");
   return { success: true };
+}
+
+export async function setAppointmentHandler(appointmentId: string, staffId: string) {
+  if (!staffId) {
+    return setAppointmentHandlers(appointmentId, []);
+  }
+  return setAppointmentHandlers(appointmentId, [
+    { staffId, role: "primary", splitPercent: 100 },
+  ]);
 }
 
 export async function getAppointmentUsedMaterials(appointmentId: string) {

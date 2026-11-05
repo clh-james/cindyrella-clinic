@@ -13,6 +13,12 @@ function generateReference() {
   return result;
 }
 
+export interface POSHandlerAssignment {
+  staffId: string;
+  role: "primary" | "assistant";
+  splitPercent: number;
+}
+
 export async function processPOSWalkin(input: {
   items: { id: string; name: string; price: number; quantity: number }[];
   branchId: string;
@@ -20,6 +26,7 @@ export async function processPOSWalkin(input: {
   customerPhone: string;
   clientClassification?: "walk-in" | "booked" | "boosting_from_main" | string;
   handledBy?: string;
+  handlers?: POSHandlerAssignment[];
   paymentMethod: string;
   amountDue: number;
   discountAmount?: number;
@@ -85,13 +92,21 @@ export async function processPOSWalkin(input: {
   const referenceNumber = generateReference();
   const date = new Date();
   const safeClassification = input.clientClassification || "walk-in";
-  const safeHandlerId = input.handledBy?.trim() || null;
+  const handlers = input.handlers || [];
+  let safeHandlerId = input.handledBy?.trim() || null;
+  if (!safeHandlerId && handlers.length > 0) {
+    const primary = handlers.find((h) => h.role === "primary") || handlers[0];
+    safeHandlerId = primary.staffId;
+  }
   
-  // Save all items, classification, and handler in notes
+  // Save all items, classification, and handlers in notes
   const itemsJson = JSON.stringify(input.items);
   let notesWithClassification = `${itemsJson}\n[Classification:${safeClassification}]`;
   if (safeHandlerId) {
     notesWithClassification += `\n[HandledBy:${safeHandlerId}]`;
+  }
+  if (handlers.length > 0) {
+    notesWithClassification += `\n[Handlers:${JSON.stringify(handlers)}]`;
   }
   
   // Safe payment method mapping for PostgreSQL enum payment_method
@@ -179,8 +194,8 @@ export async function processPOSWalkin(input: {
     console.error("POS inventory deduction error:", dErr);
   }
 
-  // 4. Auto-credit commission to handler's payroll if assigned
-  if (safeHandlerId) {
+  // 4. Auto-credit commission to handlers' payroll if assigned
+  if (safeHandlerId || handlers.length > 0) {
     try {
       const { autoCreditAppointmentCommission } = await import("@/app/admin/actions");
       await autoCreditAppointmentCommission(appointment.id);
@@ -401,6 +416,10 @@ export async function getRecentTransactions() {
     if (!apptError && appointments) apptsData = appointments;
   }
 
+  // Fetch all staff for handler display mapping
+  const { data: allStaff } = await supabase.from("staff").select("id, full_name");
+  const staffMap = new Map((allStaff || []).map((s: { id: string; full_name: string }) => [s.id, s.full_name]));
+
   // Combine and sort
   const combined = [
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -413,6 +432,7 @@ export async function getRecentTransactions() {
       client_classification: s.client_classification || (s.discount_reason?.match(/\[Classification:([^\]]+)\]/i)?.[1]) || "walk-in",
       handled_by_id: null,
       handled_by_name: null,
+      handlers: [] as POSHandlerAssignment[],
       date: new Date(s.created_at)
     })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -427,6 +447,30 @@ export async function getRecentTransactions() {
         const match = a.notes.match(/\[HandledBy:([a-f0-9-]+)\]/i);
         if (match) handlerId = match[1];
       }
+
+      let parsedHandlers: POSHandlerAssignment[] = [];
+      if (a.notes) {
+        const hMatch = a.notes.match(/\[Handlers:([^\]]+)\]/i);
+        if (hMatch) {
+          try {
+            parsedHandlers = JSON.parse(hMatch[1]);
+          } catch {
+            parsedHandlers = [];
+          }
+        }
+      }
+
+      let handlerName = a.staff?.full_name || (handlerId ? staffMap.get(handlerId) : null);
+      if (parsedHandlers.length > 1) {
+        handlerName = parsedHandlers
+          .map((h) => {
+            const name = staffMap.get(h.staffId) || "Staff";
+            const tag = h.role === "primary" ? "Lead" : "Asst";
+            return `${name} (${tag} ${h.splitPercent}%)`;
+          })
+          .join(" + ");
+      }
+
       return {
         id: a.id,
         reference_number: a.reference_number,
@@ -435,7 +479,8 @@ export async function getRecentTransactions() {
         type: "Walk-in Treatment",
         client_classification: classification || "walk-in",
         handled_by_id: handlerId,
-        handled_by_name: a.staff?.full_name || null,
+        handled_by_name: handlerName,
+        handlers: parsedHandlers,
         date: new Date(a.created_at)
       };
     })
