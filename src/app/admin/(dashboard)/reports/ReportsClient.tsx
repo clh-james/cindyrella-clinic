@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { 
   BarChart3, TrendingUp, CalendarDays, WalletCards, BriefcaseMedical, UserRoundCog,
-  CreditCard, Banknote, Smartphone, Scale, ArrowRight
+  CreditCard, Banknote, Smartphone, Scale, ArrowRight, FileSpreadsheet
 } from "lucide-react";
 
 const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
@@ -93,13 +93,22 @@ export function ReportsClient({ appointments, sales, staff }: { appointments: an
           <h1 className="font-serif text-2xl font-bold text-ink">Reports Dashboard</h1>
           <p className="text-sm text-ink-soft mt-1">Summary for the current month.</p>
         </div>
-        <Link
-          href="/admin/reports/financials"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-royal to-indigo-700 text-white rounded-xl text-xs font-bold hover:shadow-md transition-all shadow-sm"
-        >
-          <Scale size={16} /> Income Statement & Balance Sheet
-          <ArrowRight size={14} />
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href="/admin/reports/sales"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold hover:shadow-md transition-all shadow-sm"
+          >
+            <FileSpreadsheet size={16} /> Detailed Monthly Sales Report
+            <ArrowRight size={14} />
+          </Link>
+          <Link
+            href="/admin/reports/financials"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-royal to-indigo-700 text-white rounded-xl text-xs font-bold hover:shadow-md transition-all shadow-sm"
+          >
+            <Scale size={16} /> Income Statement & Balance Sheet
+            <ArrowRight size={14} />
+          </Link>
+        </div>
       </div>
 
       {/* KPIs */}
