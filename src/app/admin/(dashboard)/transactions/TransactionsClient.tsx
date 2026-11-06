@@ -178,7 +178,27 @@ export function TransactionsClient({
           }
         }
 
-        const dateObj = new Date(a.created_at);
+        let dateObj: Date;
+        if (a.appointment_date) {
+          const parts = a.appointment_date.split("-").map(Number);
+          let hours = 12;
+          let minutes = 0;
+          if (a.appointment_time) {
+            const timeMatch = a.appointment_time.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+            if (timeMatch) {
+              let h = parseInt(timeMatch[1], 10);
+              const min = parseInt(timeMatch[2], 10);
+              const meridian = timeMatch[3]?.toUpperCase();
+              if (meridian === "PM" && h < 12) h += 12;
+              if (meridian === "AM" && h === 12) h = 0;
+              hours = h;
+              minutes = min;
+            }
+          }
+          dateObj = new Date(parts[0], parts[1] - 1, parts[2], hours, minutes);
+        } else {
+          dateObj = new Date(a.created_at);
+        }
         const { iso, search: dateSearch } = getDateSearchStrings(dateObj);
         const methodSearch = getMethodSearchString(a.payment_method);
 

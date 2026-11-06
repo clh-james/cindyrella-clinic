@@ -17,6 +17,7 @@ export default async function TransactionsPage() {
       .from("appointments")
       .select("*, customers(first_name, last_name), treatments(name), staff:handled_by(id, full_name)")
       .in("payment_status", ["paid", "voided", "refunded"])
+      .order("appointment_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(100),
     supabase
