@@ -57,3 +57,4 @@ export default async function MonthlySalesReportPage({ searchParams }: PageProps
     />
   );
 }
+
