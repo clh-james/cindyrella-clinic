@@ -1,3 +1,4 @@
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -7,9 +8,9 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { signOut, pingActivity } from "@/app/admin/actions";
 import { createClient } from "@/lib/supabase/client";
-import { 
-  LayoutDashboard, CreditCard, CalendarDays, Users, Sparkles, PackageOpen, Crown, Gift, Boxes, 
-  ReceiptText, WalletCards, Banknote, BarChart3, UserRoundCog, ShieldCheck, 
+import {
+  LayoutDashboard, CreditCard, CalendarDays, Users, Sparkles, PackageOpen, Crown, Gift, Boxes,
+  ReceiptText, WalletCards, Banknote, BarChart3, UserRoundCog, ShieldCheck,
   Images, Megaphone, Bell, ScrollText, Building2, Settings,
   ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity, Clock, CheckCircle2, CalendarCheck, Scale, KeyRound, FileSpreadsheet
 } from "lucide-react";
@@ -116,20 +117,20 @@ export function AdminShell({
 }) {
   const pathname = usePathname();
   const supabase = createClient();
-  
+
   // State
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
-  
+
   // Collapsed sections (store by group name)
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
-  
+
   // Badges data
   const [badges, setBadges] = useState<Record<string, number>>({ appointments: 0, inventory: 0, bills: 0, approvals: 0 });
-  
+
   // In-app notifications
   const [notifications, setNotifications] = useState<any[]>([]);
-  
+
   // Branches
   const [branches, setBranches] = useState<any[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
@@ -166,7 +167,7 @@ export function AdminShell({
 
     // Listen to user activity to reset the timer
     const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
-    
+
     // Throttle to avoid calling clearTimeout too often
     let isThrottled = false;
     const handleActivity = () => {
@@ -196,10 +197,10 @@ export function AdminShell({
       // Auto-collapse sidebar on tablet (768px - 1023px) to maximize workspace
       setIsDesktopCollapsed(true);
     }
-    
+
     const savedGroups = localStorage.getItem("cindyrella_sidebar_groups");
     if (savedGroups) setCollapsedGroups(JSON.parse(savedGroups));
-    
+
     const savedBranch = localStorage.getItem("cindyrella_selected_branch");
     if (savedBranch) setSelectedBranchId(savedBranch);
   }, []);
@@ -223,13 +224,13 @@ export function AdminShell({
         .from("appointments")
         .select("*", { count: "exact", head: true })
         .eq("status", "pending");
-        
+
       // Badges: Inventory
       const { count: invCount } = await supabase
         .from("inventory_items")
         .select("*", { count: "exact", head: true })
         .lt("current_stock", 10);
-        
+
       // Badges: Bills Due
       const todayStr = new Date().toISOString().slice(0, 10);
       let billsCount = 0;
@@ -295,7 +296,7 @@ export function AdminShell({
     setCollapsedGroups(newState);
     localStorage.setItem("cindyrella_sidebar_groups", JSON.stringify(newState));
   };
-  
+
   const selectBranch = (id: string) => {
     setSelectedBranchId(id);
     localStorage.setItem("cindyrella_selected_branch", id);
@@ -311,7 +312,7 @@ export function AdminShell({
   // Render navigation tree
   const renderNav = (isMobile = false) => {
     const collapsed = !isMobile && isDesktopCollapsed;
-    
+
     if (permissionsLoading) {
       return (
         <div className="flex-1 p-4 space-y-4">
@@ -323,23 +324,23 @@ export function AdminShell({
         </div>
       );
     }
-    
+
     return (
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 space-y-6 scrollbar-hide">
         {NAVIGATION_GROUPS.map((group) => {
           // Check if user has permission for at least one item in this group
           const hasAnyPermissionInGroup = group.items.some(item => hasPermission(item.permission));
-          
+
           if (!hasAnyPermissionInGroup) {
             return null; // Hide the entire group if no permissions
           }
 
           const isGroupCollapsed = collapsedGroups[group.name];
-          
+
           return (
             <div key={group.name} className="flex flex-col gap-1">
               {/* Group Header */}
-              <button 
+              <button
                 onClick={() => toggleGroup(group.name)}
                 className={`flex items-center justify-between px-3 py-1.5 text-[10px] font-bold tracking-wider text-ink-soft/70 hover:text-ink transition-colors ${collapsed ? 'justify-center cursor-pointer' : ''}`}
                 aria-expanded={!isGroupCollapsed}
@@ -360,37 +361,36 @@ export function AdminShell({
                   const active = pathname === item.href;
                   const Icon = item.icon;
                   const badgeCount = item.badge ? badges[item.badge] : 0;
-                  
+
                   return (
                     <Can key={item.name} permission={item.permission}>
                       <Link
                         href={item.unimplemented ? "#" : item.href}
-                        onClick={(e) => { 
+                        onClick={(e) => {
                           if (item.unimplemented) {
-                            e.preventDefault(); 
+                            e.preventDefault();
                           } else if (isMobile) {
                             setIsMobileOpen(false);
                           }
                         }}
                         title={collapsed ? item.name : undefined}
-                        className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-royal ${
-                          active 
-                            ? "bg-royal/10 text-royal font-semibold" 
+                        className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-royal ${active
+                            ? "bg-royal/10 text-royal font-semibold"
                             : item.unimplemented
                               ? "text-ink-soft/50 hover:bg-pale cursor-not-allowed"
                               : "text-ink-soft hover:bg-royal/5 hover:text-royal font-medium"
-                        } ${collapsed ? 'justify-center' : ''}`}
+                          } ${collapsed ? 'justify-center' : ''}`}
                       >
                         {active && !collapsed && (
                           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-royal rounded-r-full" />
                         )}
-                        
+
                         <Icon size={18} className={`shrink-0 ${active ? "text-royal" : "text-ink-soft group-hover:text-royal transition-colors"} ${item.unimplemented ? "opacity-50" : ""}`} />
-                        
+
                         {!collapsed && (
                           <span className="flex-1 truncate text-sm">{item.name}</span>
                         )}
-                        
+
                         {!collapsed && badgeCount > 0 && (
                           <span className="flex h-5 items-center justify-center rounded-full bg-royal/10 px-2 text-[10px] font-bold text-royal">
                             {badgeCount}
@@ -399,7 +399,7 @@ export function AdminShell({
                         {!collapsed && item.unimplemented && (
                           <span className="text-[9px] uppercase tracking-wider bg-line/50 text-ink-soft px-1.5 py-0.5 rounded">Soon</span>
                         )}
-                        
+
                         {/* Tooltip for collapsed state */}
                         {collapsed && (
                           <div className="absolute left-full ml-4 px-2.5 py-1.5 bg-ink text-white text-xs font-medium rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none flex items-center gap-2">
@@ -468,10 +468,9 @@ export function AdminShell({
       )}
 
       {/* Desktop Sidebar */}
-      <aside 
-        className={`hidden md:flex flex-col border-r border-line bg-white transition-all duration-300 shadow-sm z-30 sticky top-0 h-screen ${
-          isDesktopCollapsed ? "w-[80px]" : "w-[260px]"
-        }`}
+      <aside
+        className={`hidden md:flex flex-col border-r border-line bg-white transition-all duration-300 shadow-sm z-30 sticky top-0 h-screen ${isDesktopCollapsed ? "w-[80px]" : "w-[260px]"
+          }`}
       >
         {/* Desktop Header */}
         <div className="flex h-16 shrink-0 items-center justify-between px-4 border-b border-line bg-pale/30">
@@ -482,7 +481,7 @@ export function AdminShell({
               <span className="text-[9px] uppercase tracking-wider text-ink-soft font-semibold">Aesthetic & Wellness</span>
             </div>
           </Link>
-          
+
           {/* Only show logo in collapsed state */}
           {isDesktopCollapsed && (
             <Link href="/admin" className="flex items-center justify-center w-full">
@@ -490,8 +489,8 @@ export function AdminShell({
             </Link>
           )}
 
-          <button 
-            onClick={toggleSidebar} 
+          <button
+            onClick={toggleSidebar}
             className="absolute -right-3 top-5 p-1 bg-white border border-line rounded-full text-ink-soft hover:text-royal hover:shadow-md transition-all z-40 hidden md:flex"
             aria-label={isDesktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
@@ -502,7 +501,7 @@ export function AdminShell({
         {/* Desktop Branch Switcher */}
         {!isDesktopCollapsed && branches.length > 0 && (
           <div className="px-4 py-3 border-b border-line/50 relative">
-            <button 
+            <button
               onClick={() => setIsBranchMenuOpen(!isBranchMenuOpen)}
               className="w-full flex items-center justify-between bg-pale hover:bg-line/30 rounded-lg px-3 py-2 transition-colors border border-transparent hover:border-line"
             >
@@ -512,7 +511,7 @@ export function AdminShell({
               </div>
               <ChevronDown size={14} className={`text-ink-soft transition-transform ${isBranchMenuOpen ? 'rotate-180' : ''}`} />
             </button>
-            
+
             {/* Branch Menu Dropdown */}
             {isBranchMenuOpen && (
               <div className="absolute top-full left-4 right-4 mt-1 bg-white border border-line rounded-xl shadow-lg z-50 overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -542,7 +541,7 @@ export function AdminShell({
         {/* Desktop User Profile Footer */}
         <div className="border-t border-line p-4 bg-pale/30">
           <div className={`flex items-center ${isDesktopCollapsed ? 'justify-center' : 'justify-between'} gap-3`}>
-            <div 
+            <div
               onClick={() => setIsPasswordModalOpen(true)}
               className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-royal to-royal-deep text-white flex items-center justify-center font-bold text-sm shadow-sm relative group cursor-pointer hover:ring-2 hover:ring-royal/30 transition-all"
               title="Click to Change Password"
@@ -557,10 +556,10 @@ export function AdminShell({
                 </div>
               )}
             </div>
-            
+
             {!isDesktopCollapsed && (
-              <div 
-                className="flex-1 min-w-0 cursor-pointer" 
+              <div
+                className="flex-1 min-w-0 cursor-pointer"
                 onClick={() => setIsPasswordModalOpen(true)}
                 title="Click to Change Password"
               >
@@ -568,7 +567,7 @@ export function AdminShell({
                 <p className="text-[10px] uppercase tracking-wider font-semibold text-royal truncate">{role}</p>
               </div>
             )}
-            
+
             {!isDesktopCollapsed && (
               <div className="flex items-center gap-1">
                 <button
@@ -595,8 +594,8 @@ export function AdminShell({
         {/* Mobile Header (Visible only on small screens) */}
         <header className="sticky top-0 z-20 flex h-14 sm:h-16 shrink-0 items-center justify-between border-b border-line bg-white/90 backdrop-blur-md px-3 sm:px-4 shadow-sm md:hidden">
           <div className="flex items-center gap-2 sm:gap-3">
-            <button 
-              onClick={() => setIsMobileOpen(true)} 
+            <button
+              onClick={() => setIsMobileOpen(true)}
               className="p-2 -ml-1 text-ink-soft hover:text-ink hover:bg-pale rounded-full transition-colors touch-manipulation min-w-[40px] min-h-[40px] flex items-center justify-center"
               aria-label="Open Navigation Menu"
             >
@@ -641,8 +640,8 @@ export function AdminShell({
           const active = pathname === item.href;
           const Icon = item.icon;
           return (
-            <Link 
-              key={item.name} 
+            <Link
+              key={item.name}
               href={item.href}
               className={`flex flex-col items-center justify-center flex-1 py-1 min-h-[44px] transition-colors ${active ? 'text-royal font-bold' : 'text-ink-soft hover:text-ink'}`}
             >
@@ -653,8 +652,8 @@ export function AdminShell({
             </Link>
           );
         })}
-        
-        <button 
+
+        <button
           onClick={() => setIsMobileOpen(true)}
           className="flex flex-col items-center justify-center flex-1 py-1 min-h-[44px] text-ink-soft hover:text-ink transition-colors"
           aria-label="Open More Menu"
