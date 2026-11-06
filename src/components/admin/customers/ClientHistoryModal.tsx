@@ -223,17 +223,17 @@ export function ClientHistoryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-auto flex flex-col max-h-[92vh] overflow-hidden border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-1 xs:p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-auto flex flex-col max-h-[96dvh] sm:max-h-[92vh] overflow-hidden border border-slate-200">
         {/* MODAL HEADER */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 to-rose-700 flex items-center justify-center font-bold text-white shadow-md">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 to-rose-700 flex items-center justify-center font-bold text-white shadow-md shrink-0">
               <User size={20} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h2 className="text-base sm:text-lg font-bold truncate">
                   {client.full_name || `${client.first_name} ${client.last_name}`}
                 </h2>
                 <span className="text-[11px] font-mono bg-slate-800 text-amber-300 px-2 py-0.5 rounded-full border border-slate-700">
@@ -243,28 +243,28 @@ export function ClientHistoryModal({
                   {client.account_status || "Active"}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-400 mt-0.5 truncate">
                 {client.phone} {client.email ? `• ${client.email}` : ""} • Registered {new Date(client.created_at).toLocaleDateString("en-PH")}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2 shrink-0">
             <button
               onClick={handleExportExcel}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white flex items-center gap-1.5 transition-colors shadow-xs"
+              className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white flex items-center gap-1.5 transition-colors shadow-xs"
               title="Export 9-Sheet Excel Workbook"
             >
               <FileSpreadsheet size={14} />
-              Excel File
+              <span className="hidden xs:inline">Excel</span> File
             </button>
             <button
               onClick={handleOpenStatement}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-700 hover:bg-rose-600 text-white flex items-center gap-1.5 transition-colors shadow-xs"
+              className="px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-700 hover:bg-rose-600 text-white flex items-center gap-1.5 transition-colors shadow-xs"
               title="Printable Statement / PDF"
             >
               <Printer size={14} />
-              Statement / PDF
+              <span className="hidden xs:inline">Statement /</span> PDF
             </button>
             <button
               onClick={onClose}
@@ -276,7 +276,7 @@ export function ClientHistoryModal({
         </div>
 
         {/* TOP FINANCIAL KPI SUMMARY CARDS (6 CARDS) */}
-        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5 p-4 bg-slate-50 border-b border-slate-200">
+        <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-6 gap-2 p-3 sm:p-4 bg-slate-50 border-b border-slate-200">
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
             <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Total Contract</span>
             <p className="font-mono text-base sm:text-lg font-bold text-slate-900 mt-0.5">
@@ -329,7 +329,7 @@ export function ClientHistoryModal({
         </div>
 
         {/* NAVIGATION TABS (9 TABS) */}
-        <div className="flex border-b border-slate-200 px-6 bg-white overflow-x-auto gap-1">
+        <div className="flex border-b border-slate-200 px-3 sm:px-6 bg-white overflow-x-auto gap-1 touch-scroll scrollbar-hide">
           {[
             { id: "overview", label: "Overview", icon: User },
             { id: "installments", label: `Installments (${clientFile.applications.length})`, icon: CreditCard },

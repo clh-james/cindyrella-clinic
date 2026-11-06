@@ -107,29 +107,29 @@ export function RecordPaymentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg max-h-[94dvh] sm:max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-auto">
         {/* Modal Header */}
-        <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-emerald-50/50 to-white">
+        <div className="p-3.5 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-emerald-50/50 to-white">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200/60 text-emerald-600">
+            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200/60 text-emerald-600 shrink-0">
               <CreditCard className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900 font-serif">Record Bill Payment</h2>
-              <p className="text-xs text-slate-500">Record cash, bank transfer, check or cashier drawer disbursement.</p>
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 font-serif">Record Bill Payment</h2>
+              <p className="text-[11px] sm:text-xs text-slate-500">Record cash, bank transfer, check or cashier drawer disbursement.</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-3.5 sm:space-y-4 overscroll-contain">
           {/* Bill Reference Card */}
           <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5">
             <div className="flex items-center justify-between">
