@@ -188,40 +188,40 @@ export function PackagesClient({
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-line gap-2">
+      {/* Navigation Tabs (Smooth horizontal touch scrolling on mobile) */}
+      <div className="flex border-b border-line gap-1 sm:gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1 touch-scroll">
         <button
           onClick={() => setActiveTab("client_packages")}
-          className={`pb-3 px-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+          className={`pb-3 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
             activeTab === "client_packages"
               ? "border-royal text-royal"
               : "border-transparent text-ink-soft hover:text-ink"
           }`}
         >
-          <Sparkles size={16} />
-          Patient Package Balances ({packages.length})
+          <Sparkles size={15} />
+          Patient Balances ({packages.length})
         </button>
         <button
           onClick={() => setActiveTab("redemptions")}
-          className={`pb-3 px-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+          className={`pb-3 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
             activeTab === "redemptions"
               ? "border-royal text-royal"
               : "border-transparent text-ink-soft hover:text-ink"
           }`}
         >
-          <Clock size={16} />
+          <Clock size={15} />
           Redemption History ({redemptionLogs.length})
         </button>
         <button
           onClick={() => setActiveTab("catalog")}
-          className={`pb-3 px-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+          className={`pb-3 px-3 text-xs sm:text-sm font-bold border-b-2 transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
             activeTab === "catalog"
               ? "border-royal text-royal"
               : "border-transparent text-ink-soft hover:text-ink"
           }`}
         >
-          <PackageOpen size={16} />
-          Available Package Offers ({templates.length})
+          <PackageOpen size={15} />
+          Available Offers ({templates.length})
         </button>
       </div>
 
@@ -268,8 +268,85 @@ export function PackagesClient({
             </div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
+          {/* MOBILE CARDS VIEW (< lg) */}
+          <div className="p-3 space-y-3 lg:hidden">
+            {filteredPackages.length > 0 ? (
+              filteredPackages.map((pkg) => {
+                const used = pkg.total_sessions - pkg.sessions_remaining;
+                const percentUsed = Math.min(100, Math.round((used / pkg.total_sessions) * 100));
+
+                return (
+                  <div key={pkg.id} className="bg-white border border-line rounded-xl p-4 shadow-2xs space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-bold text-ink text-sm">
+                          {pkg.customer?.first_name} {pkg.customer?.last_name}
+                        </div>
+                        <div className="text-[11px] text-ink-soft">{pkg.customer?.phone || "No phone"}</div>
+                      </div>
+                      <div>{getStatusBadge(pkg.status)}</div>
+                    </div>
+
+                    <div className="border-t border-b border-line/60 py-2.5 space-y-2 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-ink">{pkg.package_name}</span>
+                        <span className="font-mono font-bold text-royal">
+                          ₱{Number(pkg.price_paid || 0).toLocaleString()}
+                        </span>
+                      </div>
+                      {pkg.branch?.name && (
+                        <div className="text-[11px] text-ink-soft">Branch: {pkg.branch.name}</div>
+                      )}
+
+                      {/* Progress bar */}
+                      <div className="space-y-1 pt-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-mono font-bold text-royal">
+                            {pkg.sessions_remaining} of {pkg.total_sessions} Remaining
+                          </span>
+                          <span className="text-ink-soft">{used} used</span>
+                        </div>
+                        <div className="w-full bg-line rounded-full h-2 overflow-hidden">
+                          <div
+                            className="bg-royal h-full rounded-full transition-all duration-300"
+                            style={{ width: `${percentUsed}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <span className="text-[10px] text-ink-soft">
+                        {pkg.expiry_date ? `Exp: ${pkg.expiry_date}` : `Added: ${pkg.start_date}`}
+                      </span>
+                      {pkg.status === "active" && pkg.sessions_remaining > 0 ? (
+                        <button
+                          onClick={() => setRedeemTarget(pkg)}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-royal text-white font-bold text-xs shadow-xs hover:bg-royal/90 transition-all touch-manipulation min-h-[38px]"
+                        >
+                          <Sparkles size={13} />
+                          Redeem Session
+                        </button>
+                      ) : (
+                        <span className="text-xs text-ink-soft italic">No sessions left</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-10 text-ink-soft">
+                <PackageOpen size={32} className="mx-auto mb-2 text-ink-soft/40" />
+                <p className="font-semibold text-ink text-sm">No packages found</p>
+                <p className="text-xs text-ink-soft mt-0.5">
+                  Click &quot;Sell / Assign Package&quot; to issue a package to a patient.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* DESKTOP TABLE VIEW (>= lg) */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead className="bg-pale/60 border-b border-line text-[11px] font-bold text-ink-soft uppercase tracking-wider">
                 <tr>

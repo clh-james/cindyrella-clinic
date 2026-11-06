@@ -320,8 +320,83 @@ export function LoginActivityClient({
         </div>
       </div>
 
-      {/* Sessions Table */}
-      <div className="bg-white rounded-3xl border border-line shadow-sm overflow-hidden">
+      {/* Mobile Login Activity Cards (< lg) */}
+      <div className="space-y-3 lg:hidden">
+        {paginatedSessions.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-line p-8 text-center text-ink-soft">
+            <XCircle size={32} className="mx-auto text-ink-soft/40 mb-2" />
+            <p className="text-sm font-semibold text-ink">No login activity found</p>
+          </div>
+        ) : (
+          paginatedSessions.map((session) => {
+            const staffInfo = getStaff(session.user_id);
+            const roleName = staffInfo.roles?.name || "Clinic Staff";
+            const durationMins = session.duration_seconds
+              ? Math.round(session.duration_seconds / 60)
+              : null;
+
+            return (
+              <div key={session.id} className="bg-white rounded-2xl border border-line p-4 shadow-2xs space-y-3 text-xs">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-royal/10 text-royal flex items-center justify-center font-bold text-xs shrink-0">
+                      {staffInfo.full_name?.charAt(0) || "U"}
+                    </div>
+                    <div>
+                      <p className="font-bold text-ink text-sm">{staffInfo.full_name}</p>
+                      <p className="text-[10px] uppercase text-ink-soft font-mono">
+                        {roleName} &bull; {getBranchName(session.branch_id)}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      session.status === "ACTIVE"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {session.status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 border-t border-b border-line/60 py-2 font-mono text-[11px]">
+                  <div>
+                    <span className="text-ink-soft text-[10px] font-sans block">Login Time</span>
+                    <span className="font-semibold text-ink">
+                      {new Date(session.login_at).toLocaleString("en-PH", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-ink-soft text-[10px] font-sans block">Duration</span>
+                    <span className="font-semibold text-ink">
+                      {durationMins !== null ? `${durationMins} mins` : "Active"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-ink-soft pt-1">
+                  <div className="flex items-center gap-1.5 truncate">
+                    {getDeviceIcon(session.device_type)}
+                    <span className="truncate">
+                      {session.browser || "Browser"} &bull; {session.operating_system || "OS"}
+                    </span>
+                  </div>
+                  <span className="font-mono text-[10px]">{session.ip_address || "Local"}</span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Sessions Table (Desktop >= lg) */}
+      <div className="hidden lg:block bg-white rounded-3xl border border-line shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
             <thead className="bg-pale/70 text-ink-soft font-semibold border-b border-line">

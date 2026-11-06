@@ -245,8 +245,85 @@ export function ShiftsClient({ branches, initialShifts, currentUserId, currentUs
         </div>
       </div>
 
-      {/* SHIFT HISTORY TABLE */}
-      <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
+      {/* Mobile Shift History Cards (< lg) */}
+      <div className="space-y-3 lg:hidden">
+        <div className="flex items-center justify-between pb-1">
+          <h2 className="text-sm font-bold text-ink flex items-center gap-1.5">
+            <History size={16} className="text-royal" /> Shift History
+          </h2>
+          <span className="text-xs text-ink-soft">{initialShifts.length} shifts</span>
+        </div>
+        {initialShifts.map((shift) => (
+          <div key={shift.id} className="bg-white rounded-xl border border-line p-4 shadow-2xs space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <span className="font-bold text-ink text-sm block">{shift.staff?.full_name}</span>
+                <span className="text-xs text-ink-soft">{shift.branches?.name || "Main Branch"}</span>
+              </div>
+              <div>{getStatusBadge(shift.status)}</div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 border-t border-b border-line/60 py-2.5 text-xs">
+              <div>
+                <span className="text-[10px] text-ink-soft uppercase block">Opened</span>
+                <span className="font-medium text-ink">
+                  {new Date(shift.opened_at).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-ink-soft uppercase block">Closed</span>
+                <span className="font-medium text-ink">
+                  {shift.closed_at
+                    ? new Date(shift.closed_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Still Open"}
+                </span>
+              </div>
+              <div className="pt-1">
+                <span className="text-[10px] text-ink-soft uppercase block">Expected Cash</span>
+                <span className="font-mono font-semibold text-ink">{peso(shift.expected_cash)}</span>
+              </div>
+              <div className="pt-1">
+                <span className="text-[10px] text-ink-soft uppercase block">Actual Physical Cash</span>
+                <span className="font-mono font-bold text-ink">{peso(shift.actual_cash)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-1.5 text-xs font-mono">
+                <span className="text-ink-soft">Variance:</span>
+                {shift.variance === 0 ? (
+                  <span className="text-green-600 font-bold">₱0.00</span>
+                ) : shift.variance ? (
+                  <span className={`font-bold ${shift.variance < 0 ? "text-red-500" : "text-amber-500"}`}>
+                    {peso(shift.variance)}
+                  </span>
+                ) : (
+                  "—"
+                )}
+              </div>
+              <button
+                onClick={() => handleOpenShiftDrawer(shift.id)}
+                className="px-3 py-1.5 rounded-lg bg-royal/10 text-royal hover:bg-royal/20 text-xs font-bold transition-colors touch-manipulation min-h-[36px]"
+              >
+                View Details
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* SHIFT HISTORY TABLE (DESKTOP >= lg) */}
+      <div className="hidden lg:block bg-white rounded-xl border border-line shadow-sm overflow-hidden">
         <div className="p-4 border-b border-line flex items-center justify-between bg-pale/30">
           <h2 className="text-sm font-bold text-ink flex items-center gap-2">
             <History size={18} className="text-royal" /> Shift History

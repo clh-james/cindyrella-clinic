@@ -183,8 +183,79 @@ export function StockMovementsView({ movements, branches }: StockMovementsViewPr
         </div>
       </div>
 
-      {/* Main Movements Table */}
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white shadow-sm">
+      {/* Mobile Card View (< lg) */}
+      <div className="space-y-3 lg:hidden">
+        {paginatedMovements.map((m) => {
+          const labelInfo = MOVEMENT_TYPE_LABELS[m.movement_type] || {
+            label: m.movement_type,
+            color: "text-gray-700 bg-gray-50 border-gray-200",
+          };
+          const delta = m.new_quantity - m.previous_quantity;
+          const branchName =
+            branches.find((b) => b.id === (m.destination_branch_id || m.source_branch_id))?.name || "—";
+
+          return (
+            <div key={m.id} className="rounded-xl border border-line bg-white p-4 shadow-2xs space-y-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <span className="font-mono text-xs font-bold text-ink block">{m.reference_number}</span>
+                  <span className="text-[10px] text-ink-soft">
+                    {new Date(m.created_at).toLocaleString("en-PH", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold border ${labelInfo.color}`}
+                >
+                  {labelInfo.label}
+                </span>
+              </div>
+
+              <div className="border-t border-b border-line/60 py-2 space-y-1 text-xs">
+                <div className="font-semibold text-ink">{m.inventory_items?.name || "Item"}</div>
+                {m.batch_number && (
+                  <div className="text-[10px] font-mono text-ink-soft">Batch: {m.batch_number}</div>
+                )}
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="text-ink-soft">Change:</span>
+                  <span
+                    className={`font-mono font-bold text-sm ${
+                      delta > 0 ? "text-emerald-600" : delta < 0 ? "text-red-600" : "text-ink"
+                    }`}
+                  >
+                    {delta > 0 ? `+${delta}` : delta} {m.unit}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-ink-soft">
+                  <span>Balance:</span>
+                  <span className="font-mono font-medium">
+                    {m.previous_quantity} &rarr; <strong className="text-ink">{m.new_quantity}</strong> {m.unit}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-ink-soft">
+                <span>Branch: <strong className="text-ink font-medium">{branchName}</strong></span>
+                {m.reason && <span className="italic truncate max-w-[150px]">{m.reason}</span>}
+              </div>
+            </div>
+          );
+        })}
+
+        {paginatedMovements.length === 0 && (
+          <div className="py-10 text-center text-sm text-ink-soft bg-white border border-line rounded-xl">
+            <History size={32} className="mx-auto mb-2 text-ink-soft/40" />
+            No stock movements recorded.
+          </div>
+        )}
+      </div>
+
+      {/* Main Movements Table (Desktop >= lg) */}
+      <div className="hidden lg:block overflow-x-auto rounded-2xl border border-line bg-white shadow-sm">
         <table className="w-full min-w-[900px] border-collapse text-left text-xs">
           <thead>
             <tr className="bg-pale/70 text-ink border-b border-line">

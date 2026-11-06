@@ -653,19 +653,19 @@ export function POSClient({
     const isCashSufficient = paymentMethod === "cash" ? change >= 0 : true;
     
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-        <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-          <div className="flex items-center justify-between p-4 border-b border-line">
-            <h2 className="text-lg font-semibold text-ink">Complete Payment</h2>
-            <button onClick={() => setShowPaymentModal(false)} className="p-2 rounded-full hover:bg-pale text-ink-soft">
-              <X size={20} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-sm">
+        <div className="w-full max-w-md max-h-[92dvh] flex flex-col rounded-2xl bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-line shrink-0">
+            <h2 className="text-base sm:text-lg font-semibold text-ink">Complete Payment</h2>
+            <button onClick={() => setShowPaymentModal(false)} className="p-1.5 rounded-full hover:bg-pale text-ink-soft">
+              <X size={18} />
             </button>
           </div>
           
-          <div className="p-6 bg-pale/30">
-            <div className="text-center mb-5">
-              <p className="text-ink-soft font-medium mb-1">Total Amount Due</p>
-              <p className="text-4xl font-bold font-mono text-royal">₱{total.toLocaleString()}</p>
+          <div className="p-4 sm:p-6 bg-pale/30 overflow-y-auto flex-1">
+            <div className="text-center mb-4 sm:mb-5">
+              <p className="text-ink-soft font-medium text-xs sm:text-sm mb-1">Total Amount Due</p>
+              <p className="text-3xl sm:text-4xl font-bold font-mono text-royal">₱{total.toLocaleString()}</p>
             </div>
 
             {/* Cashier & Attending Staff Attribution */}
@@ -842,22 +842,23 @@ export function POSClient({
   const [showMobileCart, setShowMobileCart] = useState(false);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] md:h-[calc(100vh-80px)] overflow-hidden bg-[#f4f7f9] -mx-4 -my-6 sm:-mx-6 sm:-my-8 md:-mx-10 md:-my-10 relative">
+    <div className="flex flex-col h-[calc(100dvh-56px)] md:h-[calc(100vh-80px)] overflow-hidden bg-[#f4f7f9] -mx-3 -my-3 sm:-mx-5 sm:-my-5 md:-mx-6 md:-my-6 lg:-mx-8 lg:-my-8 xl:-mx-10 xl:-my-10 relative">
       
       {/* HEADER TOP BAR */}
-      <div className="h-16 bg-white border-b border-line px-4 sm:px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
-        <div>
-          <h1 className="font-serif text-lg sm:text-xl font-semibold text-ink flex items-center gap-2">
-            Point of Sale
+      <div className="h-14 sm:h-16 bg-white border-b border-line px-2.5 sm:px-4 md:px-6 flex items-center justify-between shrink-0 shadow-xs z-10 gap-1.5 sm:gap-3">
+        <div className="min-w-0">
+          <h1 className="font-serif text-base sm:text-lg md:text-xl font-semibold text-ink flex items-center gap-1.5 truncate">
+            <span className="hidden sm:inline">Point of Sale</span>
+            <span className="sm:hidden">POS</span>
           </h1>
-          <p className="hidden sm:block text-xs text-ink-soft">Create and manage transactions</p>
+          <p className="hidden md:block text-xs text-ink-soft">Create and manage transactions</p>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
           {/* Bluetooth Thermal Printer Connect / Status Button */}
           <button 
             onClick={handleConnectPrinter}
             disabled={isPrinterConnecting}
-            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 border rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-sm ${
+            className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 border rounded-lg text-xs font-medium transition-colors shadow-xs ${
               printerName
                 ? "bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100"
                 : "bg-white border-line text-ink-soft hover:text-royal hover:border-royal hover:bg-pale"
@@ -865,43 +866,44 @@ export function POSClient({
             title={printerName ? `Thermal Printer connected: ${printerName}` : "Pair Bluetooth Thermal Printer (PT-210)"}
           >
             {isPrinterConnecting ? (
-              <Loader2 size={16} className="animate-spin text-royal" />
+              <Loader2 size={15} className="animate-spin text-royal" />
             ) : (
-              <Bluetooth size={16} className={printerName ? "text-emerald-600 animate-pulse" : "text-ink-soft"} />
+              <Bluetooth size={15} className={printerName ? "text-emerald-600 animate-pulse" : "text-ink-soft"} />
             )}
-            <span className="hidden md:inline font-mono text-xs">{printerName ? printerName : "PT-210 Printer"}</span>
+            <span className="hidden lg:inline font-mono text-xs">{printerName ? printerName : "PT-210 Printer"}</span>
           </button>
 
           <button 
             onClick={handleOpenHistory}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-line rounded-lg text-sm font-medium text-ink-soft hover:text-royal hover:border-royal hover:bg-pale transition-colors shadow-sm"
+            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-line rounded-lg text-xs font-medium text-ink-soft hover:text-royal hover:border-royal hover:bg-pale transition-colors shadow-xs"
+            title="Recent Sales History"
           >
-            <History size={16} />
+            <History size={15} />
             <span className="hidden sm:inline">History</span>
           </button>
 
           <Link
             href="/admin/reports/financials"
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-line rounded-lg text-sm font-medium text-ink-soft hover:text-royal hover:border-royal hover:bg-pale transition-colors shadow-sm"
+            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-line rounded-lg text-xs font-medium text-ink-soft hover:text-royal hover:border-royal hover:bg-pale transition-colors shadow-xs"
             title="View Income Statement & Balance Sheet"
           >
-            <Scale size={16} />
+            <Scale size={15} />
             <span className="hidden md:inline">Financials</span>
           </Link>
           
-          <div className="flex flex-col items-end border-l border-line pl-2 sm:pl-4">
-            <div className="text-xs sm:text-sm font-medium text-ink-soft flex items-center gap-2">
-              <span className="hidden sm:inline">Branch:</span>
+          <div className="flex flex-col items-end border-l border-line pl-1.5 sm:pl-3">
+            <div className="text-xs font-medium text-ink-soft flex items-center gap-1">
+              <span className="hidden lg:inline">Branch:</span>
               <select 
                 value={selectedBranch} 
                 onChange={e => setSelectedBranch(e.target.value)}
-                className="bg-pale border border-line rounded px-1 sm:px-2 py-1 text-xs font-semibold text-ink outline-none"
+                className="bg-pale border border-line rounded px-1.5 py-1 text-xs font-semibold text-ink outline-none max-w-[95px] xs:max-w-[130px] sm:max-w-[180px] truncate"
               >
                 {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
-            <div className="hidden sm:block text-xs text-ink-soft/70">
-              {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            <div className="hidden xl:block text-[10px] text-ink-soft/70">
+              {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </div>
           </div>
         </div>
@@ -970,8 +972,8 @@ export function POSClient({
           </div>
 
           {/* Catalog Grid */}
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-24 lg:pb-6 min-h-0">
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+          <div className="flex-1 overflow-y-auto px-3 sm:px-6 pb-28 lg:pb-6 min-h-0">
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
               
               {mode === "walkin" && filteredTreatments.map(t => (
                 <button 
@@ -1056,28 +1058,28 @@ export function POSClient({
           </div>
         </div>
 
-        {/* MOBILE STICKY CART BUTTON */}
-        <div className="lg:hidden absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-line shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-20 pb-safe">
+        {/* MOBILE STICKY CART BUTTON (Positioned cleanly above mobile bottom nav) */}
+        <div className="lg:hidden absolute bottom-14 md:bottom-0 left-0 right-0 p-3 sm:p-4 bg-white/95 backdrop-blur-md border-t border-line shadow-[0_-8px_20px_rgba(0,0,0,0.08)] z-30 pb-safe">
           <button 
             onClick={() => setShowMobileCart(true)}
-            className="w-full h-14 rounded-xl bg-royal text-white font-semibold flex items-center justify-between px-6 shadow-md"
+            className="w-full h-12 sm:h-14 rounded-xl bg-royal text-white font-semibold flex items-center justify-between px-4 sm:px-6 shadow-md hover:bg-royal-deep transition-all active:scale-[0.99] touch-manipulation"
           >
             <div className="flex items-center gap-2">
-              <ShoppingCart size={20} />
-              <span>{cart.reduce((s,i) => s + i.quantity, 0)} items</span>
+              <ShoppingCart size={18} />
+              <span className="text-sm font-medium">{cart.reduce((s,i) => s + i.quantity, 0)} items in Cart</span>
             </div>
-            <span className="font-mono font-bold">₱{total.toLocaleString()}</span>
+            <span className="font-mono font-bold text-sm sm:text-base">₱{total.toLocaleString()}</span>
           </button>
         </div>
 
         {/* RIGHT PANEL: CURRENT ORDER (Desktop side panel, Mobile bottom sheet/drawer) */}
         <div className={`
-          fixed inset-0 z-40 bg-black/50 transition-opacity lg:hidden
+          fixed inset-0 z-40 bg-black/60 backdrop-blur-xs transition-opacity lg:hidden
           ${showMobileCart ? 'opacity-100' : 'opacity-0 pointer-events-none'}
         `} onClick={() => setShowMobileCart(false)}></div>
         
         <div className={`
-          fixed lg:static inset-y-0 right-0 z-50 w-full sm:w-[420px] lg:w-[420px] 
+          fixed lg:static inset-y-0 right-0 z-50 w-full sm:w-[420px] lg:w-[400px] xl:w-[440px]
           bg-white lg:border-l border-line shadow-2xl lg:shadow-[-4px_0_24px_rgba(0,0,0,0.02)] 
           flex flex-col shrink-0 transition-transform duration-300 ease-in-out
           ${showMobileCart ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
@@ -1499,33 +1501,33 @@ export function POSClient({
 
       {/* History Modal */}
       {showHistoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between p-6 border-b border-line shrink-0 bg-white">
-              <h2 className="font-serif text-xl font-semibold text-ink flex items-center gap-2">
-                <ReceiptText className="text-royal" size={24} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-3 sm:p-4">
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-line shrink-0 bg-white">
+              <h2 className="font-serif text-lg sm:text-xl font-semibold text-ink flex items-center gap-2">
+                <ReceiptText className="text-royal" size={22} />
                 Recent Transactions
               </h2>
               <button onClick={() => setShowHistoryModal(false)} className="p-2 -mr-2 text-ink-soft hover:text-ink hover:bg-pale rounded-full transition-colors">
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
             
-            <div className="overflow-y-auto p-6 bg-[#f4f7f9] flex-1 min-h-[300px]">
+            <div className="overflow-y-auto p-3 sm:p-6 bg-[#f4f7f9] flex-1 min-h-[250px]">
               {historyLoading ? (
-                <div className="flex flex-col items-center justify-center h-full text-ink-soft">
+                <div className="flex flex-col items-center justify-center h-full text-ink-soft py-12">
                   <Loader2 className="animate-spin mb-4 text-royal" size={32} />
                   <p className="text-sm">Loading transactions...</p>
                 </div>
               ) : transactions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-ink-soft bg-white rounded-xl border border-line">
+                <div className="flex flex-col items-center justify-center h-full text-ink-soft bg-white rounded-xl border border-line p-8">
                   <ReceiptText className="mx-auto mb-3 opacity-20" size={48} />
                   <p className="text-sm">No recent transactions found.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {transactions.map(t => (
-                    <div key={t.reference_number} className="bg-white border border-line rounded-xl p-4 flex items-center justify-between shadow-sm">
+                    <div key={t.reference_number} className="bg-white border border-line rounded-xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
                       <div>
                         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                           <span className="font-mono text-sm font-semibold text-ink bg-pale px-2 py-0.5 rounded border border-line">
@@ -1584,13 +1586,13 @@ export function POSClient({
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="font-mono font-bold text-lg text-ink bg-pale px-3 py-1 rounded-lg">
+                      <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-line/50 shrink-0">
+                        <div className="font-mono font-bold text-base sm:text-lg text-ink bg-pale px-2.5 py-1 rounded-lg">
                           ₱{t.amount.toLocaleString()}
                         </div>
                         <button
                           onClick={() => window.open(`/admin/receipt/${t.reference_number}`, '_blank')}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-line rounded-lg text-ink hover:text-royal hover:border-royal hover:bg-pale transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-line rounded-lg text-ink hover:text-royal hover:border-royal hover:bg-pale transition-colors touch-manipulation min-h-[36px]"
                         >
                           <Printer size={14} />
                           Print

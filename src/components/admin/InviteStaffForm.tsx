@@ -31,41 +31,43 @@ export function InviteStaffForm({
 
   return (
     <div>
-      <form id="invite-staff-form" action={action} className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium text-ink">Full name</span>
+      <form id="invite-staff-form" action={action} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+        <label className="flex flex-col gap-1.5 text-xs sm:text-sm">
+          <span className="font-semibold text-ink">Full name</span>
           <input
             name="full_name"
             required
-            className="rounded-lg border border-line px-3 py-2 text-ink outline-none focus:border-royal"
+            placeholder="e.g. Maria Santos"
+            className="w-full rounded-xl border border-line px-3 py-2 text-ink outline-none focus:border-royal text-xs sm:text-sm shadow-2xs"
           />
         </label>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium text-ink">Email</span>
+        <label className="flex flex-col gap-1.5 text-xs sm:text-sm">
+          <span className="font-semibold text-ink">Email</span>
           <input
             name="email"
             type="email"
             required
-            className="rounded-lg border border-line px-3 py-2 text-ink outline-none focus:border-royal"
+            placeholder="maria@cindyrellaclinic.com"
+            className="w-full rounded-xl border border-line px-3 py-2 text-ink outline-none focus:border-royal text-xs sm:text-sm shadow-2xs"
           />
         </label>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium text-ink">Role</span>
+        <label className="flex flex-col gap-1.5 text-xs sm:text-sm">
+          <span className="font-semibold text-ink">Role</span>
           <select
             name="role_id"
             required
-            className="rounded-lg border border-line px-3 py-2 text-ink outline-none focus:border-royal capitalize"
+            className="w-full rounded-xl border border-line px-3 py-2 text-ink outline-none focus:border-royal capitalize text-xs sm:text-sm shadow-2xs bg-white"
           >
             {roles.map((r) => (
               <option key={r.id} value={r.id}>{r.name.replace("_", " ")}</option>
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium text-ink">Branch</span>
+        <label className="flex flex-col gap-1.5 text-xs sm:text-sm">
+          <span className="font-semibold text-ink">Branch</span>
           <select
             name="branch_id"
-            className="rounded-lg border border-line px-3 py-2 text-ink outline-none focus:border-royal"
+            className="w-full rounded-xl border border-line px-3 py-2 text-ink outline-none focus:border-royal text-xs sm:text-sm shadow-2xs bg-white"
           >
             <option value="">Unassigned</option>
             {branches.map((b) => (
@@ -75,9 +77,9 @@ export function InviteStaffForm({
         </label>
         <button
           disabled={loading}
-          className="rounded-full bg-royal px-5 py-2.5 text-sm font-medium text-white hover:bg-royal-deep disabled:opacity-50"
+          className="w-full rounded-xl bg-royal px-5 py-2.5 text-xs sm:text-sm font-semibold text-white hover:bg-royal-deep disabled:opacity-50 min-h-[40px] touch-manipulation transition-colors shadow-sm"
         >
-          {loading ? "Adding…" : "Add staff"}
+          {loading ? "Adding…" : "Add Staff"}
         </button>
       </form>
 

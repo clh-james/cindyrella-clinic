@@ -149,10 +149,10 @@ export default function MembershipsClient({
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-line">
+      <div className="flex items-center gap-1 sm:gap-2 border-b border-line overflow-x-auto scrollbar-hide -mx-1 px-1 touch-scroll">
         <button
           onClick={() => setActiveTab("members")}
-          className={`flex items-center gap-2 border-b-2 py-3 px-4 text-sm font-semibold transition-all ${
+          className={`flex items-center gap-1.5 sm:gap-2 border-b-2 py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 whitespace-nowrap ${
             activeTab === "members"
               ? "border-royal text-royal"
               : "border-transparent text-ink-soft hover:text-ink"
@@ -164,14 +164,14 @@ export default function MembershipsClient({
 
         <button
           onClick={() => setActiveTab("history")}
-          className={`flex items-center gap-2 border-b-2 py-3 px-4 text-sm font-semibold transition-all ${
+          className={`flex items-center gap-1.5 sm:gap-2 border-b-2 py-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 whitespace-nowrap ${
             activeTab === "history"
               ? "border-royal text-royal"
               : "border-transparent text-ink-soft hover:text-ink"
           }`}
         >
           <History className="h-4 w-4" />
-          Points Ledger & Audit History ({recentAuditLogs.length})
+          Points Ledger & History ({recentAuditLogs.length})
         </button>
       </div>
 

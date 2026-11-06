@@ -242,12 +242,36 @@ export function ReportsClient({ appointments, sales, staff }: { appointments: an
 
       {/* Staff Performance Table */}
       <div className="bg-white rounded-2xl border border-line shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-line">
+        <div className="p-4 sm:p-6 border-b border-line flex items-center justify-between">
           <h2 className="text-sm font-bold text-ink flex items-center gap-2">
             <UserRoundCog size={16} className="text-royal" /> Staff Retail Sales Performance
           </h2>
+          <span className="text-xs text-ink-soft">{stats.staffPerformance.length} staff</span>
         </div>
-        <div className="overflow-x-auto">
+
+        {/* Mobile View (< lg) */}
+        <div className="p-3 sm:p-4 space-y-2.5 lg:hidden">
+          {stats.staffPerformance.length === 0 ? (
+            <div className="py-8 text-center text-xs text-ink-soft">
+              No retail sales recorded by staff this month.
+            </div>
+          ) : (
+            stats.staffPerformance.map((staff, idx) => (
+              <div key={idx} className="bg-pale/30 border border-line rounded-xl p-3 flex items-center justify-between gap-3 text-xs">
+                <div>
+                  <span className="font-bold text-ink text-sm block">{staff.name}</span>
+                  <span className="text-[11px] text-ink-soft capitalize">{staff.role} • {staff.count} sales</span>
+                </div>
+                <div className="font-mono font-bold text-ink text-sm sm:text-base shrink-0">
+                  {peso(staff.total)}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table View (>= lg) */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-pale text-ink-soft font-semibold text-xs uppercase tracking-wider">
               <tr>

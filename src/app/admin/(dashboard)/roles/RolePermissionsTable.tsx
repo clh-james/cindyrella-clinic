@@ -34,19 +34,21 @@ export function RolePermissionsTable({ roles, permissions }: RolePermissionsTabl
   };
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-line bg-white shadow-sm relative">
+    <div className="overflow-x-auto touch-scroll rounded-2xl border border-line bg-white shadow-sm relative">
       {isPending && (
         <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-royal border-t-transparent"></div>
         </div>
       )}
       
-      <table className="w-full text-left text-sm">
-        <thead className="bg-[#f4f7f9] text-ink-soft">
+      <table className="w-full text-left text-xs sm:text-sm">
+        <thead className="bg-[#f4f7f9] text-ink-soft sticky top-0 z-10">
           <tr>
-            <th className="px-6 py-4 font-semibold">Permission Module</th>
+            <th className="px-4 sm:px-6 py-3.5 sm:py-4 font-semibold sticky left-0 bg-[#f4f7f9] z-20 shadow-[2px_0_5px_rgba(0,0,0,0.03)] min-w-[200px]">
+              Permission Module
+            </th>
             {roles.map(r => (
-              <th key={r.id} className="px-4 py-4 text-center font-semibold capitalize border-l border-line/50">
+              <th key={r.id} className="px-3 sm:px-4 py-3.5 sm:py-4 text-center font-semibold capitalize border-l border-line/50 min-w-[100px]">
                 {r.name.replace('_', ' ')}
               </th>
             ))}
@@ -56,15 +58,15 @@ export function RolePermissionsTable({ roles, permissions }: RolePermissionsTabl
           {Object.entries(modules).map(([moduleName, perms]) => (
             <React.Fragment key={moduleName}>
               <tr className="bg-pale/30">
-                <td colSpan={roles.length + 1} className="px-6 py-2 font-mono text-xs font-bold uppercase tracking-wider text-royal">
+                <td colSpan={roles.length + 1} className="px-4 sm:px-6 py-2 font-mono text-xs font-bold uppercase tracking-wider text-royal sticky left-0">
                   {moduleName}
                 </td>
               </tr>
               {perms.map((p) => (
                 <tr key={p.id} className="hover:bg-pale/50 transition-colors">
-                  <td className="px-6 py-3">
+                  <td className="px-4 sm:px-6 py-3 sticky left-0 bg-white shadow-[2px_0_5px_rgba(0,0,0,0.03)] z-10">
                     <p className="font-medium text-ink">{p.name}</p>
-                    <p className="text-xs text-ink-soft font-mono mt-0.5">{p.key}</p>
+                    <p className="text-[11px] text-ink-soft font-mono mt-0.5">{p.key}</p>
                   </td>
                   {roles.map((r) => {
                     const hasPerm = r.role_permissions.some((rp) => rp.permission_id === p.id);

@@ -53,7 +53,85 @@ export function AuditLogsClient({ initialLogs, staff, branches }: { initialLogs:
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-line shadow-sm overflow-hidden">
+      {/* Mobile Audit Log Cards (< lg) */}
+      <div className="space-y-3 lg:hidden">
+        {filteredLogs.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-line p-8 text-center text-ink-soft">
+            <ScrollText size={32} className="mx-auto text-ink-soft/40 mb-2" />
+            <p className="text-sm font-semibold text-ink">No audit logs found</p>
+          </div>
+        ) : (
+          filteredLogs.map((log) => {
+            const isExpanded = expandedRows[log.id];
+
+            return (
+              <div key={log.id} className="bg-white rounded-2xl border border-line p-4 shadow-2xs space-y-2.5 text-xs">
+                <div className="flex items-start justify-between gap-2">
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      log.action?.includes("CREATE") || log.action?.includes("INSERT")
+                        ? "bg-green-100 text-green-700"
+                        : log.action?.includes("UPDATE") || log.action?.includes("EDIT")
+                        ? "bg-amber-100 text-amber-700"
+                        : log.action?.includes("DELETE") || log.action?.includes("REMOVE")
+                        ? "bg-red-100 text-red-700"
+                        : "bg-blue-100 text-blue-700"
+                    }`}
+                  >
+                    {log.action || "UNKNOWN"}
+                  </span>
+                  <span className="text-[10px] text-ink-soft font-mono">
+                    {new Date(log.created_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+
+                <div className="border-t border-b border-line/60 py-2 space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-ink-soft">User:</span>
+                    <span className="font-semibold text-ink">{getStaffName(log.user_id)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-ink-soft">Resource:</span>
+                    <span className="font-mono text-ink font-medium">
+                      {log.resource_type || "N/A"}{" "}
+                      {log.resource_id && `#${log.resource_id.substring(0, 8)}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-ink-soft">Branch:</span>
+                    <span className="text-ink">{getBranchName(log.branch_id)}</span>
+                  </div>
+                </div>
+
+                {log.metadata && Object.keys(log.metadata).length > 0 && (
+                  <div>
+                    <button
+                      onClick={() => toggleRow(log.id)}
+                      className="text-royal text-xs font-semibold flex items-center gap-1 hover:underline pt-1"
+                    >
+                      {isExpanded ? "Hide Metadata" : "Show Metadata Details"}
+                      {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+                    {isExpanded && (
+                      <div className="mt-2 bg-pale/50 p-2.5 rounded-xl border border-line text-[11px] font-mono text-ink overflow-x-auto">
+                        <pre className="whitespace-pre-wrap">{JSON.stringify(log.metadata, null, 2)}</pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Audit Log Table (>= lg) */}
+      <div className="hidden lg:block bg-white rounded-2xl border border-line shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-pale text-ink-soft font-semibold text-xs uppercase tracking-wider">

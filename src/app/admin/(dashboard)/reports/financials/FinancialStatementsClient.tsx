@@ -624,41 +624,41 @@ export function FinancialStatementsClient({
       </div>
 
       {/* TAB NAVIGATION (No-print) */}
-      <div className="border-b border-line flex items-center justify-between no-print">
-        <div className="flex space-x-2">
+      <div className="border-b border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2 no-print">
+        <div className="flex space-x-1 sm:space-x-2 overflow-x-auto scrollbar-hide -mx-1 px-1 touch-scroll">
           <button
             onClick={() => setActiveTab("income_statement")}
-            className={`flex items-center gap-2 py-3 px-4 font-semibold text-sm border-b-2 transition-all ${
+            className={`flex items-center gap-1.5 sm:gap-2 py-3 px-3 sm:px-4 font-semibold text-xs sm:text-sm border-b-2 transition-all shrink-0 whitespace-nowrap ${
               activeTab === "income_statement"
                 ? "border-royal text-royal font-bold"
                 : "border-transparent text-ink-soft hover:text-ink hover:border-line"
             }`}
           >
-            <TrendingUp size={16} /> Income Statement (Profit & Loss)
+            <TrendingUp size={15} /> Income Statement (P&L)
           </button>
           <button
             onClick={() => setActiveTab("balance_sheet")}
-            className={`flex items-center gap-2 py-3 px-4 font-semibold text-sm border-b-2 transition-all ${
+            className={`flex items-center gap-1.5 sm:gap-2 py-3 px-3 sm:px-4 font-semibold text-xs sm:text-sm border-b-2 transition-all shrink-0 whitespace-nowrap ${
               activeTab === "balance_sheet"
                 ? "border-royal text-royal font-bold"
                 : "border-transparent text-ink-soft hover:text-ink hover:border-line"
             }`}
           >
-            <Scale size={16} /> Statement of Financial Position (Balance Sheet)
+            <Scale size={15} /> Balance Sheet
           </button>
           <button
             onClick={() => setActiveTab("ratios")}
-            className={`flex items-center gap-2 py-3 px-4 font-semibold text-sm border-b-2 transition-all ${
+            className={`flex items-center gap-1.5 sm:gap-2 py-3 px-3 sm:px-4 font-semibold text-xs sm:text-sm border-b-2 transition-all shrink-0 whitespace-nowrap ${
               activeTab === "ratios"
                 ? "border-royal text-royal font-bold"
                 : "border-transparent text-ink-soft hover:text-ink hover:border-line"
             }`}
           >
-            <ShieldCheck size={16} /> Financial Health & Key Ratios
+            <ShieldCheck size={15} /> Key Ratios & Health
           </button>
         </div>
 
-        <div className="text-xs text-ink-soft">
+        <div className="text-[11px] sm:text-xs text-ink-soft pb-2 sm:pb-0">
           Scope: <strong className="text-ink">{income.branch.name}</strong>
         </div>
       </div>

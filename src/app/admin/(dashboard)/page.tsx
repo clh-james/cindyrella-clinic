@@ -119,12 +119,13 @@ export default async function AdminOverview() {
       </div>
 
       <div className="mt-6 sm:mt-8 grid gap-4 sm:gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <div className="rounded-xl sm:rounded-2xl border border-line p-4 sm:p-6 bg-white shadow-sm overflow-hidden">
-          <h2 className="text-sm font-semibold text-ink">Revenue, last 7 days</h2>
-          <div className="mt-4 -ml-2 sm:ml-0 overflow-x-auto">
-            <div className="min-w-[400px]">
-              <RevenueChart data={revenueByDay} />
-            </div>
+        <div className="rounded-xl sm:rounded-2xl border border-line p-4 sm:p-6 bg-white shadow-sm overflow-hidden flex flex-col justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-ink">Revenue, last 7 days</h2>
+            <p className="text-xs text-ink-soft mt-0.5">Daily combined appointments and POS collections</p>
+          </div>
+          <div className="mt-4 w-full h-[220px]">
+            <RevenueChart data={revenueByDay} />
           </div>
         </div>
 

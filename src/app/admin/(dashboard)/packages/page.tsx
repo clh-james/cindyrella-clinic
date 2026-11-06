@@ -51,7 +51,6 @@ export default async function PackagesPage() {
       }));
 
       templates = treatments
-        .filter((t) => t.five_plus_one_price || t.ten_plus_two_price || t.name.toLowerCase().includes("penile"))
         .map((t) => {
           const isPenileEnhancement = t.name.toLowerCase().includes("penile enhancement") && !t.name.toLowerCase().includes("medication");
           const presetOptions = isPenileEnhancement
@@ -73,7 +72,8 @@ export default async function PackagesPage() {
             ten_plus_two_price: t.ten_plus_two_price ? Number(t.ten_plus_two_price) : null,
             preset_options: presetOptions,
           };
-        });
+        })
+        .filter((t) => t.five_plus_one_price || t.ten_plus_two_price || (t.preset_options && t.preset_options.length > 0));
     }
   } catch (err) {
     console.error("Failed to load package templates:", err);

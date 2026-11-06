@@ -185,10 +185,16 @@ export function AdminShell({
     };
   }, []);
 
-  // Load preferences from localStorage
+  // Load preferences from localStorage or auto-collapse on tablet
   useEffect(() => {
     const savedSidebar = localStorage.getItem("cindyrella_sidebar_collapsed");
-    if (savedSidebar === "true") setIsDesktopCollapsed(true);
+    if (savedSidebar !== null) {
+      if (savedSidebar === "true") setIsDesktopCollapsed(true);
+      else setIsDesktopCollapsed(false);
+    } else if (window.innerWidth < 1024) {
+      // Auto-collapse sidebar on tablet (768px - 1023px) to maximize workspace
+      setIsDesktopCollapsed(true);
+    }
     
     const savedGroups = localStorage.getItem("cindyrella_sidebar_groups");
     if (savedGroups) setCollapsedGroups(JSON.parse(savedGroups));
@@ -358,7 +364,13 @@ export function AdminShell({
                     <Can key={item.name} permission={item.permission}>
                       <Link
                         href={item.unimplemented ? "#" : item.href}
-                        onClick={(e) => { if (item.unimplemented) e.preventDefault(); }}
+                        onClick={(e) => { 
+                          if (item.unimplemented) {
+                            e.preventDefault(); 
+                          } else if (isMobile) {
+                            setIsMobileOpen(false);
+                          }
+                        }}
                         title={collapsed ? item.name : undefined}
                         className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-royal ${
                           active 
@@ -578,25 +590,29 @@ export function AdminShell({
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-y-auto">
         {/* Mobile Header (Visible only on small screens) */}
-        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-line bg-white/80 backdrop-blur-md px-4 shadow-sm md:hidden">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setIsMobileOpen(true)} className="p-2 -ml-2 text-ink-soft hover:text-ink hover:bg-pale rounded-full transition-colors">
-              <Menu size={24} />
+        <header className="sticky top-0 z-20 flex h-14 sm:h-16 shrink-0 items-center justify-between border-b border-line bg-white/90 backdrop-blur-md px-3 sm:px-4 shadow-sm md:hidden">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button 
+              onClick={() => setIsMobileOpen(true)} 
+              className="p-2 -ml-1 text-ink-soft hover:text-ink hover:bg-pale rounded-full transition-colors touch-manipulation min-w-[40px] min-h-[40px] flex items-center justify-center"
+              aria-label="Open Navigation Menu"
+            >
+              <Menu size={22} />
             </button>
             <div className="flex items-center gap-2">
-              <Image src="/logo.png" alt="Cindyrella Logo" width={28} height={28} className="rounded-full" />
-              <span className="font-bold text-ink text-lg tracking-tight">CINDYRELLA</span>
+              <Image src="/logo.png" alt="Cindyrella Logo" width={26} height={26} className="rounded-full shrink-0" />
+              <span className="font-bold text-ink text-base sm:text-lg tracking-tight truncate max-w-[170px] sm:max-w-none">CINDYRELLA</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <NotificationCenter initialNotifications={notifications} />
           </div>
         </header>
 
         {/* Desktop Header Bar with In-App Notifications */}
-        <header className="hidden md:flex h-12 shrink-0 items-center justify-between border-b border-line/60 bg-white/60 backdrop-blur-md px-8 sticky top-0 z-20">
+        <header className="hidden md:flex h-12 shrink-0 items-center justify-between border-b border-line/60 bg-white/60 backdrop-blur-md px-6 lg:px-8 sticky top-0 z-20">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold text-ink-soft uppercase tracking-wider">
               Operations & Facility Overheads
@@ -608,13 +624,13 @@ export function AdminShell({
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 p-4 sm:p-6 md:p-8 lg:p-10 w-full max-w-[1600px] mx-auto pb-24 md:pb-10">
+        <div className="flex-1 p-3 sm:p-5 md:p-6 lg:p-8 xl:p-10 w-full max-w-[1600px] mx-auto pb-28 md:pb-10">
           {children}
         </div>
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-line pb-safe md:hidden flex items-center justify-between px-2 pt-2 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)]">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-line pb-safe md:hidden flex items-center justify-around px-1 pt-1.5 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.08)]">
         {[
           { name: "Home", href: "/admin", icon: LayoutDashboard },
           { name: "POS", href: "/admin/pos", icon: CreditCard },
@@ -627,24 +643,25 @@ export function AdminShell({
             <Link 
               key={item.name} 
               href={item.href}
-              className={`flex flex-col items-center justify-center w-1/5 py-1 ${active ? 'text-royal' : 'text-ink-soft hover:text-ink'}`}
+              className={`flex flex-col items-center justify-center flex-1 py-1 min-h-[44px] transition-colors ${active ? 'text-royal font-bold' : 'text-ink-soft hover:text-ink'}`}
             >
-              <div className={`p-1.5 rounded-xl mb-1 ${active ? 'bg-royal/10' : ''}`}>
-                <Icon size={20} className={active ? 'fill-royal/20' : ''} />
+              <div className={`p-1 rounded-xl mb-0.5 transition-colors ${active ? 'bg-royal/10 text-royal' : ''}`}>
+                <Icon size={18} className={active ? 'fill-royal/20' : ''} />
               </div>
-              <span className={`text-[9px] font-semibold tracking-wide ${active ? 'text-royal' : ''}`}>{item.name}</span>
+              <span className={`text-[10px] tracking-tight leading-none ${active ? 'text-royal font-bold' : 'text-ink-soft'}`}>{item.name}</span>
             </Link>
           );
         })}
         
         <button 
           onClick={() => setIsMobileOpen(true)}
-          className="flex flex-col items-center justify-center w-1/5 py-1 text-ink-soft hover:text-ink"
+          className="flex flex-col items-center justify-center flex-1 py-1 min-h-[44px] text-ink-soft hover:text-ink transition-colors"
+          aria-label="Open More Menu"
         >
-          <div className="p-1.5 rounded-xl mb-1">
-            <Menu size={20} />
+          <div className="p-1 rounded-xl mb-0.5">
+            <Menu size={18} />
           </div>
-          <span className="text-[9px] font-semibold tracking-wide">More</span>
+          <span className="text-[10px] tracking-tight leading-none">More</span>
         </button>
       </div>
 

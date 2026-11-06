@@ -145,7 +145,7 @@ export function PayrollClient({
       </div>
 
       {/* 9 Tab Navigation Buttons */}
-      <div className="overflow-x-auto pb-1 scrollbar-none">
+      <div className="overflow-x-auto pb-1 scrollbar-hide touch-scroll -mx-1 px-1">
         <div className="flex items-center gap-1.5 min-w-max rounded-2xl border border-line bg-white p-1.5 shadow-xs">
           {tabs.map((tab) => {
             const Icon = tab.icon;

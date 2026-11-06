@@ -4,7 +4,7 @@
 import { useState, useTransition, useMemo, useEffect } from "react";
 import { voidTransaction } from "./actions";
 import { setAppointmentHandler } from "@/app/admin/actions";
-import { Search, ReceiptText, Ban, AlertTriangle, UserCheck, User, Loader2, Calendar, Filter, X } from "lucide-react";
+import { Search, ReceiptText, Ban, AlertTriangle, UserCheck, User, Loader2, Calendar, Filter, X, Printer } from "lucide-react";
 import toast from "react-hot-toast";
 
 const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
@@ -297,77 +297,213 @@ export function TransactionsClient({
           <p className="text-sm text-ink-soft mt-1">View, refund, or void sales and bookings.</p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2.5 w-full lg:w-auto">
           {/* Text Search Bar (Ref, Customer, Treatment, Date, Method) */}
-          <div className="relative flex-1 min-w-[240px] sm:w-72">
+          <div className="relative w-full sm:w-64 md:w-72">
             <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
             <input
               type="text"
-              placeholder="Search reference, customer, treatment, date, method..."
+              placeholder="Search reference, customer, treatment..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 pr-4 py-2 bg-white border border-line rounded-xl text-xs sm:text-sm focus:outline-none focus:border-royal focus:ring-1 focus:ring-royal w-full shadow-sm placeholder:text-ink-soft/60"
             />
           </div>
 
-          {/* Quick Date Picker Filter */}
-          <div className="relative flex items-center">
-            <Calendar size={14} className="absolute left-3 text-ink-soft pointer-events-none" />
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="pl-8 pr-2 py-2 bg-white border border-line rounded-xl text-xs font-medium text-ink focus:outline-none focus:border-royal focus:ring-1 focus:ring-royal shadow-sm cursor-pointer"
-              title="Filter by exact date"
-            />
-            {selectedDate && (
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {/* Quick Date Picker Filter */}
+            <div className="relative flex items-center flex-1 sm:flex-initial">
+              <Calendar size={14} className="absolute left-3 text-ink-soft pointer-events-none" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="pl-8 pr-2 py-2 bg-white border border-line rounded-xl text-xs font-medium text-ink focus:outline-none focus:border-royal focus:ring-1 focus:ring-royal shadow-sm cursor-pointer w-full sm:w-auto"
+                title="Filter by exact date"
+              />
+              {selectedDate && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate("")}
+                  className="ml-1 text-ink-soft hover:text-red-500 p-1 transition-colors"
+                  title="Clear date filter"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Payment Method Dropdown Filter */}
+            <div className="relative flex items-center flex-1 sm:flex-initial">
+              <Filter size={13} className="absolute left-3 text-ink-soft pointer-events-none" />
+              <select
+                value={selectedMethod}
+                onChange={(e) => setSelectedMethod(e.target.value)}
+                className="pl-7 pr-3 py-2 bg-white border border-line rounded-xl text-xs font-medium text-ink focus:outline-none focus:border-royal focus:ring-1 focus:ring-royal shadow-sm cursor-pointer w-full sm:w-auto"
+              >
+                <option value="all">All Methods</option>
+                <option value="cash">Cash</option>
+                <option value="card">Card / Credit Card</option>
+                <option value="maya">Maya</option>
+                <option value="gcash">GCash</option>
+                <option value="bank_transfer">Bank Transfer</option>
+              </select>
+            </div>
+
+            {/* Reset All Filters Button */}
+            {(searchTerm || selectedDate || selectedMethod !== "all") && (
               <button
                 type="button"
-                onClick={() => setSelectedDate("")}
-                className="ml-1 text-ink-soft hover:text-red-500 p-1 transition-colors"
-                title="Clear date filter"
+                onClick={() => {
+                  setSearchTerm("");
+                  setSelectedDate("");
+                  setSelectedMethod("all");
+                }}
+                className="px-2.5 py-2 text-xs font-medium text-ink-soft hover:text-ink hover:bg-pale border border-line rounded-xl transition-colors shadow-sm shrink-0"
+                title="Reset all filters"
               >
-                <X size={14} />
+                Reset
               </button>
             )}
           </div>
-
-          {/* Payment Method Dropdown Filter */}
-          <div className="relative flex items-center">
-            <Filter size={13} className="absolute left-3 text-ink-soft pointer-events-none" />
-            <select
-              value={selectedMethod}
-              onChange={(e) => setSelectedMethod(e.target.value)}
-              className="pl-7 pr-3 py-2 bg-white border border-line rounded-xl text-xs font-medium text-ink focus:outline-none focus:border-royal focus:ring-1 focus:ring-royal shadow-sm cursor-pointer"
-            >
-              <option value="all">All Methods</option>
-              <option value="cash">Cash</option>
-              <option value="card">Card / Credit Card</option>
-              <option value="maya">Maya</option>
-              <option value="gcash">GCash</option>
-              <option value="bank_transfer">Bank Transfer</option>
-            </select>
-          </div>
-
-          {/* Reset All Filters Button */}
-          {(searchTerm || selectedDate || selectedMethod !== "all") && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchTerm("");
-                setSelectedDate("");
-                setSelectedMethod("all");
-              }}
-              className="px-2.5 py-2 text-xs font-medium text-ink-soft hover:text-ink hover:bg-pale border border-line rounded-xl transition-colors shadow-sm"
-              title="Reset all filters"
-            >
-              Reset
-            </button>
-          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-line shadow-sm overflow-hidden">
+      {/* MOBILE CARDS VIEW (< lg) */}
+      <div className="space-y-3 lg:hidden">
+        {filtered.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-line p-8 text-center text-ink-soft">
+            <ReceiptText size={32} className="mx-auto text-ink-soft/40 mb-2" />
+            <p className="font-medium text-sm">No transactions found</p>
+            <p className="text-xs text-ink-soft/70 mt-0.5">Try adjusting your search or filters.</p>
+          </div>
+        ) : (
+          filtered.map((t) => (
+            <div
+              key={t.id}
+              className={`bg-white rounded-2xl border border-line p-4 shadow-xs space-y-3 transition-all ${
+                t.status === "voided" ? "opacity-60 bg-pale/20" : ""
+              }`}
+            >
+              {/* Header row: Ref & Status */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-xs font-bold text-ink bg-pale px-2 py-0.5 rounded border border-line">
+                    {t.ref}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      t.status === "completed" || t.status === "paid"
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : t.status === "voided"
+                        ? "bg-red-50 text-red-700 border border-red-200"
+                        : "bg-gray-100 text-gray-700 border border-gray-200"
+                    }`}
+                  >
+                    {t.status}
+                  </span>
+                  <span className="text-[10px] font-medium text-ink-soft bg-slate-100 px-2 py-0.5 rounded capitalize">
+                    {t.type}
+                  </span>
+                </div>
+                <div className="font-mono text-sm font-bold text-ink">
+                  {peso(t.amount)}
+                </div>
+              </div>
+
+              {/* Customer & Date */}
+              <div className="border-t border-b border-line/60 py-2.5 space-y-1 text-xs">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 font-medium text-ink">
+                    <span>{t.customer}</span>
+                    {getClassificationBadge(t.classification)}
+                  </div>
+                  <span className="text-ink-soft text-[11px]">
+                    {t.date.toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+                <div className="text-ink-soft text-xs font-normal">
+                  <span className="font-medium text-ink">Availed: </span>
+                  <span className="text-ink">{t.treatment}</span>
+                </div>
+              </div>
+
+              {/* Handled By Selector on Mobile */}
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-[11px] font-semibold text-ink-soft flex items-center gap-1">
+                  <UserCheck size={13} className="text-purple-600" />
+                  Staff:
+                </span>
+                {t.type === "appointment" ? (
+                  <div className="flex items-center gap-1.5 flex-1 justify-end">
+                    <select
+                      value={t.handlerId || ""}
+                      disabled={updatingHandlerId === t.id}
+                      onChange={(e) => handleUpdateHandler(t.id, e.target.value)}
+                      className={`rounded-lg border px-2 py-1 text-xs font-medium outline-none transition-all cursor-pointer max-w-[200px] truncate ${
+                        t.handlerId
+                          ? "border-purple-200 bg-purple-50/70 text-purple-900"
+                          : "border-amber-300 bg-amber-50 text-amber-800"
+                      }`}
+                    >
+                      <option value="">Unassigned</option>
+                      {staffList.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.full_name}
+                        </option>
+                      ))}
+                    </select>
+                    {updatingHandlerId === t.id && (
+                      <Loader2 size={12} className="animate-spin text-purple-600 shrink-0" />
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-xs text-ink-soft font-medium">
+                    {t.handlerName || "Store Staff"}
+                  </span>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-1 gap-2">
+                <span className="text-[11px] text-ink-soft capitalize bg-pale/70 px-2 py-0.5 rounded">
+                  Method: {t.method}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => window.open(`/admin/receipt/${t.ref}`, "_blank")}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-line text-xs font-semibold text-ink hover:bg-pale transition-colors touch-manipulation min-h-[36px]"
+                    title="Print Receipt"
+                  >
+                    <Printer size={13} />
+                    Receipt
+                  </button>
+                  {(t.status === "completed" || t.status === "paid") && (
+                    <button
+                      onClick={() => {
+                        setVoidTarget({ id: t.id, type: t.type as any });
+                        setVoidModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors touch-manipulation min-h-[36px]"
+                    >
+                      <Ban size={13} />
+                      Void
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* DESKTOP TABLE VIEW (>= lg) */}
+      <div className="hidden lg:block bg-white rounded-2xl border border-line shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-pale text-ink-soft font-semibold text-xs uppercase tracking-wider">
