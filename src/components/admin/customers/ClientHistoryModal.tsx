@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   X,
   User,
@@ -22,6 +22,8 @@ import {
   ShoppingBag,
   Files,
   ExternalLink,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import type {
   CompleteClientFile,
@@ -97,6 +99,44 @@ export function ClientHistoryModal({
   const [payReceipt, setPayReceipt] = useState("");
   const [payTxnRef, setPayTxnRef] = useState("");
   const [payNotes, setPayNotes] = useState("");
+
+  // Horizontal Tabs Scroll Controls
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    if (tabsRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = tabsRef.current;
+      setCanScrollLeft(scrollLeft > 6);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 6);
+    }
+  };
+
+  useEffect(() => {
+    checkScroll();
+    const handleResize = () => checkScroll();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [clientFile, isOpen]);
+
+  useEffect(() => {
+    if (tabsRef.current) {
+      const activeEl = tabsRef.current.querySelector<HTMLElement>('[data-active="true"]');
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+      }
+      checkScroll();
+    }
+  }, [activeTab]);
+
+  const scrollTabs = (direction: "left" | "right") => {
+    if (tabsRef.current) {
+      const offset = direction === "left" ? -240 : 240;
+      tabsRef.current.scrollBy({ left: offset, behavior: "smooth" });
+      setTimeout(checkScroll, 350);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -329,38 +369,91 @@ export function ClientHistoryModal({
         </div>
 
         {/* NAVIGATION TABS (9 TABS) */}
-        <div className="flex border-b border-slate-200 px-3 sm:px-6 bg-white overflow-x-auto gap-1 touch-scroll scrollbar-hide">
-          {[
-            { id: "overview", label: "Overview", icon: User },
-            { id: "installments", label: `Installments (${clientFile.applications.length})`, icon: CreditCard },
-            { id: "payments", label: `Payments (${clientFile.payments.length})`, icon: Receipt },
-            { id: "pos", label: `POS Sales (${clientFile.posTransactions?.length || 0})`, icon: ShoppingBag },
-            { id: "appointments", label: `Appointments (${clientFile.appointments.length})`, icon: Calendar },
-            { id: "packages", label: `Packages (${clientFile.packages.length})`, icon: Sparkles },
-            { id: "refunds", label: `Refunds & Voids (${clientFile.refundsAdjustments?.length || 0})`, icon: RotateCcw },
-            { id: "documents", label: `Receipts & Docs (${clientFile.receipts?.length || 0})`, icon: Files },
-            { id: "timeline", label: `Activity (${clientFile.timeline.length})`, icon: Clock },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
+        <div className="relative border-b border-slate-200 bg-white select-none">
+          {/* Left Scroll Chevron Button */}
+          {canScrollLeft && (
+            <div className="absolute left-0 inset-y-0 z-20 flex items-center pr-3 pl-1 bg-gradient-to-r from-white via-white/95 to-transparent pointer-events-none">
               <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id as any);
-                  setSelectedApp(null);
-                }}
-                className={`py-3 px-3 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap ${
-                  isActive
-                    ? "border-rose-700 text-rose-700"
-                    : "border-transparent text-slate-600 hover:text-slate-900"
-                }`}
+                type="button"
+                onClick={() => scrollTabs("left")}
+                aria-label="Scroll tabs left"
+                className="h-7 w-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-all pointer-events-auto cursor-pointer"
               >
-                <Icon size={14} />
-                {tab.label}
+                <ChevronLeft size={16} />
               </button>
-            );
-          })}
+            </div>
+          )}
+
+          {/* Right Scroll Chevron Button */}
+          {canScrollRight && (
+            <div className="absolute right-0 inset-y-0 z-20 flex items-center pl-3 pr-1 bg-gradient-to-l from-white via-white/95 to-transparent pointer-events-none">
+              <button
+                type="button"
+                onClick={() => scrollTabs("right")}
+                aria-label="Scroll tabs right"
+                className="h-7 w-7 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-all pointer-events-auto cursor-pointer"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Scrollable Tabs Track */}
+          <div
+            ref={tabsRef}
+            onScroll={checkScroll}
+            onWheel={(e) => {
+              if (tabsRef.current && e.deltaY !== 0) {
+                tabsRef.current.scrollLeft += e.deltaY;
+                checkScroll();
+              }
+            }}
+            className="flex px-3 sm:px-6 overflow-x-auto gap-1 touch-scroll scroll-smooth scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300"
+          >
+            {[
+              { id: "overview", label: "Overview", icon: User, count: null },
+              { id: "installments", label: "Installments", icon: CreditCard, count: clientFile.applications.length },
+              { id: "payments", label: "Payments", icon: Receipt, count: clientFile.payments.length },
+              { id: "pos", label: "POS Sales", icon: ShoppingBag, count: clientFile.posTransactions?.length || 0 },
+              { id: "appointments", label: "Appointments", icon: Calendar, count: clientFile.appointments.length },
+              { id: "packages", label: "Packages", icon: Sparkles, count: clientFile.packages.length },
+              { id: "refunds", label: "Refunds & Voids", icon: RotateCcw, count: clientFile.refundsAdjustments?.length || 0 },
+              { id: "documents", label: "Receipts & Docs", icon: Files, count: clientFile.receipts?.length || 0 },
+              { id: "timeline", label: "Activity", icon: Clock, count: clientFile.timeline.length },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  data-active={isActive ? "true" : "false"}
+                  onClick={() => {
+                    setActiveTab(tab.id as any);
+                    setSelectedApp(null);
+                  }}
+                  className={`py-2.5 sm:py-3 px-2.5 sm:px-3.5 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+                    isActive
+                      ? "border-rose-700 text-rose-700 bg-rose-50/40"
+                      : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  <Icon size={14} className={isActive ? "text-rose-700" : "text-slate-400"} />
+                  <span>{tab.label}</span>
+                  {tab.count !== null && (
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ml-0.5 ${
+                        isActive
+                          ? "bg-rose-200 text-rose-800"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* TAB CONTENTS */}
