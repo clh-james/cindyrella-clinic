@@ -43,25 +43,55 @@ export default async function RolesPage() {
 
   if (!roles || !permissions) return <div>Failed to load roles.</div>;
 
+  // Sort roles in logical hierarchy: super_admin, admin, manager, cashier, staff, then custom roles
+  const systemPriority: Record<string, number> = {
+    super_admin: 1,
+    admin: 2,
+    manager: 3,
+    cashier: 4,
+    staff: 5,
+  };
+
+  const sortedRoles = [...(roles as Role[])].sort((a, b) => {
+    const pA = systemPriority[a.name.toLowerCase()] ?? 99;
+    const pB = systemPriority[b.name.toLowerCase()] ?? 99;
+    if (pA !== pB) return pA - pB;
+    return a.name.localeCompare(b.name);
+  });
+
   return (
-    <div className="max-w-6xl">
-      <div className="mb-6 flex items-center gap-3">
-        <Shield className="text-royal" size={28} />
-        <h1 className="font-serif text-2xl font-semibold text-ink">Role Management</h1>
+    <div className="max-w-6xl pb-12">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-royal/10 text-royal">
+              <Shield size={24} />
+            </div>
+            <div>
+              <h1 className="font-serif text-2xl font-semibold text-ink">Role &amp; Permission Management</h1>
+              <p className="text-sm text-ink-soft">
+                Define and configure access rights across all system modules for both default and custom roles.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
-      <p className="mb-8 text-sm text-ink-soft max-w-2xl">
-        Define exactly what each role can see and do within the application. Changes here take effect on the user&apos;s next action.
-      </p>
 
       <RolePermissionsTable 
-        roles={roles as Role[]} 
+        roles={sortedRoles} 
         permissions={permissions as Permission[]} 
       />
 
-      <p className="mt-4 text-xs text-ink-soft flex items-center justify-center gap-2">
-        <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 opacity-50"></span>
-        Super Admin permissions are locked and immutable.
-      </p>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-4 text-xs text-ink-soft border-t border-line/60 pt-4">
+        <div className="flex items-center gap-2">
+          <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 opacity-60"></span>
+          <span><strong>Super Admin</strong> permissions are permanently locked and immutable.</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-block h-2 w-2 rounded-full bg-royal"></span>
+          <span>Custom roles can be created, copied from templates, or safely deleted when unassigned.</span>
+        </div>
+      </div>
     </div>
   );
 }
