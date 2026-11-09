@@ -9,3 +9,4 @@ export interface PromoCode {
   is_active: boolean;
   created_at: string;
 }
+

@@ -372,3 +372,4 @@ export function PromosClient({ initialPromos }: { initialPromos: PromoCode[] }) 
     </div>
   );
 }
+
