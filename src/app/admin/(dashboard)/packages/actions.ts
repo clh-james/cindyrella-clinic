@@ -299,3 +299,169 @@ export async function updatePackageStatus(data: {
   return { success: true };
 }
 
+export async function editCustomerPackage(data: {
+  packageId: string;
+  packageName?: string;
+  totalSessions?: number;
+  sessionsRemaining?: number;
+  pricePaid?: number;
+  expiryDate?: string | null;
+  status?: "active" | "fully_redeemed" | "expired" | "cancelled";
+  notes?: string;
+}) {
+  const staff = await requireStaff();
+  const canEdit = await hasServerPermission("packages.edit");
+  if (
+    !canEdit &&
+    staff.role !== "super_admin" &&
+    staff.role !== "admin" &&
+    staff.role !== "manager"
+  ) {
+    return { error: "Forbidden: You do not have permission to edit customer packages." };
+  }
+
+  const supabase = createAdminClient();
+
+  // 1. Fetch current package
+  const { data: existing, error: fetchErr } = await supabase
+    .from("customer_packages")
+    .select("*, customer:customer_id(first_name, last_name, phone)")
+    .eq("id", data.packageId)
+    .single();
+
+  if (fetchErr || !existing) {
+    return { error: "Customer package not found." };
+  }
+
+  const totalSessions =
+    data.totalSessions !== undefined
+      ? Math.max(1, Number(data.totalSessions))
+      : existing.total_sessions;
+
+  const sessionsRemaining =
+    data.sessionsRemaining !== undefined
+      ? Math.max(0, Math.min(totalSessions, Number(data.sessionsRemaining)))
+      : existing.sessions_remaining;
+
+  let computedStatus = data.status || existing.status;
+  if (data.sessionsRemaining !== undefined && !data.status) {
+    if (sessionsRemaining === 0) {
+      computedStatus = "fully_redeemed";
+    } else if (existing.status === "fully_redeemed" && sessionsRemaining > 0) {
+      computedStatus = "active";
+    }
+  }
+
+  const updates: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (data.packageName !== undefined) updates.package_name = data.packageName.trim();
+  if (data.totalSessions !== undefined) updates.total_sessions = totalSessions;
+  if (data.sessionsRemaining !== undefined) updates.sessions_remaining = sessionsRemaining;
+  if (data.pricePaid !== undefined) updates.price_paid = Math.max(0, Number(data.pricePaid));
+  if (data.expiryDate !== undefined) updates.expiry_date = data.expiryDate || null;
+  if (computedStatus) updates.status = computedStatus;
+  if (data.notes !== undefined) updates.notes = data.notes;
+
+  const { data: updated, error: updateErr } = await supabase
+    .from("customer_packages")
+    .update(updates)
+    .eq("id", data.packageId)
+    .select(`
+      *,
+      customer:customer_id(id, first_name, last_name, phone, email),
+      treatment:treatment_id(id, name, session_price),
+      branch:branch_id(id, name)
+    `)
+    .single();
+
+  if (updateErr) {
+    console.error("Failed to update customer package:", updateErr);
+    return { error: updateErr.message || "Failed to update package." };
+  }
+
+  // Audit log
+  try {
+    await supabase.from("client_audit_logs").insert({
+      customer_id: existing.customer_id,
+      actor_id: staff.id,
+      action: "PACKAGE_UPDATED",
+      export_type: "UPDATE",
+      branch_id: existing.branch_id || staff.branchId || null,
+      metadata: {
+        actor: staff.fullName,
+        package_id: data.packageId,
+        package_name: data.packageName || existing.package_name,
+        changes: updates,
+      },
+    });
+  } catch (logErr) {
+    console.error("Failed to log package update audit:", logErr);
+  }
+
+  revalidatePath("/admin/packages");
+  revalidatePath("/admin/customers");
+  return { success: true, package: updated };
+}
+
+export async function deleteCustomerPackage(packageId: string) {
+  const staff = await requireStaff();
+  const canDelete = await hasServerPermission("packages.delete");
+  if (
+    !canDelete &&
+    staff.role !== "super_admin" &&
+    staff.role !== "admin" &&
+    staff.role !== "manager"
+  ) {
+    return { error: "Forbidden: You do not have permission to delete customer packages." };
+  }
+
+  const supabase = createAdminClient();
+
+  // Fetch package first for logging
+  const { data: existing, error: fetchErr } = await supabase
+    .from("customer_packages")
+    .select("*, customer:customer_id(first_name, last_name)")
+    .eq("id", packageId)
+    .single();
+
+  if (fetchErr || !existing) {
+    return { error: "Customer package not found." };
+  }
+
+  const { error: deleteErr } = await supabase
+    .from("customer_packages")
+    .delete()
+    .eq("id", packageId);
+
+  if (deleteErr) {
+    console.error("Failed to delete customer package:", deleteErr);
+    return { error: deleteErr.message || "Failed to delete package." };
+  }
+
+  // Audit log
+  try {
+    await supabase.from("client_audit_logs").insert({
+      customer_id: existing.customer_id,
+      actor_id: staff.id,
+      action: "PACKAGE_DELETED",
+      export_type: "DELETE",
+      branch_id: existing.branch_id || staff.branchId || null,
+      metadata: {
+        actor: staff.fullName,
+        package_id: packageId,
+        package_name: existing.package_name,
+        price_paid: existing.price_paid,
+        customer_name: `${existing.customer?.first_name || ""} ${existing.customer?.last_name || ""}`.trim(),
+      },
+    });
+  } catch (logErr) {
+    console.error("Failed to log package deletion audit:", logErr);
+  }
+
+  revalidatePath("/admin/packages");
+  revalidatePath("/admin/customers");
+  return { success: true };
+}
+

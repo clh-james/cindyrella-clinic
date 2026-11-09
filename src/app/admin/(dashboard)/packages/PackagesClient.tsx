@@ -3,11 +3,15 @@
 import { useState, useMemo } from "react";
 import { 
   PackageOpen, Sparkles, Plus, Search, Filter, Calendar, User, 
-  CheckCircle2, Clock, AlertCircle, ArrowUpRight, Check 
+  CheckCircle2, Clock, AlertCircle, ArrowUpRight, Check,
+  Pencil, Trash2, AlertTriangle, Loader2 
 } from "lucide-react";
 import { CustomerPackage, PackageTemplateItem } from "./types";
 import { RedeemSessionModal } from "./RedeemSessionModal";
 import { SellPackageModal } from "./SellPackageModal";
+import { EditPackageModal } from "./EditPackageModal";
+import { deleteCustomerPackage } from "./actions";
+import toast from "react-hot-toast";
 
 export function PackagesClient({
   initialPackages,
@@ -36,6 +40,28 @@ export function PackagesClient({
   const [sellModalOpen, setSellModalOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [redeemTarget, setRedeemTarget] = useState<CustomerPackage | null>(null);
+  const [editTarget, setEditTarget] = useState<CustomerPackage | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CustomerPackage | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const res = await deleteCustomerPackage(deleteTarget.id);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Package deleted successfully");
+      setPackages((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete package");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Filtered packages
   const filteredPackages = useMemo(() => {
@@ -155,7 +181,7 @@ export function PackagesClient({
           className="inline-flex items-center justify-center gap-2 bg-royal hover:bg-royal/90 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"
         >
           <Plus size={16} />
-          Sell / Assign Package
+          Add / Assign Package
         </button>
       </div>
 
@@ -315,21 +341,37 @@ export function PackagesClient({
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-line/60">
                       <span className="text-[10px] text-ink-soft">
                         {pkg.expiry_date ? `Exp: ${pkg.expiry_date}` : `Added: ${pkg.start_date}`}
                       </span>
-                      {pkg.status === "active" && pkg.sessions_remaining > 0 ? (
+                      <div className="flex items-center gap-1.5">
+                        {pkg.status === "active" && pkg.sessions_remaining > 0 ? (
+                          <button
+                            onClick={() => setRedeemTarget(pkg)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-royal text-white font-bold text-xs shadow-xs hover:bg-royal/90 transition-all touch-manipulation min-h-[34px]"
+                          >
+                            <Sparkles size={13} />
+                            Redeem
+                          </button>
+                        ) : null}
+
                         <button
-                          onClick={() => setRedeemTarget(pkg)}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-royal text-white font-bold text-xs shadow-xs hover:bg-royal/90 transition-all touch-manipulation min-h-[38px]"
+                          onClick={() => setEditTarget(pkg)}
+                          title="Edit Package"
+                          className="p-1.5 rounded-lg border border-line bg-white text-ink-soft hover:text-royal hover:border-royal/40 hover:bg-royal/5 transition-all min-h-[34px] min-w-[34px] flex items-center justify-center"
                         >
-                          <Sparkles size={13} />
-                          Redeem Session
+                          <Pencil size={14} />
                         </button>
-                      ) : (
-                        <span className="text-xs text-ink-soft italic">No sessions left</span>
-                      )}
+
+                        <button
+                          onClick={() => setDeleteTarget(pkg)}
+                          title="Delete Package"
+                          className="p-1.5 rounded-lg border border-line bg-white text-ink-soft hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all min-h-[34px] min-w-[34px] flex items-center justify-center"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -410,17 +452,34 @@ export function PackagesClient({
                         <td className="py-3.5 px-4">{getStatusBadge(pkg.status)}</td>
 
                         <td className="py-3.5 px-4 text-right">
-                          {pkg.status === "active" && pkg.sessions_remaining > 0 ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            {pkg.status === "active" && pkg.sessions_remaining > 0 ? (
+                              <button
+                                onClick={() => setRedeemTarget(pkg)}
+                                title="Redeem Session"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-royal text-white font-bold text-xs shadow-xs hover:bg-royal/90 transition-all"
+                              >
+                                <Sparkles size={13} />
+                                Redeem
+                              </button>
+                            ) : null}
+
                             <button
-                              onClick={() => setRedeemTarget(pkg)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-royal text-white font-bold text-xs shadow-xs hover:bg-royal/90 transition-all"
+                              onClick={() => setEditTarget(pkg)}
+                              title="Edit Package"
+                              className="p-1.5 rounded-lg border border-line bg-white text-ink-soft hover:text-royal hover:border-royal/40 hover:bg-royal/5 transition-all"
                             >
-                              <Sparkles size={13} />
-                              Redeem Session
+                              <Pencil size={14} />
                             </button>
-                          ) : (
-                            <span className="text-xs text-ink-soft italic">No sessions</span>
-                          )}
+
+                            <button
+                              onClick={() => setDeleteTarget(pkg)}
+                              title="Delete Package"
+                              className="p-1.5 rounded-lg border border-line bg-white text-ink-soft hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -580,6 +639,95 @@ export function PackagesClient({
             );
           }}
         />
+      )}
+
+      {/* Edit Package Modal */}
+      {editTarget && (
+        <EditPackageModal
+          pkg={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSuccess={(updatedPkg) => {
+            setPackages((prev) =>
+              prev.map((p) => (p.id === updatedPkg.id ? updatedPkg : p))
+            );
+            setEditTarget(null);
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-line overflow-hidden p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-rose-600 mb-3">
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-100">
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h3 className="font-bold text-ink text-base">Delete Patient Package?</h3>
+                <p className="text-xs text-ink-soft">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="bg-pale/40 rounded-xl p-3 border border-line my-4 text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-ink-soft">Patient:</span>
+                <span className="font-bold text-ink">
+                  {deleteTarget.customer?.first_name} {deleteTarget.customer?.last_name}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-soft">Package:</span>
+                <span className="font-semibold text-ink">{deleteTarget.package_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-soft">Sessions Remaining:</span>
+                <span className="font-mono font-bold text-royal">
+                  {deleteTarget.sessions_remaining} of {deleteTarget.total_sessions}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-soft">Price Paid:</span>
+                <span className="font-mono font-semibold text-ink">
+                  ₱{Number(deleteTarget.price_paid || 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-rose-600 font-medium mb-5">
+              Deleting this package will permanently remove the record and any remaining session credits for this patient.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+                className="rounded-xl border border-line px-4 py-2 text-xs font-bold text-ink-soft hover:bg-line/40 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-700 transition-all disabled:opacity-50 active:scale-95"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={13} />
+                    Yes, Delete Package
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {sellModalOpen && (
