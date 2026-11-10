@@ -15,19 +15,22 @@ interface PayslipsTabProps {
   branches: BranchInfo[];
   currentStaffId?: string;
   isSuperAdmin?: boolean;
+  viewOwnOnly?: boolean;
   onViewPayslip: (item: PayrollItem, run?: PayrollRun) => void;
 }
 
 export function PayslipsTab({
   runs,
   branches,
+  currentStaffId,
+  viewOwnOnly = false,
   onViewPayslip,
 }: PayslipsTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRunId, setSelectedRunId] = useState<string>("all");
   const [branchFilter, setBranchFilter] = useState<string>("all");
 
-  // Collect all items from runs
+  // Collect all items from runs (server already filtered for viewOwnOnly, but guard client-side too)
   const allItems: { item: PayrollItem; run: PayrollRun }[] = [];
   runs.forEach((r) => {
     (r.items || []).forEach((item) => {
@@ -55,9 +58,13 @@ export function PayslipsTab({
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold font-serif text-ink">Employee Payslips</h2>
+          <h2 className="text-lg font-bold font-serif text-ink">
+            {viewOwnOnly ? "My Payslips" : "Employee Payslips"}
+          </h2>
           <p className="text-xs text-ink-soft">
-            Official printable confidential salary vouchers and compensation statements
+            {viewOwnOnly
+              ? "Your personal salary vouchers and compensation statements"
+              : "Official printable confidential salary vouchers and compensation statements"}
           </p>
         </div>
       </div>

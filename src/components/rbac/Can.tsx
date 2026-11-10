@@ -62,13 +62,14 @@ export function Can({
   children, 
   fallback = null 
 }: { 
-  permission: string, 
+  permission: string | string[], 
   children: React.ReactNode, 
   fallback?: React.ReactNode 
 }) {
   const { hasPermission, loading } = usePermissions();
 
   if (loading) return null; // Or a skeleton if preferred
-  if (hasPermission(permission)) return <>{children}</>;
+  const perms = Array.isArray(permission) ? permission : [permission];
+  if (perms.some(p => hasPermission(p))) return <>{children}</>;
   return <>{fallback}</>;
 }

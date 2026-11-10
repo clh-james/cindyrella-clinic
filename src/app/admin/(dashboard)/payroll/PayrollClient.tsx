@@ -55,6 +55,7 @@ interface PayrollClientProps {
     role: string;
     branchId?: string | null;
   };
+  viewOwnOnly?: boolean;
   permissions: {
     canView: boolean;
     canCreate: boolean;
@@ -76,10 +77,10 @@ export function PayrollClient({
   branches,
   staffList,
   currentStaff,
+  viewOwnOnly = false,
   permissions,
 }: PayrollClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [selectedRun, setSelectedRun] = useState<PayrollRun | null>(initialRuns[0] || null);
 
   // Modals
@@ -101,8 +102,8 @@ export function PayrollClient({
     router.refresh();
   };
 
-  // Tab definitions
-  const tabs = [
+  // Tab definitions — restrict to payslips-only for view_own staff
+  const allTabs = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "salary_setup", label: "Employee Salary Setup", icon: Users, count: initialCompensations.length },
     { id: "attendance", label: "Attendance & Overtime", icon: Clock },
@@ -113,6 +114,12 @@ export function PayrollClient({
     { id: "reports", label: "Payroll Reports", icon: FileSpreadsheet },
     { id: "settings", label: "Payroll Settings", icon: Settings },
   ];
+  const tabs = viewOwnOnly
+    ? allTabs.filter((t) => t.id === "payslips")
+    : allTabs;
+
+  // When in view_own mode, force active tab to payslips
+  const [activeTab, setActiveTab] = useState<string>(viewOwnOnly ? "payslips" : "dashboard");
 
   return (
     <div className="space-y-6">
@@ -121,14 +128,16 @@ export function PayrollClient({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="font-serif text-2xl font-bold tracking-tight text-ink">
-              Clinic Payroll Management
+              {viewOwnOnly ? "My Payslips" : "Clinic Payroll Management"}
             </h1>
             <span className="rounded-full bg-royal/10 px-2.5 py-0.5 text-xs font-bold text-royal">
-              Enterprise
+              {viewOwnOnly ? "Personal" : "Enterprise"}
             </span>
           </div>
           <p className="mt-1 text-xs text-ink-soft">
-            Compliant Philippine payroll calculations, treatment commissions, attendance logs, and statutory remittances.
+            {viewOwnOnly
+              ? `Viewing your personal payslips and salary vouchers, ${currentStaff.fullName}.`
+              : "Compliant Philippine payroll calculations, treatment commissions, attendance logs, and statutory remittances."}
           </p>
         </div>
 
@@ -257,6 +266,7 @@ export function PayrollClient({
             branches={branches}
             currentStaffId={currentStaff.id}
             isSuperAdmin={currentStaff.role === "super_admin"}
+            viewOwnOnly={viewOwnOnly}
             onViewPayslip={(item, run) => {
               setPayslipItemToPrint(item);
               setPayslipRunContext(run || null);

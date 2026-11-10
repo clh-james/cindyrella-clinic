@@ -22,7 +22,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string; size?: number | string }>;
-  permission: string;
+  permission: string | string[];
   badge?: "appointments" | "inventory" | string;
   unimplemented?: boolean;
 }
@@ -78,7 +78,7 @@ const NAVIGATION_GROUPS: NavGroup[] = [
       { name: "Staff Attendance", href: "/admin/attendance/clock", icon: Clock, permission: "attendance.self_record" },
       { name: "Daily Attendance", href: "/admin/attendance", icon: CalendarCheck, permission: "attendance.view" },
       { name: "Login Activity", href: "/admin/security/logins", icon: Activity, permission: "security.view_login_activity" },
-      { name: "Payroll", href: "/admin/payroll", icon: Banknote, permission: "payroll.view" },
+      { name: "Payroll", href: "/admin/payroll", icon: Banknote, permission: ["payroll.view", "payroll.view_own"] },
       { name: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck, permission: "users.assign_role" },
     ]
   },
@@ -329,7 +329,10 @@ export function AdminShell({
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 space-y-6 scrollbar-hide">
         {NAVIGATION_GROUPS.map((group) => {
           // Check if user has permission for at least one item in this group
-          const hasAnyPermissionInGroup = group.items.some(item => hasPermission(item.permission));
+          const hasAnyPermissionInGroup = group.items.some(item => {
+            const perms = Array.isArray(item.permission) ? item.permission : [item.permission];
+            return perms.some(p => hasPermission(p));
+          });
 
           if (!hasAnyPermissionInGroup) {
             return null; // Hide the entire group if no permissions
@@ -363,7 +366,7 @@ export function AdminShell({
                   const badgeCount = item.badge ? badges[item.badge] : 0;
 
                   return (
-                    <Can key={item.name} permission={item.permission}>
+                    <Can key={item.name} permission={Array.isArray(item.permission) ? item.permission : item.permission}>
                       <Link
                         href={item.unimplemented ? "#" : item.href}
                         onClick={(e) => {

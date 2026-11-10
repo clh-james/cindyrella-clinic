@@ -32,9 +32,15 @@ export default async function PayrollPage() {
     isManager ||
     (await hasServerPermission("payroll.view"));
 
-  if (!canViewPayroll) {
+  const canViewOwnPayslip = await hasServerPermission("payroll.view_own");
+
+  // Allow entry if user can view all payroll OR only their own payslip
+  if (!canViewPayroll && !canViewOwnPayslip) {
     redirect("/admin/unauthorized");
   }
+
+  // Staff who only have view_own see a restricted payslip-only view
+  const viewOwnOnly = !canViewPayroll && canViewOwnPayslip;
 
   const supabase = createAdminClient();
 
@@ -133,7 +139,19 @@ export default async function PayrollPage() {
 
     const { data: runData, error: runErr } = await runQuery;
     if (!runErr && runData && runData.length > 0) {
-      runs = runData as unknown as PayrollRun[];
+      let fetchedRuns = runData as unknown as PayrollRun[];
+      // If view_own only: strip payroll items that don't belong to this staff
+      if (viewOwnOnly) {
+        fetchedRuns = fetchedRuns
+          .map((r) => ({
+            ...r,
+            items: (r.items || []).filter(
+              (item) => item.employee_id === currentStaff.id
+            ),
+          }))
+          .filter((r) => r.items.length > 0);
+      }
+      runs = fetchedRuns;
     } else {
       // Default initial mock run for demonstration & immediate testing
       const now = new Date();
@@ -324,8 +342,9 @@ export default async function PayrollPage() {
       branches={branches}
       staffList={staffList}
       currentStaff={currentStaff}
+      viewOwnOnly={viewOwnOnly}
       permissions={{
-        canView: canViewPayroll,
+        canView: canViewPayroll || canViewOwnPayslip,
         canCreate: isSuperAdmin || isAdmin || (await hasServerPermission("payroll.create")),
         canCalculate: isSuperAdmin || isAdmin || (await hasServerPermission("payroll.calculate")),
         canApprove: isSuperAdmin || (await hasServerPermission("payroll.approve")),
