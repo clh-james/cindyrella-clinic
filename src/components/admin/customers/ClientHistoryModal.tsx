@@ -24,7 +24,9 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  Camera,
 } from "lucide-react";
+import { CustomerBeforeAfterPhotos } from "./CustomerBeforeAfterPhotos";
 import type {
   CompleteClientFile,
   InstallmentApplication,
@@ -52,6 +54,7 @@ interface ClientHistoryModalProps {
     | "packages"
     | "refunds"
     | "documents"
+    | "photos"
     | "timeline";
   canApprove?: boolean;
   canPay?: boolean;
@@ -75,6 +78,7 @@ export function ClientHistoryModal({
     | "packages"
     | "refunds"
     | "documents"
+    | "photos"
     | "timeline"
   >(initialTab);
 
@@ -416,6 +420,7 @@ export function ClientHistoryModal({
               { id: "payments", label: "Payments", icon: Receipt, count: clientFile.payments.length },
               { id: "pos", label: "POS Sales", icon: ShoppingBag, count: clientFile.posTransactions?.length || 0 },
               { id: "appointments", label: "Appointments", icon: Calendar, count: clientFile.appointments.length },
+              { id: "photos", label: "Before & After", icon: Camera, count: clientFile.photos?.length || 0 },
               { id: "packages", label: "Packages", icon: Sparkles, count: clientFile.packages.length },
               { id: "refunds", label: "Refunds & Voids", icon: RotateCcw, count: clientFile.refundsAdjustments?.length || 0 },
               { id: "documents", label: "Receipts & Docs", icon: Files, count: clientFile.receipts?.length || 0 },
@@ -1060,6 +1065,16 @@ export function ClientHistoryModal({
                 </table>
               </div>
             </div>
+          )}
+
+          {/* TAB: BEFORE & AFTER PHOTOS */}
+          {activeTab === "photos" && (
+            <CustomerBeforeAfterPhotos
+              customerId={clientFile.client.id}
+              customerName={clientFile.client.full_name || `${clientFile.client.first_name || ""} ${clientFile.client.last_name || ""}`.trim() || "Patient"}
+              initialPhotos={clientFile.photos || []}
+              onRefresh={onRefresh}
+            />
           )}
         </div>
 

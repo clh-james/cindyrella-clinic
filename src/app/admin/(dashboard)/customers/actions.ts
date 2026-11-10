@@ -16,6 +16,7 @@ import type {
   InstallmentPayment,
   CustomerPackage,
   ClientAppointmentItem,
+  CustomerPhotoRecord,
   CompleteClientFile,
 } from "./types";
 import {
@@ -337,6 +338,22 @@ export async function getCompleteClientFile(
       })),
     });
 
+    // 8.5 Fetch Customer Before & After Photos
+    let customerPhotos: CustomerPhotoRecord[] = [];
+    try {
+      const { data: photoData, error: photoErr } = await supabase
+        .from("customer_photos")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("date_taken", { ascending: false });
+
+      if (!photoErr && photoData) {
+        customerPhotos = photoData as CustomerPhotoRecord[];
+      }
+    } catch {
+      customerPhotos = [];
+    }
+
     // 9. Build Consolidated File
     const completeFile = buildCompleteClientFile({
       client: clientProfile,
@@ -345,6 +362,7 @@ export async function getCompleteClientFile(
       appointments,
       packages,
       posTransactions,
+      photos: customerPhotos,
       actorName: staff.fullName,
       branchScope,
       date_range: filters?.fromDate || filters?.toDate ? { from: filters.fromDate, to: filters.toDate } : undefined,
@@ -744,5 +762,203 @@ export async function logClientFileExport(
   } catch (err: any) {
     console.error("Failed to log export audit:", err);
     return { success: false };
+  }
+}
+
+/**
+ * 6. UPLOAD CUSTOMER BEFORE & AFTER PHOTO
+ */
+export async function uploadCustomerPhoto(formData: FormData): Promise<{
+  success: boolean;
+  photo?: CustomerPhotoRecord;
+  error?: string;
+}> {
+  const staff = await requireStaff();
+  const supabase = createAdminClient();
+
+  const customerId = formData.get("customer_id") as string;
+  const photoType = (formData.get("photo_type") as "before" | "after" | "progress") || "before";
+  const treatmentName = (formData.get("treatment_name") as string) || "General Treatment";
+  const sessionNumber = formData.get("session_number") ? parseInt(formData.get("session_number") as string) : 1;
+  const dateTaken = (formData.get("date_taken") as string) || new Date().toISOString().slice(0, 10);
+  const notes = (formData.get("notes") as string) || null;
+  const comparisonGroupId = (formData.get("comparison_group_id") as string) || null;
+  const file = formData.get("file") as File | null;
+
+  if (!customerId) {
+    return { success: false, error: "Missing customer identifier." };
+  }
+  if (!file || file.size === 0) {
+    return { success: false, error: "Please select an image file to upload." };
+  }
+
+  try {
+    // 1. Upload to Supabase Storage 'gallery'
+    const ext = file.name.split(".").pop() || "jpg";
+    const safeName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const storagePath = `customers/${customerId}/${safeName}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const { error: uploadErr } = await supabase.storage
+      .from("gallery")
+      .upload(storagePath, buffer, {
+        contentType: file.type || "image/jpeg",
+        upsert: true,
+      });
+
+    if (uploadErr) {
+      console.error("Storage upload error:", uploadErr);
+      return { success: false, error: `Upload failed: ${uploadErr.message}` };
+    }
+
+    // 2. Obtain Public URL
+    const { data: urlData } = supabase.storage
+      .from("gallery")
+      .getPublicUrl(storagePath);
+
+    const photoUrl = urlData.publicUrl;
+
+    // 3. Save to customer_photos table
+    const { data: photoRecord, error: insertErr } = await supabase
+      .from("customer_photos")
+      .insert({
+        customer_id: customerId,
+        branch_id: staff.branchId || null,
+        photo_type: photoType,
+        photo_url: photoUrl,
+        treatment_name: treatmentName,
+        session_number: sessionNumber,
+        date_taken: dateTaken,
+        notes: notes,
+        taken_by_staff_id: staff.id,
+        taken_by_name: staff.fullName,
+        comparison_group_id: comparisonGroupId,
+      })
+      .select("*")
+      .single();
+
+    if (insertErr) {
+      console.error("Database insert error:", insertErr);
+      return { success: false, error: `Failed to save photo record: ${insertErr.message}` };
+    }
+
+    // 4. Log to Audit
+    await supabase.from("client_audit_logs").insert({
+      action: "CUSTOMER_PHOTO_UPLOADED",
+      customer_id: customerId,
+      actor_id: staff.id,
+      export_type: "PHOTO_UPLOAD",
+      branch_id: staff.branchId || null,
+      metadata: {
+        photo_id: photoRecord.id,
+        photo_type: photoType,
+        treatment_name: treatmentName,
+        session_number: sessionNumber,
+        actor: staff.fullName,
+      },
+    });
+
+    revalidatePath("/admin/customers");
+    return { success: true, photo: photoRecord as CustomerPhotoRecord };
+  } catch (err: any) {
+    console.error("Exception during photo upload:", err);
+    return { success: false, error: err.message || "Failed to process photo upload." };
+  }
+}
+
+/**
+ * 7. DELETE CUSTOMER PHOTO
+ */
+export async function deleteCustomerPhoto(photoId: string, customerId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const staff = await requireStaff();
+  const supabase = createAdminClient();
+
+  try {
+    // 1. Get photo to find storage URL
+    const { data: photo } = await supabase
+      .from("customer_photos")
+      .select("photo_url")
+      .eq("id", photoId)
+      .single();
+
+    // 2. Delete database record
+    const { error: delErr } = await supabase
+      .from("customer_photos")
+      .delete()
+      .eq("id", photoId);
+
+    if (delErr) {
+      return { success: false, error: delErr.message };
+    }
+
+    // 3. Attempt to delete from storage if url matches pattern
+    if (photo?.photo_url) {
+      try {
+        const parts = photo.photo_url.split("/gallery/");
+        if (parts[1]) {
+          await supabase.storage.from("gallery").remove([decodeURIComponent(parts[1])]);
+        }
+      } catch (e) {
+        console.warn("Storage deletion warning:", e);
+      }
+    }
+
+    // 4. Audit Log
+    await supabase.from("client_audit_logs").insert({
+      action: "CUSTOMER_PHOTO_DELETED",
+      customer_id: customerId,
+      actor_id: staff.id,
+      export_type: "PHOTO_DELETE",
+      branch_id: staff.branchId || null,
+      metadata: {
+        photo_id: photoId,
+        actor: staff.fullName,
+      },
+    });
+
+    revalidatePath("/admin/customers");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to delete photo." };
+  }
+}
+
+/**
+ * 8. PAIR BEFORE & AFTER PHOTOS
+ */
+export async function pairCustomerPhotos(
+  beforePhotoId: string,
+  afterPhotoId: string,
+  customerId: string
+): Promise<{ success: boolean; error?: string }> {
+  const staff = await requireStaff();
+  const supabase = createAdminClient();
+
+  try {
+    const groupId = crypto.randomUUID();
+
+    const { error: err1 } = await supabase
+      .from("customer_photos")
+      .update({ comparison_group_id: groupId, photo_type: "before" })
+      .eq("id", beforePhotoId);
+
+    if (err1) throw err1;
+
+    const { error: err2 } = await supabase
+      .from("customer_photos")
+      .update({ comparison_group_id: groupId, photo_type: "after" })
+      .eq("id", afterPhotoId);
+
+    if (err2) throw err2;
+
+    revalidatePath("/admin/customers");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to pair photos." };
   }
 }

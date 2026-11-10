@@ -20,6 +20,7 @@ import type {
   ClientPOSItem,
   ClientRefundAdjustment,
   ClientReceiptDocument,
+  CustomerPhotoRecord,
   PackageRedemption,
   DataQualityWarning,
 } from "@/app/admin/(dashboard)/customers/types";
@@ -582,6 +583,7 @@ export function buildCompleteClientFile(params: {
   refundsAdjustments?: ClientRefundAdjustment[];
   refunds?: ClientRefundAdjustment[];
   receipts?: ClientReceiptDocument[];
+  photos?: CustomerPhotoRecord[];
   warnings?: DataQualityWarning[];
   date_range?: { from?: string; to?: string };
 }): CompleteClientFile {
@@ -773,6 +775,7 @@ export function buildCompleteClientFile(params: {
     packageRedemptions,
     refundsAdjustments,
     receipts,
+    photos: params.photos || [],
     timeline,
     warnings,
     generated_at: new Date().toISOString(),

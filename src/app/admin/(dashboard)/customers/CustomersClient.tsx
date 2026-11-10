@@ -21,6 +21,7 @@ import {
   MoreVertical,
   X,
   Files,
+  Camera,
 } from "lucide-react";
 import type { CompleteClientFile } from "./types";
 import { getCompleteClientFile, logClientFileExport } from "./actions";
@@ -72,7 +73,7 @@ export function CustomersClient({
   // Selected client for history modal
   const [selectedClientFile, setSelectedClientFile] = useState<CompleteClientFile | null>(null);
   const [historyInitialTab, setHistoryInitialTab] = useState<
-    "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "timeline"
+    "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "photos" | "timeline"
   >("overview");
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [extractCustomer, setExtractCustomer] = useState<CustomerListItem | null>(null);
@@ -117,7 +118,7 @@ export function CustomersClient({
   // View Client Profile or Complete History action
   const handleOpenHistory = async (
     customerId: string,
-    initialTab: "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "timeline" = "overview"
+    initialTab: "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "photos" | "timeline" = "overview"
   ) => {
     setIsLoadingHistory(true);
     setHistoryInitialTab(initialTab);
@@ -308,6 +309,16 @@ export function CustomersClient({
                       <span>Profile</span>
                     </button>
 
+                    {/* ACTION 1.5: View Before & After Photos */}
+                    <button
+                      onClick={() => handleOpenHistory(c.id, "photos")}
+                      className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 font-semibold text-[11px] flex items-center gap-1 transition-colors border border-rose-200/60"
+                      title="View Before & After Photos"
+                    >
+                      <Camera size={13} className="text-rose-700" />
+                      <span>Photos</span>
+                    </button>
+
                     {/* ACTION 2: View Complete History */}
                     <button
                       onClick={() => handleOpenHistory(c.id, "timeline")}
@@ -386,6 +397,14 @@ export function CustomersClient({
                 >
                   <User size={12} />
                   Profile
+                </button>
+                {/* 1.5 View Photos */}
+                <button
+                  onClick={() => handleOpenHistory(c.id, "photos")}
+                  className="px-2 py-1 bg-rose-50 border border-rose-200 text-rose-800 rounded font-semibold text-[11px] flex items-center gap-1"
+                >
+                  <Camera size={12} />
+                  Photos
                 </button>
                 {/* 2. View History */}
                 <button

@@ -333,6 +333,25 @@ export interface ClientAppointmentItem {
   created_at: string;
 }
 
+export interface CustomerPhotoRecord {
+  id: string;
+  customer_id: string;
+  branch_id?: string | null;
+  service_id?: string | null;
+  photo_type: "before" | "after" | "progress";
+  photo_url: string;
+  thumbnail_url?: string | null;
+  treatment_name?: string | null;
+  session_number?: number | null;
+  date_taken: string;
+  notes?: string | null;
+  taken_by_staff_id?: string | null;
+  taken_by_name?: string | null;
+  comparison_group_id?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface CompleteClientFile {
   client: CustomerProfile;
   summary: ClientFinancialSummary;
@@ -346,6 +365,7 @@ export interface CompleteClientFile {
   packageRedemptions: PackageRedemption[];
   refundsAdjustments: ClientRefundAdjustment[];
   receipts: ClientReceiptDocument[];
+  photos?: CustomerPhotoRecord[];
   timeline: ClientActivityTimelineItem[];
   warnings: DataQualityWarning[];
   generated_at: string;
