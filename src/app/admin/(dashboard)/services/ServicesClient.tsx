@@ -14,6 +14,8 @@ import {
   Percent,
   CheckCircle2,
   Save,
+  PackageCheck,
+  FlaskConical,
 } from "lucide-react";
 import {
   upsertTreatment,
@@ -21,6 +23,7 @@ import {
   autoComputeAllCommissions,
   saveBulkServiceQuotas,
 } from "./actions";
+import { TreatmentRecipeModal } from "@/components/admin/services/TreatmentRecipeModal";
 import type { Treatment } from "@/lib/supabase/types";
 import toast from "react-hot-toast";
 
@@ -45,6 +48,7 @@ export function ServicesClient({
   const [treatments] = useState<Treatment[]>(initialTreatments);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQuotaModalOpen, setIsQuotaModalOpen] = useState(false);
+  const [recipeTreatment, setRecipeTreatment] = useState<Treatment | null>(null);
   const [editingTreatment, setEditingTreatment] = useState<Treatment | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -353,6 +357,18 @@ export function ServicesClient({
                   </div>
                 </div>
               )}
+
+              {/* Consumables Recipe Action Button */}
+              <div className="pt-2 border-t border-line/60">
+                <button
+                  type="button"
+                  onClick={() => setRecipeTreatment(t)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition-colors w-full justify-center"
+                >
+                  <PackageCheck size={13} className="text-emerald-600" />
+                  Back-Bar Consumables (Recipe)
+                </button>
+              </div>
             </div>
           );
         })}
@@ -401,6 +417,15 @@ export function ServicesClient({
                   <td className="px-4 py-3">
                     <div className="font-semibold text-ink text-xs">{t.name}</div>
                     <div className="text-[11px] text-ink-soft capitalize mt-0.5">{t.category}</div>
+                    <button
+                      type="button"
+                      onClick={() => setRecipeTreatment(t)}
+                      className="inline-flex items-center gap-1 mt-1 text-[10px] text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer"
+                      title="Configure Back-Bar Consumables Recipe"
+                    >
+                      <PackageCheck size={11} className="text-emerald-600" />
+                      Consumables Recipe
+                    </button>
                   </td>
 
                   {/* Handled By Column */}
@@ -470,6 +495,13 @@ export function ServicesClient({
 
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => setRecipeTreatment(t)}
+                        className="p-1.5 text-ink-soft hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="Configure Consumables (Recipe)"
+                      >
+                        <PackageCheck size={15} />
+                      </button>
                       <button
                         onClick={() => openModal(t)}
                         className="p-1.5 text-ink-soft hover:text-royal hover:bg-royal/10 rounded-lg transition-colors"
@@ -922,6 +954,14 @@ export function ServicesClient({
             </form>
           </div>
         </div>
+      )}
+
+      {/* BACK-BAR CONSUMABLES RECIPE MODAL */}
+      {recipeTreatment && (
+        <TreatmentRecipeModal
+          treatment={recipeTreatment}
+          onClose={() => setRecipeTreatment(null)}
+        />
       )}
     </div>
   );

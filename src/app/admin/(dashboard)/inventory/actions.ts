@@ -1125,7 +1125,7 @@ export async function getTreatmentRecipes(): Promise<TreatmentRecipeData[]> {
 
   const { data: materials, error: mErr } = await supabase
     .from("treatment_materials")
-    .select("id, treatment_id, item_id, quantity_required, inventory_items(id, name, unit, current_stock, category)");
+    .select("id, treatment_id, item_id, quantity_required, notes, inventory_items(id, name, unit, current_stock, category, cost_price, sku)");
 
   if (mErr || !materials) {
     return treatments.map((t) => ({ 
@@ -1133,7 +1133,9 @@ export async function getTreatmentRecipes(): Promise<TreatmentRecipeData[]> {
       name: t.name,
       slug: t.slug,
       session_price: t.session_price || 0,
-      materials: [] 
+      materials: [],
+      totalCost: 0,
+      marginPercent: 100,
     }));
   }
 
@@ -1148,29 +1150,46 @@ export async function getTreatmentRecipes(): Promise<TreatmentRecipeData[]> {
       unit: string;
       current_stock: number;
       category: string;
+      cost_price?: number;
+      sku?: string | null;
     } | undefined;
 
     materialsByTreatment[m.treatment_id].push({
       id: m.id,
       itemId: m.item_id,
       quantityRequired: m.quantity_required,
+      notes: m.notes || null,
       item: invItem,
     });
   }
 
-  return treatments.map((t) => ({
-    id: t.id,
-    name: t.name,
-    slug: t.slug,
-    session_price: t.session_price || 0,
-    materials: materialsByTreatment[t.id] || [],
-  }));
+  return treatments.map((t) => {
+    const mats = materialsByTreatment[t.id] || [];
+    const totalCost = mats.reduce((sum, item) => {
+      const cost = item.item?.cost_price || 0;
+      return sum + cost * item.quantityRequired;
+    }, 0);
+    const price = t.session_price || 0;
+    const grossProfit = Math.max(0, price - totalCost);
+    const marginPercent = price > 0 ? Math.round((grossProfit / price) * 100) : 0;
+
+    return {
+      id: t.id,
+      name: t.name,
+      slug: t.slug,
+      session_price: price,
+      materials: mats,
+      totalCost,
+      marginPercent,
+    };
+  });
 }
 
 export async function addOrUpdateTreatmentMaterial(
   treatmentId: string,
   itemId: string,
-  quantityRequired: number
+  quantityRequired: number,
+  notes?: string
 ) {
   const staff = await requireStaff();
   if (staff.role !== "super_admin" && staff.role !== "admin" && staff.role !== "manager") {
@@ -1189,6 +1208,7 @@ export async function addOrUpdateTreatmentMaterial(
         treatment_id: treatmentId,
         item_id: itemId,
         quantity_required: quantityRequired,
+        notes: notes?.trim() || null,
       },
       { onConflict: "treatment_id,item_id" }
     );
@@ -1196,6 +1216,67 @@ export async function addOrUpdateTreatmentMaterial(
   if (error) return { error: error.message };
 
   revalidatePath("/admin/inventory");
+  revalidatePath("/admin/services");
+  return { success: true };
+}
+
+export async function applyInventoryPresetRecipe(
+  treatmentId: string,
+  presetType: "drip" | "facial" | "laser"
+) {
+  const staff = await requireStaff();
+  if (staff.role !== "super_admin" && staff.role !== "admin" && staff.role !== "manager") {
+    return { error: "Forbidden: You do not have permission to apply recipe presets." };
+  }
+
+  const supabase = await createClient();
+
+  let targetSKUs: { sku: string; quantity: number; notes: string }[] = [];
+  if (presetType === "drip") {
+    targetSKUs = [
+      { sku: "DRIP-GLUTA-1200", quantity: 1, notes: "1 sterile vial gluta solution" },
+      { sku: "VITC-AMP-500", quantity: 1, notes: "1 ampoule vitamin C booster" },
+      { sku: "IVS-PNSS-500", quantity: 1, notes: "500ml normal saline bag" },
+      { sku: "MED-BUTTERFLY-24G", quantity: 1, notes: "24G butterfly needle infusion set" },
+      { sku: "MED-ALCOHOL-SWAB", quantity: 2, notes: "2 alcohol antiseptic swabs" },
+    ];
+  } else if (presetType === "facial") {
+    targetSKUs = [
+      { sku: "CLN-FACIAL-10ML", quantity: 10, notes: "10ml clarifying cleanser" },
+      { sku: "MED-COTTON-PADS", quantity: 4, notes: "4 sterile medical cotton pads" },
+      { sku: "MASK-COLLAGEN-HYDRA", quantity: 1, notes: "1 collagen soothing mask" },
+    ];
+  } else if (presetType === "laser") {
+    targetSKUs = [
+      { sku: "GEL-ULTRASOUND-20ML", quantity: 20, notes: "20ml cooling optical gel" },
+      { sku: "MED-ALCOHOL-SWAB", quantity: 2, notes: "Disinfection swabs" },
+    ];
+  }
+
+  for (const target of targetSKUs) {
+    const { data: item } = await supabase
+      .from("inventory_items")
+      .select("id")
+      .eq("sku", target.sku)
+      .maybeSingle();
+
+    if (item) {
+      await supabase
+        .from("treatment_materials")
+        .upsert(
+          {
+            treatment_id: treatmentId,
+            item_id: item.id,
+            quantity_required: target.quantity,
+            notes: target.notes,
+          },
+          { onConflict: "treatment_id,item_id" }
+        );
+    }
+  }
+
+  revalidatePath("/admin/inventory");
+  revalidatePath("/admin/services");
   return { success: true };
 }
 

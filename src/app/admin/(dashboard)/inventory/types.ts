@@ -309,12 +309,15 @@ export interface TreatmentRecipeMaterial {
   id: string;
   itemId: string;
   quantityRequired: number;
+  notes?: string | null;
   item?: {
     id: string;
     name: string;
     unit: string;
     current_stock: number;
     category: string;
+    cost_price?: number;
+    sku?: string | null;
   };
 }
 
@@ -324,5 +327,7 @@ export interface TreatmentRecipeData {
   slug: string;
   session_price: number;
   materials: TreatmentRecipeMaterial[];
+  totalCost?: number;
+  marginPercent?: number;
 }
 

@@ -36,6 +36,49 @@ function generateMovementRef(prefix: string = "OUT") {
   return `${prefix}-${dateStr}-${rand}`;
 }
 
+async function checkAndAlertLowStock(
+  supabase: ReturnType<typeof getAdminClient>,
+  item: { id: string; name: string; unit: string; low_stock_threshold?: number },
+  newStock: number,
+  branchId?: string | null
+) {
+  const threshold = item.low_stock_threshold ?? 5;
+  if (newStock <= threshold) {
+    try {
+      const { data: staffAdmins } = await supabase
+        .from("staff")
+        .select("id, branch_id, roles(name)")
+        .eq("is_active", true);
+
+      const targetRecipients = (staffAdmins || []).filter((s: any) => {
+        const role = Array.isArray(s.roles) ? s.roles[0]?.name : s.roles?.name;
+        const matchesRole = ["super_admin", "admin", "manager"].includes(role);
+        const matchesBranch = !branchId || !s.branch_id || s.branch_id === branchId;
+        return matchesRole && matchesBranch;
+      });
+
+      for (const recipient of targetRecipients.slice(0, 5)) {
+        await supabase.from("staff_notifications").insert({
+          recipient_id: recipient.id,
+          branch_id: branchId || null,
+          title: `⚠️ Low Stock Alert: ${item.name}`,
+          message: `Stock level dropped to ${newStock} ${item.unit} (threshold: ${threshold}). Please reorder back-bar supplies.`,
+          type: "inventory_low_stock",
+          link: "/admin/inventory",
+          metadata: {
+            item_id: item.id,
+            item_name: item.name,
+            current_stock: newStock,
+            threshold,
+          },
+        });
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+  }
+}
+
 /**
  * Automatically deducts used items (materials/consumables) from inventory
  * when an appointment or treatment is completed.
@@ -90,7 +133,7 @@ export async function deductAppointmentInventory(
     // 3. Fetch materials / recipe for this treatment
     const { data: materials, error: matErr } = await supabase
       .from("treatment_materials")
-      .select("item_id, quantity_required, inventory_items(id, name, unit, current_stock)")
+      .select("item_id, quantity_required, inventory_items(id, name, unit, current_stock, low_stock_threshold)")
       .eq("treatment_id", appointment.treatment_id);
 
     if (matErr) {
@@ -121,6 +164,7 @@ export async function deductAppointmentInventory(
         name: string;
         unit: string;
         current_stock: number;
+        low_stock_threshold?: number;
       } | null;
 
       if (!item) continue;
@@ -211,6 +255,9 @@ export async function deductAppointmentInventory(
         // Ignore fallback error
       }
 
+      // Check low stock and alert
+      await checkAndAlertLowStock(supabase, item, newStock, appointment.branch_id);
+
       deductedItems.push({
         itemId: item.id,
         itemName: item.name,
@@ -231,6 +278,271 @@ export async function deductAppointmentInventory(
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error during deduction";
     console.error("deductAppointmentInventory error:", err);
+    return {
+      success: false,
+      error: message,
+      count: 0,
+      deductedItems: [],
+    };
+  }
+}
+
+/**
+ * Automatically deducts back-bar consumables from inventory
+ * when a package session is redeemed.
+ */
+export async function deductPackageSessionInventory(
+  packageId: string,
+  sessionNumber: number,
+  performedByUserId?: string,
+  branchId?: string,
+  customNotes?: string
+): Promise<DeductionResult> {
+  const supabase = getAdminClient();
+
+  try {
+    // 1. First attempt to execute optimized atomic stored procedure
+    try {
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc(
+        "deduct_inventory_for_package_redemption",
+        {
+          p_package_id: packageId,
+          p_session_number: sessionNumber,
+          p_branch_id: branchId || null,
+          p_user_id: performedByUserId || null,
+        }
+      );
+
+      if (!rpcErr && rpcRes && typeof rpcRes === "object") {
+        const typedRpc = rpcRes as {
+          success: boolean;
+          message?: string;
+          count?: number;
+          deductedItems?: DeductedItemSummary[];
+          referenceNumber?: string;
+          error?: string;
+        };
+
+        if (typedRpc.success) {
+          return {
+            success: true,
+            message: typedRpc.message || `Deducted consumables for session ${sessionNumber}.`,
+            count: typedRpc.count || 0,
+            deductedItems: (typedRpc.deductedItems as DeductedItemSummary[]) || [],
+            referenceNumber: typedRpc.referenceNumber || `PKG-${packageId.slice(0, 8)}-S${sessionNumber}`,
+          };
+        }
+      }
+    } catch {
+      // Fall through to manual TypeScript deduction logic below
+    }
+
+    // 2. Fetch package info
+    const { data: pkg, error: pkgErr } = await supabase
+      .from("customer_packages")
+      .select("id, package_name, treatment_id, branch_id")
+      .eq("id", packageId)
+      .single();
+
+    if (pkgErr || !pkg) {
+      return {
+        success: false,
+        error: "Package not found.",
+        count: 0,
+        deductedItems: [],
+      };
+    }
+
+    const refNumber = `PKG-${packageId.slice(0, 8).toUpperCase()}-S${sessionNumber}`;
+    const effectiveBranchId = branchId || pkg.branch_id || null;
+
+    // 3. Prevent duplicate deduction for this session
+    const { data: existingMovements } = await supabase
+      .from("inventory_movements")
+      .select("id")
+      .eq("reference_id", refNumber)
+      .eq("movement_type", "stock_out")
+      .limit(1);
+
+    if (existingMovements && existingMovements.length > 0) {
+      return {
+        success: true,
+        message: `Inventory already deducted for ${refNumber}.`,
+        count: 0,
+        deductedItems: [],
+        referenceNumber: refNumber,
+      };
+    }
+
+    // 4. Resolve treatment ID
+    let treatmentId = pkg.treatment_id;
+    let treatmentName = pkg.package_name;
+
+    if (!treatmentId) {
+      const { data: matchedTreatments } = await supabase
+        .from("treatments")
+        .select("id, name");
+
+      if (matchedTreatments && matchedTreatments.length > 0) {
+        const found = matchedTreatments.find(
+          (t) =>
+            pkg.package_name.toLowerCase().includes(t.name.toLowerCase()) ||
+            t.name.toLowerCase().includes(pkg.package_name.toLowerCase())
+        );
+        if (found) {
+          treatmentId = found.id;
+          treatmentName = found.name;
+        }
+      }
+    }
+
+    if (!treatmentId) {
+      return {
+        success: true,
+        message: `No matching treatment recipe found for package "${pkg.package_name}".`,
+        count: 0,
+        deductedItems: [],
+        referenceNumber: refNumber,
+      };
+    }
+
+    // 5. Fetch recipe materials
+    const { data: materials, error: matErr } = await supabase
+      .from("treatment_materials")
+      .select("item_id, quantity_required, inventory_items(id, name, unit, current_stock, low_stock_threshold)")
+      .eq("treatment_id", treatmentId);
+
+    if (matErr || !materials || materials.length === 0) {
+      return {
+        success: true,
+        message: `No consumables mapped for ${treatmentName}.`,
+        count: 0,
+        deductedItems: [],
+        referenceNumber: refNumber,
+      };
+    }
+
+    const deductedItems: DeductedItemSummary[] = [];
+
+    for (const mat of materials) {
+      const item = mat.inventory_items as unknown as {
+        id: string;
+        name: string;
+        unit: string;
+        current_stock: number;
+        low_stock_threshold?: number;
+      } | null;
+
+      if (!item) continue;
+
+      const qtyRequired = Number(mat.quantity_required) || 1;
+      const prevStock = Number(item.current_stock) || 0;
+      const newStock = Math.max(0, prevStock - qtyRequired);
+
+      // Update global stock
+      await supabase
+        .from("inventory_items")
+        .update({
+          current_stock: newStock,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+
+      // Update branch stock
+      if (effectiveBranchId) {
+        try {
+          const { data: bStock } = await supabase
+            .from("inventory_stock_balances")
+            .select("quantity")
+            .eq("item_id", item.id)
+            .eq("branch_id", effectiveBranchId)
+            .maybeSingle();
+
+          if (bStock) {
+            const bPrev = Number(bStock.quantity) || 0;
+            const bNew = Math.max(0, bPrev - qtyRequired);
+            await supabase
+              .from("inventory_stock_balances")
+              .update({
+                quantity: bNew,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("item_id", item.id)
+              .eq("branch_id", effectiveBranchId);
+          } else {
+            await supabase
+              .from("inventory_stock_balances")
+              .upsert(
+                {
+                  item_id: item.id,
+                  branch_id: effectiveBranchId,
+                  quantity: newStock,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: "item_id,branch_id" }
+              );
+          }
+        } catch (bErr) {
+          console.error("Failed to update branch balance during package redemption:", bErr);
+        }
+      }
+
+      // Log movement in audit ledger
+      const movRef = generateMovementRef("OUT");
+      try {
+        await supabase.from("inventory_movements").insert({
+          reference_number: movRef,
+          item_id: item.id,
+          movement_type: "stock_out",
+          quantity: qtyRequired,
+          unit: item.unit || "pcs",
+          source_branch_id: effectiveBranchId,
+          previous_quantity: prevStock,
+          new_quantity: newStock,
+          reason: `Package Redemption: ${pkg.package_name} (Session ${sessionNumber})`,
+          notes: customNotes || `Auto-deducted for package ${pkg.package_name} session ${sessionNumber}`,
+          reference_id: refNumber,
+          performed_by: performedByUserId || null,
+        });
+      } catch (movErr) {
+        console.error("Failed to insert inventory movement for package:", movErr);
+      }
+
+      // Legacy fallback
+      try {
+        await supabase.from("inventory_logs").insert({
+          item_id: item.id,
+          change_amount: -qtyRequired,
+          reason: `Package Session ${sessionNumber}: ${pkg.package_name} (${refNumber})`,
+          created_by: performedByUserId || null,
+        });
+      } catch {
+        // Ignore fallback error
+      }
+
+      // Check low stock and alert
+      await checkAndAlertLowStock(supabase, item, newStock, effectiveBranchId);
+
+      deductedItems.push({
+        itemId: item.id,
+        itemName: item.name,
+        quantity: qtyRequired,
+        unit: item.unit,
+        previousStock: prevStock,
+        newStock: newStock,
+      });
+    }
+
+    return {
+      success: true,
+      message: `Auto-deducted ${deductedItems.length} consumables for ${pkg.package_name} (Session ${sessionNumber}).`,
+      count: deductedItems.length,
+      deductedItems,
+      referenceNumber: refNumber,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Error during package inventory deduction";
+    console.error("deductPackageSessionInventory error:", err);
     return {
       success: false,
       error: message,

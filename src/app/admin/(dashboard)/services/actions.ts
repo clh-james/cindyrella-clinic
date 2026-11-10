@@ -363,3 +363,255 @@ export async function autoComputeAllCommissions() {
     return { success: false, error: message };
   }
 }
+
+/**
+ * -------------------------------------------------------------
+ * CONSUMABLES & BACK-BAR RECIPE ACTIONS FOR SERVICES
+ * -------------------------------------------------------------
+ */
+
+export interface ConsumableItemOption {
+  id: string;
+  name: string;
+  sku?: string | null;
+  unit: string;
+  current_stock: number;
+  cost_price: number;
+  category: string;
+}
+
+export interface TreatmentConsumableEntry {
+  id: string;
+  itemId: string;
+  quantityRequired: number;
+  notes?: string | null;
+  item: ConsumableItemOption;
+}
+
+export async function getTreatmentRecipeDetails(treatmentId: string): Promise<{
+  success: boolean;
+  materials: TreatmentConsumableEntry[];
+  availableItems: ConsumableItemOption[];
+  error?: string;
+}> {
+  try {
+    const supabase = createAdminClient();
+
+    // 1. Fetch current materials for this treatment
+    const { data: materials, error: matErr } = await supabase
+      .from("treatment_materials")
+      .select(`
+        id,
+        treatment_id,
+        item_id,
+        quantity_required,
+        notes,
+        inventory_items (
+          id,
+          name,
+          sku,
+          unit,
+          current_stock,
+          cost_price,
+          category
+        )
+      `)
+      .eq("treatment_id", treatmentId);
+
+    if (matErr) {
+      return { success: false, materials: [], availableItems: [], error: matErr.message };
+    }
+
+    // 2. Fetch all active inventory items suitable for back-bar
+    const { data: items, error: itemErr } = await supabase
+      .from("inventory_items")
+      .select("id, name, sku, unit, current_stock, cost_price, category")
+      .eq("is_active", true)
+      .order("name", { ascending: true });
+
+    if (itemErr) {
+      return { success: false, materials: [], availableItems: [], error: itemErr.message };
+    }
+
+    const formattedMaterials: TreatmentConsumableEntry[] = [];
+    for (const m of (materials || [])) {
+      const itm = m.inventory_items as unknown as ConsumableItemOption | null;
+      if (!itm) continue;
+      formattedMaterials.push({
+        id: m.id,
+        itemId: m.item_id,
+        quantityRequired: Number(m.quantity_required) || 1,
+        notes: m.notes || null,
+        item: {
+          id: itm.id,
+          name: itm.name,
+          sku: itm.sku,
+          unit: itm.unit,
+          current_stock: Number(itm.current_stock) || 0,
+          cost_price: Number(itm.cost_price) || 0,
+          category: itm.category || "Consumables",
+        },
+      });
+    }
+
+    const formattedItems: ConsumableItemOption[] = (items || []).map((i) => ({
+      id: i.id,
+      name: i.name,
+      sku: i.sku,
+      unit: i.unit,
+      current_stock: Number(i.current_stock) || 0,
+      cost_price: Number(i.cost_price) || 0,
+      category: i.category || "Consumables",
+    }));
+
+    return {
+      success: true,
+      materials: formattedMaterials,
+      availableItems: formattedItems,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Error fetching treatment recipe";
+    return { success: false, materials: [], availableItems: [], error: message };
+  }
+}
+
+export async function saveTreatmentRecipeMaterial(data: {
+  treatmentId: string;
+  itemId: string;
+  quantityRequired: number;
+  notes?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const staff = await requireStaff();
+    if (staff.role !== "super_admin" && staff.role !== "admin" && staff.role !== "manager") {
+      return { success: false, error: "Forbidden: You do not have permission to manage treatment consumables." };
+    }
+
+    if (data.quantityRequired <= 0) {
+      return { success: false, error: "Quantity must be at least 1." };
+    }
+
+    const supabase = createAdminClient();
+
+    const { error } = await supabase
+      .from("treatment_materials")
+      .upsert(
+        {
+          treatment_id: data.treatmentId,
+          item_id: data.itemId,
+          quantity_required: data.quantityRequired,
+          notes: data.notes?.trim() || null,
+        },
+        { onConflict: "treatment_id,item_id" }
+      );
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/admin/services");
+    revalidatePath("/admin/inventory");
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to save consumable recipe";
+    return { success: false, error: message };
+  }
+}
+
+export async function deleteTreatmentRecipeMaterial(
+  treatmentId: string,
+  itemId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const staff = await requireStaff();
+    if (staff.role !== "super_admin" && staff.role !== "admin" && staff.role !== "manager") {
+      return { success: false, error: "Forbidden: You do not have permission to remove consumables." };
+    }
+
+    const supabase = createAdminClient();
+    const { error } = await supabase
+      .from("treatment_materials")
+      .delete()
+      .eq("treatment_id", treatmentId)
+      .eq("item_id", itemId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/admin/services");
+    revalidatePath("/admin/inventory");
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to delete recipe item";
+    return { success: false, error: message };
+  }
+}
+
+export async function applyPresetRecipeToTreatment(
+  treatmentId: string,
+  presetType: "drip" | "facial" | "laser"
+): Promise<{ success: boolean; count?: number; error?: string }> {
+  try {
+    const staff = await requireStaff();
+    if (staff.role !== "super_admin" && staff.role !== "admin" && staff.role !== "manager") {
+      return { success: false, error: "Forbidden: You do not have permission to apply recipe presets." };
+    }
+
+    const supabase = createAdminClient();
+
+    // Mapping preset SKUs and quantities
+    let targetSKUs: { sku: string; quantity: number; notes: string }[] = [];
+    if (presetType === "drip") {
+      targetSKUs = [
+        { sku: "DRIP-GLUTA-1200", quantity: 1, notes: "1 sterile vial gluta solution" },
+        { sku: "VITC-AMP-500", quantity: 1, notes: "1 ampoule vitamin C booster" },
+        { sku: "IVS-PNSS-500", quantity: 1, notes: "500ml normal saline bag" },
+        { sku: "MED-BUTTERFLY-24G", quantity: 1, notes: "24G butterfly needle infusion set" },
+        { sku: "MED-ALCOHOL-SWAB", quantity: 2, notes: "2 alcohol antiseptic swabs" },
+      ];
+    } else if (presetType === "facial") {
+      targetSKUs = [
+        { sku: "CLN-FACIAL-10ML", quantity: 10, notes: "10ml clarifying cleanser" },
+        { sku: "MED-COTTON-PADS", quantity: 4, notes: "4 sterile medical cotton pads" },
+        { sku: "MASK-COLLAGEN-HYDRA", quantity: 1, notes: "1 collagen soothing mask" },
+      ];
+    } else if (presetType === "laser") {
+      targetSKUs = [
+        { sku: "GEL-ULTRASOUND-20ML", quantity: 20, notes: "20ml cooling optical gel" },
+        { sku: "MED-ALCOHOL-SWAB", quantity: 2, notes: "Disinfection swabs" },
+      ];
+    }
+
+    let appliedCount = 0;
+    for (const target of targetSKUs) {
+      const { data: item } = await supabase
+        .from("inventory_items")
+        .select("id")
+        .eq("sku", target.sku)
+        .maybeSingle();
+
+      if (item) {
+        await supabase
+          .from("treatment_materials")
+          .upsert(
+            {
+              treatment_id: treatmentId,
+              item_id: item.id,
+              quantity_required: target.quantity,
+              notes: target.notes,
+            },
+            { onConflict: "treatment_id,item_id" }
+          );
+        appliedCount++;
+      }
+    }
+
+    revalidatePath("/admin/services");
+    revalidatePath("/admin/inventory");
+    return { success: true, count: appliedCount };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Error applying preset recipe";
+    return { success: false, error: message };
+  }
+}

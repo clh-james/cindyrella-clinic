@@ -3,10 +3,14 @@
 import { useState } from "react";
 import { 
   Sparkles, Search, Plus, Trash2, 
-  Package, Check, Loader2 
+  Package, Check, Loader2, DollarSign, TrendingUp 
 } from "lucide-react";
 import { InventoryItem, TreatmentRecipeData } from "./types";
-import { addOrUpdateTreatmentMaterial, deleteTreatmentMaterial } from "./actions";
+import { 
+  addOrUpdateTreatmentMaterial, 
+  deleteTreatmentMaterial, 
+  applyInventoryPresetRecipe 
+} from "./actions";
 import { toast } from "react-hot-toast";
 
 type TreatmentRecipe = TreatmentRecipeData;
@@ -31,6 +35,7 @@ export function TreatmentRecipesView({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState("");
   const [quantityRequired, setQuantityRequired] = useState(1);
+  const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Filter recipes
@@ -68,7 +73,21 @@ export function TreatmentRecipesView({
     setActiveTreatment(treatment);
     setSelectedItemId(allItems[0]?.id || "");
     setQuantityRequired(1);
+    setNotes("");
     setIsAddModalOpen(true);
+  };
+
+  const handleApplyPreset = async (treatment: TreatmentRecipe, type: "drip" | "facial" | "laser") => {
+    setSubmitting(true);
+    const res = await applyInventoryPresetRecipe(treatment.id, type);
+    setSubmitting(false);
+
+    if (res.error) {
+      toast.error(res.error);
+    } else {
+      toast.success("Preset supplies applied to recipe!");
+      window.location.reload();
+    }
   };
 
   const handleSaveMaterial = async (e: React.FormEvent) => {
@@ -79,7 +98,8 @@ export function TreatmentRecipesView({
     const res = await addOrUpdateTreatmentMaterial(
       activeTreatment.id,
       selectedItemId,
-      quantityRequired
+      quantityRequired,
+      notes.trim() || undefined
     );
     setSubmitting(false);
 
@@ -98,12 +118,14 @@ export function TreatmentRecipesView({
             newMaterials[existingIdx] = {
               ...newMaterials[existingIdx],
               quantityRequired,
+              notes: notes.trim() || null,
             };
           } else {
             newMaterials.push({
               id: `temp-${Date.now()}`,
               itemId: selectedItemId,
               quantityRequired,
+              notes: notes.trim() || null,
               item: targetItem
                 ? {
                     id: targetItem.id,
@@ -251,8 +273,15 @@ export function TreatmentRecipesView({
                   )}
                 </div>
 
+                {(treatment.totalCost !== undefined && treatment.totalCost > 0) && (
+                  <div className="flex items-center justify-between text-[10px] text-ink-soft bg-pale/70 px-2.5 py-1 rounded-lg mb-2">
+                    <span>Back-Bar Cost: <strong className="text-ink font-mono font-bold">₱{treatment.totalCost.toLocaleString("en-PH")}</strong></span>
+                    <span>Margin: <strong className="text-emerald-700 font-mono font-bold">{treatment.marginPercent}%</strong></span>
+                  </div>
+                )}
+
                 {/* Consumables List */}
-                <div className="mt-3 space-y-1.5 border-t border-line/60 pt-3 text-xs">
+                <div className="mt-2 space-y-1.5 border-t border-line/60 pt-2.5 text-xs">
                   {treatment.materials.map((m) => (
                     <div
                       key={m.id || m.itemId}
@@ -263,6 +292,11 @@ export function TreatmentRecipesView({
                         <span className="truncate text-ink font-medium">
                           {m.item?.name || "Consumable Item"}
                         </span>
+                        {m.notes && (
+                          <span className="text-[10px] text-ink-soft truncate italic max-w-[120px]">
+                            ({m.notes})
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-2 flex-shrink-0">
@@ -284,9 +318,36 @@ export function TreatmentRecipesView({
                   ))}
 
                   {!hasMaterials && (
-                    <p className="text-[11px] text-ink-soft italic py-2 text-center">
-                      No consumables linked yet.
-                    </p>
+                    <div className="py-2 text-center space-y-2">
+                      <p className="text-[11px] text-ink-soft italic">
+                        No back-bar supplies linked yet.
+                      </p>
+                      {canEdit && (
+                        <div className="flex flex-wrap justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleApplyPreset(treatment, "drip")}
+                            className="text-[10px] bg-royal/10 hover:bg-royal/20 text-royal px-2 py-0.5 rounded-md font-semibold transition-colors"
+                          >
+                            + Drip Pack
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyPreset(treatment, "facial")}
+                            className="text-[10px] bg-royal/10 hover:bg-royal/20 text-royal px-2 py-0.5 rounded-md font-semibold transition-colors"
+                          >
+                            + Facial Kit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyPreset(treatment, "laser")}
+                            className="text-[10px] bg-royal/10 hover:bg-royal/20 text-royal px-2 py-0.5 rounded-md font-semibold transition-colors"
+                          >
+                            + Laser Kit
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -351,6 +412,17 @@ export function TreatmentRecipesView({
                   value={quantityRequired}
                   onChange={(e) => setQuantityRequired(parseInt(e.target.value) || 1)}
                   className="w-full rounded-xl border border-line px-3 py-2 text-xs font-mono font-semibold text-ink outline-none focus:border-royal"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-ink mb-1">Clinical Note / Dose (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 1 sterile vial, 10ml solution, 24G needle"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full rounded-xl border border-line px-3 py-2 text-xs text-ink outline-none focus:border-royal"
                 />
               </div>
 

@@ -35,7 +35,15 @@ export function RedeemSessionModal({
       if (res?.error) {
         toast.error(res.error);
       } else {
-        toast.success(`Session ${res.sessionNumber} redeemed successfully! (${res.remainingSessions} left)`);
+        const deductedCount = res.deductedItems?.length || 0;
+        if (deductedCount > 0) {
+          toast.success(
+            `Session ${res.sessionNumber} redeemed! Auto-deducted ${deductedCount} back-bar consumable(s) from stock.`,
+            { duration: 5000 }
+          );
+        } else {
+          toast.success(`Session ${res.sessionNumber} redeemed successfully! (${res.remainingSessions} left)`);
+        }
         onSuccess();
         onClose();
       }
@@ -126,6 +134,14 @@ export function RedeemSessionModal({
               placeholder="e.g. Facial session 2 done, applied calming serum, client satisfied"
               className="w-full bg-white border border-line rounded-xl px-3.5 py-2 text-sm text-ink placeholder:text-ink-soft/50 focus:outline-none focus:ring-2 focus:ring-royal/30 focus:border-royal"
             />
+          </div>
+
+          {/* Consumable Auto-Deduction Badge */}
+          <div className="rounded-xl bg-emerald-50 border border-emerald-200/80 p-2.5 flex items-start gap-2 text-emerald-800">
+            <Sparkles size={14} className="mt-0.5 text-emerald-600 shrink-0" />
+            <p className="text-[11px] leading-relaxed">
+              <span className="font-semibold">Auto Back-Bar Deduction:</span> Any mapped consumables (e.g. drip vials, IV set, serums) will be automatically subtracted from stock upon confirmation.
+            </p>
           </div>
 
           {/* Actions */}

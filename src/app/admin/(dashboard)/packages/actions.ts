@@ -239,13 +239,37 @@ export async function redeemPackageSession(data: {
     // Graceful fallback if migration 0048 not yet executed in remote DB
   }
 
+  // 6. Automated Consumables / Back-Bar Inventory Auto-Deduction
+  let deductedConsumables: { itemName: string; quantity: number; unit: string }[] = [];
+  try {
+    const { deductPackageSessionInventory } = await import("@/lib/inventory/deduction");
+    const deductionResult = await deductPackageSessionInventory(
+      pkg.id,
+      sessionNum,
+      data.staffId || staff.id,
+      data.branchId || pkg.branch_id || staff.branchId || undefined,
+      data.notes || undefined
+    );
+    if (deductionResult.success && deductionResult.deductedItems) {
+      deductedConsumables = deductionResult.deductedItems.map((i) => ({
+        itemName: i.itemName,
+        quantity: i.quantity,
+        unit: i.unit,
+      }));
+    }
+  } catch (deductErr) {
+    console.error("Auto inventory deduction failed on package redemption:", deductErr);
+  }
+
   revalidatePath("/admin/packages");
   revalidatePath("/admin/customers");
+  revalidatePath("/admin/inventory");
   return { 
     success: true, 
     sessionNumber: sessionNum, 
     remainingSessions: newRemaining, 
-    status: newStatus 
+    status: newStatus,
+    deductedItems: deductedConsumables,
   };
 }
 
