@@ -23,3 +23,4 @@ export default async function MyCommissionsPage() {
 
   return <MyCommissionsClient initialData={res.data} />;
 }
+
