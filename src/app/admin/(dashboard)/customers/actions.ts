@@ -17,6 +17,7 @@ import type {
   CustomerPackage,
   ClientAppointmentItem,
   CustomerPhotoRecord,
+  CustomerWaiverRecord,
   CompleteClientFile,
 } from "./types";
 import {
@@ -354,6 +355,22 @@ export async function getCompleteClientFile(
       customerPhotos = [];
     }
 
+    // 8.6 Fetch Customer Consent Waivers
+    let customerWaivers: CustomerWaiverRecord[] = [];
+    try {
+      const { data: waiverData, error: waiverErr } = await supabase
+        .from("customer_waivers")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("signed_at", { ascending: false });
+
+      if (!waiverErr && waiverData) {
+        customerWaivers = waiverData as CustomerWaiverRecord[];
+      }
+    } catch {
+      customerWaivers = [];
+    }
+
     // 9. Build Consolidated File
     const completeFile = buildCompleteClientFile({
       client: clientProfile,
@@ -363,6 +380,7 @@ export async function getCompleteClientFile(
       packages,
       posTransactions,
       photos: customerPhotos,
+      waivers: customerWaivers,
       actorName: staff.fullName,
       branchScope,
       date_range: filters?.fromDate || filters?.toDate ? { from: filters.fromDate, to: filters.toDate } : undefined,
@@ -960,5 +978,164 @@ export async function pairCustomerPhotos(
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message || "Failed to pair photos." };
+  }
+}
+
+/**
+ * 9. SAVE DIGITAL CONSENT WAIVER & MEDICAL INTAKE
+ * Saves the legally binding digital waiver and automatically synchronizes
+ * customer's medical conditions, allergies, and emergency contact.
+ */
+export async function saveCustomerWaiver(payload: {
+  customer_id: string;
+  appointment_id?: string | null;
+  treatment_name: string;
+  form_type?: string;
+  medical_history: {
+    allergies?: string;
+    medical_conditions?: string[];
+    current_medications?: string;
+    is_pregnant_or_nursing?: boolean;
+    past_treatments_6months?: string;
+    emergency_contact_name?: string;
+    emergency_contact_phone?: string;
+  };
+  consent_acknowledgements: {
+    risks_acknowledged: boolean;
+    aftercare_commitment: boolean;
+    truthful_information: boolean;
+    photo_consent: "clinical_records_only" | "promotional_permitted" | "declined";
+  };
+  signature_data_url: string;
+  signer_full_name: string;
+}): Promise<{
+  success: boolean;
+  waiver?: CustomerWaiverRecord;
+  error?: string;
+}> {
+  const staff = await requireStaff();
+  const supabase = createAdminClient();
+
+  if (!payload.customer_id) {
+    return { success: false, error: "Missing customer identifier." };
+  }
+  if (!payload.signature_data_url || payload.signature_data_url.length < 50) {
+    return { success: false, error: "A valid electronic signature is required." };
+  }
+  if (!payload.signer_full_name?.trim()) {
+    return { success: false, error: "Printed signer name is required." };
+  }
+
+  try {
+    // 1. Insert into customer_waivers table
+    const { data: waiver, error: insertErr } = await supabase
+      .from("customer_waivers")
+      .insert({
+        customer_id: payload.customer_id,
+        appointment_id: payload.appointment_id || null,
+        branch_id: staff.branchId || null,
+        treatment_name: payload.treatment_name || "General Clinical Treatment",
+        form_type: payload.form_type || "general_treatment",
+        medical_history: payload.medical_history,
+        consent_acknowledgements: payload.consent_acknowledgements,
+        signature_data_url: payload.signature_data_url,
+        signer_full_name: payload.signer_full_name.trim(),
+        signed_at: new Date().toISOString(),
+        staff_witness_id: staff.id,
+        staff_witness_name: staff.fullName,
+        status: "signed",
+      })
+      .select("*")
+      .single();
+
+    if (insertErr) {
+      console.error("Waiver insert error:", insertErr);
+      return { success: false, error: `Failed to save waiver: ${insertErr.message}` };
+    }
+
+    // 2. Synchronize customer profile health disclosures in customers table
+    const medHistory = payload.medical_history;
+    const updateCustomerPayload: Record<string, any> = {};
+
+    if (medHistory.allergies !== undefined) {
+      updateCustomerPayload.allergies = medHistory.allergies || null;
+    }
+    if (Array.isArray(medHistory.medical_conditions)) {
+      updateCustomerPayload.medical_conditions = medHistory.medical_conditions.join(", ") || null;
+    }
+    if (medHistory.is_pregnant_or_nursing !== undefined) {
+      updateCustomerPayload.is_pregnant = !!medHistory.is_pregnant_or_nursing;
+    }
+    if (medHistory.emergency_contact_name || medHistory.emergency_contact_phone) {
+      updateCustomerPayload.emergency_contact = `${medHistory.emergency_contact_name || ""} ${medHistory.emergency_contact_phone ? `(${medHistory.emergency_contact_phone})` : ""}`.trim() || null;
+    }
+
+    if (Object.keys(updateCustomerPayload).length > 0) {
+      await supabase
+        .from("customers")
+        .update(updateCustomerPayload)
+        .eq("id", payload.customer_id);
+    }
+
+    // 3. Log to audit trail
+    await supabase.from("client_audit_logs").insert({
+      action: "CLIENT_WAIVER_SIGNED",
+      customer_id: payload.customer_id,
+      actor_id: staff.id,
+      export_type: "WAIVER_SIGN",
+      branch_id: staff.branchId || null,
+      metadata: {
+        waiver_id: waiver.id,
+        treatment_name: payload.treatment_name,
+        signer: payload.signer_full_name,
+        witness: staff.fullName,
+        signed_at: waiver.signed_at,
+      },
+    });
+
+    revalidatePath("/admin/customers");
+    return { success: true, waiver: waiver as CustomerWaiverRecord };
+  } catch (err: any) {
+    console.error("Exception in saveCustomerWaiver:", err);
+    return { success: false, error: err.message || "Failed to process consent waiver." };
+  }
+}
+
+/**
+ * 10. REVOKE CUSTOMER WAIVER
+ */
+export async function revokeCustomerWaiver(
+  waiverId: string,
+  customerId: string,
+  reason: string
+): Promise<{ success: boolean; error?: string }> {
+  const staff = await requireStaff();
+  const supabase = createAdminClient();
+
+  try {
+    const { error: updateErr } = await supabase
+      .from("customer_waivers")
+      .update({ status: "revoked" })
+      .eq("id", waiverId);
+
+    if (updateErr) return { success: false, error: updateErr.message };
+
+    await supabase.from("client_audit_logs").insert({
+      action: "CLIENT_WAIVER_REVOKED",
+      customer_id: customerId,
+      actor_id: staff.id,
+      export_type: "WAIVER_REVOKE",
+      branch_id: staff.branchId || null,
+      metadata: {
+        waiver_id: waiverId,
+        revoked_by: staff.fullName,
+        reason,
+      },
+    });
+
+    revalidatePath("/admin/customers");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to revoke waiver." };
   }
 }

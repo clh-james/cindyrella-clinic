@@ -25,8 +25,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Camera,
+  ShieldCheck,
 } from "lucide-react";
 import { CustomerBeforeAfterPhotos } from "./CustomerBeforeAfterPhotos";
+import { CustomerWaiversTab } from "./CustomerWaiversTab";
 import type {
   CompleteClientFile,
   InstallmentApplication,
@@ -55,6 +57,7 @@ interface ClientHistoryModalProps {
     | "refunds"
     | "documents"
     | "photos"
+    | "waivers"
     | "timeline";
   canApprove?: boolean;
   canPay?: boolean;
@@ -79,6 +82,7 @@ export function ClientHistoryModal({
     | "refunds"
     | "documents"
     | "photos"
+    | "waivers"
     | "timeline"
   >(initialTab);
 
@@ -421,6 +425,7 @@ export function ClientHistoryModal({
               { id: "pos", label: "POS Sales", icon: ShoppingBag, count: clientFile.posTransactions?.length || 0 },
               { id: "appointments", label: "Appointments", icon: Calendar, count: clientFile.appointments.length },
               { id: "photos", label: "Before & After", icon: Camera, count: clientFile.photos?.length || 0 },
+              { id: "waivers", label: "Consent & Waivers", icon: ShieldCheck, count: clientFile.waivers?.length || 0 },
               { id: "packages", label: "Packages", icon: Sparkles, count: clientFile.packages.length },
               { id: "refunds", label: "Refunds & Voids", icon: RotateCcw, count: clientFile.refundsAdjustments?.length || 0 },
               { id: "documents", label: "Receipts & Docs", icon: Files, count: clientFile.receipts?.length || 0 },
@@ -1073,6 +1078,15 @@ export function ClientHistoryModal({
               customerId={clientFile.client.id}
               customerName={clientFile.client.full_name || `${clientFile.client.first_name || ""} ${clientFile.client.last_name || ""}`.trim() || "Patient"}
               initialPhotos={clientFile.photos || []}
+              onRefresh={onRefresh}
+            />
+          )}
+
+          {/* TAB: DIGITAL CONSENT WAIVERS */}
+          {activeTab === "waivers" && (
+            <CustomerWaiversTab
+              customer={clientFile.client}
+              waivers={clientFile.waivers || []}
               onRefresh={onRefresh}
             />
           )}

@@ -352,6 +352,42 @@ export interface CustomerPhotoRecord {
   updated_at?: string;
 }
 
+export interface MedicalHistoryIntake {
+  allergies?: string;
+  medical_conditions?: string[];
+  current_medications?: string;
+  is_pregnant_or_nursing?: boolean;
+  past_treatments_6months?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+}
+
+export interface ConsentAcknowledgements {
+  risks_acknowledged: boolean;
+  aftercare_commitment: boolean;
+  truthful_information: boolean;
+  photo_consent: "clinical_records_only" | "promotional_permitted" | "declined";
+}
+
+export interface CustomerWaiverRecord {
+  id: string;
+  customer_id: string;
+  appointment_id?: string | null;
+  branch_id?: string | null;
+  treatment_name: string;
+  form_type: string;
+  medical_history: MedicalHistoryIntake;
+  consent_acknowledgements: ConsentAcknowledgements;
+  signature_data_url: string;
+  signer_full_name: string;
+  signed_at: string;
+  staff_witness_id?: string | null;
+  staff_witness_name?: string | null;
+  status: "signed" | "revoked" | "expired";
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface CompleteClientFile {
   client: CustomerProfile;
   summary: ClientFinancialSummary;
@@ -366,6 +402,7 @@ export interface CompleteClientFile {
   refundsAdjustments: ClientRefundAdjustment[];
   receipts: ClientReceiptDocument[];
   photos?: CustomerPhotoRecord[];
+  waivers?: CustomerWaiverRecord[];
   timeline: ClientActivityTimelineItem[];
   warnings: DataQualityWarning[];
   generated_at: string;

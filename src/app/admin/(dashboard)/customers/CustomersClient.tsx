@@ -22,6 +22,7 @@ import {
   X,
   Files,
   Camera,
+  ShieldCheck,
 } from "lucide-react";
 import type { CompleteClientFile } from "./types";
 import { getCompleteClientFile, logClientFileExport } from "./actions";
@@ -73,7 +74,7 @@ export function CustomersClient({
   // Selected client for history modal
   const [selectedClientFile, setSelectedClientFile] = useState<CompleteClientFile | null>(null);
   const [historyInitialTab, setHistoryInitialTab] = useState<
-    "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "photos" | "timeline"
+    "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "photos" | "waivers" | "timeline"
   >("overview");
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [extractCustomer, setExtractCustomer] = useState<CustomerListItem | null>(null);
@@ -118,7 +119,7 @@ export function CustomersClient({
   // View Client Profile or Complete History action
   const handleOpenHistory = async (
     customerId: string,
-    initialTab: "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "photos" | "timeline" = "overview"
+    initialTab: "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "photos" | "waivers" | "timeline" = "overview"
   ) => {
     setIsLoadingHistory(true);
     setHistoryInitialTab(initialTab);
@@ -319,6 +320,16 @@ export function CustomersClient({
                       <span>Photos</span>
                     </button>
 
+                    {/* ACTION 1.6: Digital Consent Waiver */}
+                    <button
+                      onClick={() => handleOpenHistory(c.id, "waivers")}
+                      className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold text-[11px] flex items-center gap-1 transition-colors border border-emerald-200/60"
+                      title="Digital Consent Waiver & Medical Intake"
+                    >
+                      <ShieldCheck size={13} className="text-emerald-700" />
+                      <span>Waiver</span>
+                    </button>
+
                     {/* ACTION 2: View Complete History */}
                     <button
                       onClick={() => handleOpenHistory(c.id, "timeline")}
@@ -405,6 +416,14 @@ export function CustomersClient({
                 >
                   <Camera size={12} />
                   Photos
+                </button>
+                {/* 1.6 Digital Waiver */}
+                <button
+                  onClick={() => handleOpenHistory(c.id, "waivers")}
+                  className="px-2 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded font-semibold text-[11px] flex items-center gap-1"
+                >
+                  <ShieldCheck size={12} />
+                  Waiver
                 </button>
                 {/* 2. View History */}
                 <button

@@ -21,6 +21,7 @@ import type {
   ClientRefundAdjustment,
   ClientReceiptDocument,
   CustomerPhotoRecord,
+  CustomerWaiverRecord,
   PackageRedemption,
   DataQualityWarning,
 } from "@/app/admin/(dashboard)/customers/types";
@@ -584,6 +585,7 @@ export function buildCompleteClientFile(params: {
   refunds?: ClientRefundAdjustment[];
   receipts?: ClientReceiptDocument[];
   photos?: CustomerPhotoRecord[];
+  waivers?: CustomerWaiverRecord[];
   warnings?: DataQualityWarning[];
   date_range?: { from?: string; to?: string };
 }): CompleteClientFile {
@@ -776,6 +778,7 @@ export function buildCompleteClientFile(params: {
     refundsAdjustments,
     receipts,
     photos: params.photos || [],
+    waivers: params.waivers || [],
     timeline,
     warnings,
     generated_at: new Date().toISOString(),
