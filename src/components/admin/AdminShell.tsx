@@ -12,7 +12,7 @@ import {
   LayoutDashboard, CreditCard, CalendarDays, Users, Sparkles, PackageOpen, Crown, Gift, Boxes,
   ReceiptText, WalletCards, Banknote, BarChart3, UserRoundCog, ShieldCheck,
   Images, Megaphone, Bell, ScrollText, Building2, Settings,
-  ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity, Clock, CheckCircle2, CalendarCheck, Scale, KeyRound, FileSpreadsheet
+  ChevronDown, ChevronRight, Menu, X, ChevronLeft, LogOut, Check, Monitor, Activity, Clock, CheckCircle2, CalendarCheck, Scale, KeyRound, FileSpreadsheet, Coins
 } from "lucide-react";
 import { Can, usePermissions } from "@/components/rbac/Can";
 import { NotificationCenter } from "./NotificationCenter";
@@ -75,6 +75,7 @@ const NAVIGATION_GROUPS: NavGroup[] = [
     name: "PEOPLE",
     items: [
       { name: "Staff", href: "/admin/staff", icon: UserRoundCog, permission: "staff.view" },
+      { name: "My Daily Earnings", href: "/admin/commissions/my", icon: Coins, permission: ["commissions.view_own", "payroll.view_own", "attendance.self_record"] },
       { name: "Staff Attendance", href: "/admin/attendance/clock", icon: Clock, permission: "attendance.self_record" },
       { name: "Daily Attendance", href: "/admin/attendance", icon: CalendarCheck, permission: "attendance.view" },
       { name: "Login Activity", href: "/admin/security/logins", icon: Activity, permission: "security.view_login_activity" },

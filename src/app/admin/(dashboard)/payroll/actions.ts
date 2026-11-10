@@ -765,3 +765,94 @@ export async function updatePayrollPolicySettings(payload: {
     return { success: false, error: message };
   }
 }
+
+// ==============================================================================
+// 7. AESTHETICIAN PERSONAL DAILY COMMISSIONS & SESSIONS
+// ==============================================================================
+
+export async function getMyDailyCommissions(targetDate?: string) {
+  const staff = await requireStaff();
+  const supabase = createAdminClient();
+
+  const today = targetDate || new Date().toISOString().slice(0, 10);
+  const monthStart = today.slice(0, 7) + "-01";
+
+  try {
+    // 1. Fetch commission_records for this staff member (all this month)
+    const { data: monthComms } = await supabase
+      .from("commission_records")
+      .select("*")
+      .eq("employee_id", staff.id)
+      .gte("date_earned", monthStart)
+      .order("date_earned", { ascending: false });
+
+    const allMonthComms = monthComms || [];
+    const todayComms = allMonthComms.filter((c) => c.date_earned === today);
+
+    // 2. Fetch appointments handled by this staff member today
+    const { data: todayAppts } = await supabase
+      .from("appointments")
+      .select("id, reference_number, appointment_date, appointment_time, status, amount_due, commission_amount, commission_status, treatments(name, session_price), customers(first_name, last_name, phone)")
+      .eq("handled_by", staff.id)
+      .eq("appointment_date", today)
+      .order("appointment_time", { ascending: true });
+
+    // 3. Fetch package redemptions performed by this staff member today
+    const { data: todayRedemptions } = await supabase
+      .from("package_redemptions")
+      .select("id, session_number, redeemed_at, notes, customer_packages(package_name, customer_id, customers(first_name, last_name))")
+      .eq("performed_by", staff.id)
+      .gte("redeemed_at", `${today}T00:00:00.000Z`)
+      .lte("redeemed_at", `${today}T23:59:59.999Z`);
+
+    // 4. Calculate KPI metrics
+    const todayCommissionTotal = todayComms
+      .filter((c) => c.status === "approved" || c.status === "paid")
+      .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
+
+    const todayPendingCommission = todayComms
+      .filter((c) => c.status === "pending")
+      .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
+
+    const monthCommissionTotal = allMonthComms
+      .filter((c) => c.status === "approved" || c.status === "paid")
+      .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
+
+    // Unique clients served today
+    const clientSet = new Set<string>();
+    (todayAppts || []).forEach((a: any) => {
+      if (a.customers) clientSet.add(`${a.customers.first_name} ${a.customers.last_name}`);
+    });
+    (todayRedemptions || []).forEach((r: any) => {
+      const cust = r.customer_packages?.customers;
+      if (cust) clientSet.add(`${cust.first_name} ${cust.last_name}`);
+    });
+    const clientsServedToday = Math.max(clientSet.size, (todayAppts || []).length, todayComms.length);
+
+    return {
+      success: true,
+      data: {
+        staff: {
+          id: staff.id,
+          fullName: staff.fullName,
+          role: staff.role,
+        },
+        date: today,
+        kpis: {
+          todayCommissionTotal,
+          todayPendingCommission,
+          monthCommissionTotal,
+          clientsServedToday,
+          totalSessionsToday: (todayAppts || []).length + (todayRedemptions || []).length,
+        },
+        todayCommissions: todayComms,
+        monthCommissions: allMonthComms,
+        todayAppointments: todayAppts || [],
+        todayRedemptions: todayRedemptions || [],
+      },
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to load commission details";
+    return { success: false, error: message };
+  }
+}

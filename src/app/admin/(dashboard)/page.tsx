@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { RevenueChart } from "@/components/admin/RevenueChart";
-import { CalendarDays, PhilippinePeso, TrendingUp, Users } from "lucide-react";
+import { CalendarDays, PhilippinePeso, TrendingUp, Users, Coins, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { getMyDailyCommissions } from "@/app/admin/(dashboard)/payroll/actions";
 
 const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
 
@@ -94,6 +96,16 @@ export default async function AdminOverview() {
   });
   const mostPopular = [...popularity.entries()].sort((a, b) => b[1] - a[1])[0];
 
+  let personalComms = null;
+  try {
+    const commsRes = await getMyDailyCommissions();
+    if (commsRes.success && commsRes.data) {
+      personalComms = commsRes.data;
+    }
+  } catch {
+    personalComms = null;
+  }
+
   const stats = [
     { label: "Today's bookings", value: String(todayApptsList.length), icon: CalendarDays },
     { label: "Today's revenue", value: peso(todayRevenue), icon: PhilippinePeso },
@@ -107,6 +119,32 @@ export default async function AdminOverview() {
       <p className="mt-1 text-xs sm:text-sm text-ink-soft">
         {mostPopular ? `${mostPopular[0]} is this month's most-booked drip.` : "No bookings yet this month."}
       </p>
+
+      {/* AESTHETICIAN / STAFF PERSONAL DAILY COMMISSIONS BANNER */}
+      {personalComms && (
+        <div className="mt-4 bg-gradient-to-r from-rose-950 via-rose-900 to-slate-900 text-white rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md border border-rose-800/40">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-xs flex items-center justify-center text-rose-300 shrink-0 border border-white/20">
+              <Coins size={22} />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold tracking-wider uppercase text-rose-300 block">
+                ⭐ Today&apos;s Shift Earnings &bull; {personalComms.staff.fullName}
+              </span>
+              <p className="font-serif font-bold text-sm sm:text-base mt-0.5">
+                Earned {peso(personalComms.kpis.todayCommissionTotal)} in treatment commissions today &bull; {personalComms.kpis.clientsServedToday} client(s) served
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/admin/commissions/my"
+            className="inline-flex items-center gap-1.5 bg-white text-rose-950 hover:bg-rose-50 font-bold text-xs px-4 py-2 rounded-xl shadow-md transition-colors whitespace-nowrap"
+          >
+            <span>View Full Shift Breakdown</span>
+            <ChevronRight size={14} />
+          </Link>
+        </div>
+      )}
 
       <div className="mt-6 sm:mt-8 grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map(({ label, value, icon: Icon }) => (
