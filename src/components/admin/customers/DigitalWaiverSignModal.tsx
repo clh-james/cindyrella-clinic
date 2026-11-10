@@ -571,3 +571,4 @@ export function DigitalWaiverSignModal({
     </div>
   );
 }
+
