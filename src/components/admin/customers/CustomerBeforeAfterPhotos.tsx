@@ -842,3 +842,4 @@ export function CustomerBeforeAfterPhotos({
     </div>
   );
 }
+
