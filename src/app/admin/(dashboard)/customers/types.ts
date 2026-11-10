@@ -388,6 +388,64 @@ export interface CustomerWaiverRecord {
   updated_at?: string;
 }
 
+export interface NeedleParameters {
+  depth_mm?: number | string | null;
+  gauge?: string | null;
+  technique?: string | null;
+}
+
+export interface EnergyParameters {
+  machine_name?: string | null;
+  intensity_level?: string | null;
+  energy_joules?: number | string | null;
+  pulse_duration_ms?: number | string | null;
+  spot_size_mm?: number | string | null;
+  pass_count?: number | null;
+}
+
+export interface ProductsUsedParameters {
+  serum_brand?: string | null;
+  peel_solution?: string | null;
+  application_time_minutes?: number | null;
+  topical_anesthetic_used?: boolean;
+  calming_mask?: string | null;
+}
+
+export interface SkinReactionParameters {
+  erythema?: "none" | "mild" | "moderate" | "intense";
+  edema?: "none" | "mild" | "moderate";
+  pinpoint_bleeding?: boolean;
+  frosting?: boolean;
+  pain_scale?: number;
+  client_tolerance?: "excellent" | "good" | "sensitive" | "poor";
+}
+
+export interface ClinicalChartRecord {
+  id: string;
+  customer_id: string;
+  treatment_id?: string | null;
+  appointment_id?: string | null;
+  package_id?: string | null;
+  branch_id?: string | null;
+  treatment_name: string;
+  session_number: number;
+  total_sessions_planned?: number | null;
+  chart_date: string;
+  performed_by_id?: string | null;
+  performed_by_name: string;
+  performed_by_role?: string | null;
+  needle_parameters: NeedleParameters;
+  energy_parameters: EnergyParameters;
+  products_used: ProductsUsedParameters;
+  skin_reaction: SkinReactionParameters;
+  clinical_notes?: string | null;
+  endorsement_notes?: string | null;
+  homecare_advice?: string | null;
+  next_recommended_date?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface CompleteClientFile {
   client: CustomerProfile;
   summary: ClientFinancialSummary;
@@ -403,6 +461,7 @@ export interface CompleteClientFile {
   receipts: ClientReceiptDocument[];
   photos?: CustomerPhotoRecord[];
   waivers?: CustomerWaiverRecord[];
+  charts?: ClinicalChartRecord[];
   timeline: ClientActivityTimelineItem[];
   warnings: DataQualityWarning[];
   generated_at: string;

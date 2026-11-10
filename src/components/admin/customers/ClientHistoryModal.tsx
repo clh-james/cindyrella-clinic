@@ -26,9 +26,11 @@ import {
   ChevronRight,
   Camera,
   ShieldCheck,
+  Stethoscope,
 } from "lucide-react";
 import { CustomerBeforeAfterPhotos } from "./CustomerBeforeAfterPhotos";
 import { CustomerWaiversTab } from "./CustomerWaiversTab";
+import { ClinicalChartsTab } from "./ClinicalChartsTab";
 import type {
   CompleteClientFile,
   InstallmentApplication,
@@ -58,6 +60,7 @@ interface ClientHistoryModalProps {
     | "documents"
     | "photos"
     | "waivers"
+    | "charts"
     | "timeline";
   canApprove?: boolean;
   canPay?: boolean;
@@ -83,6 +86,7 @@ export function ClientHistoryModal({
     | "documents"
     | "photos"
     | "waivers"
+    | "charts"
     | "timeline"
   >(initialTab);
 
@@ -426,6 +430,7 @@ export function ClientHistoryModal({
               { id: "appointments", label: "Appointments", icon: Calendar, count: clientFile.appointments.length },
               { id: "photos", label: "Before & After", icon: Camera, count: clientFile.photos?.length || 0 },
               { id: "waivers", label: "Consent & Waivers", icon: ShieldCheck, count: clientFile.waivers?.length || 0 },
+              { id: "charts", label: "Treatment Charts", icon: Stethoscope, count: clientFile.charts?.length || 0 },
               { id: "packages", label: "Packages", icon: Sparkles, count: clientFile.packages.length },
               { id: "refunds", label: "Refunds & Voids", icon: RotateCcw, count: clientFile.refundsAdjustments?.length || 0 },
               { id: "documents", label: "Receipts & Docs", icon: Files, count: clientFile.receipts?.length || 0 },
@@ -1087,6 +1092,15 @@ export function ClientHistoryModal({
             <CustomerWaiversTab
               customer={clientFile.client}
               waivers={clientFile.waivers || []}
+              onRefresh={onRefresh}
+            />
+          )}
+
+          {/* TAB: CLINICAL TREATMENT CHARTS (EMR) */}
+          {activeTab === "charts" && (
+            <ClinicalChartsTab
+              customer={clientFile.client}
+              charts={clientFile.charts || []}
               onRefresh={onRefresh}
             />
           )}

@@ -23,6 +23,7 @@ import {
   Files,
   Camera,
   ShieldCheck,
+  Stethoscope,
 } from "lucide-react";
 import type { CompleteClientFile } from "./types";
 import { getCompleteClientFile, logClientFileExport } from "./actions";
@@ -74,7 +75,7 @@ export function CustomersClient({
   // Selected client for history modal
   const [selectedClientFile, setSelectedClientFile] = useState<CompleteClientFile | null>(null);
   const [historyInitialTab, setHistoryInitialTab] = useState<
-    "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "photos" | "waivers" | "timeline"
+    "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "photos" | "waivers" | "charts" | "timeline"
   >("overview");
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [extractCustomer, setExtractCustomer] = useState<CustomerListItem | null>(null);
@@ -119,7 +120,7 @@ export function CustomersClient({
   // View Client Profile or Complete History action
   const handleOpenHistory = async (
     customerId: string,
-    initialTab: "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "photos" | "waivers" | "timeline" = "overview"
+    initialTab: "overview" | "installments" | "payments" | "pos" | "appointments" | "packages" | "refunds" | "documents" | "photos" | "waivers" | "charts" | "timeline" = "overview"
   ) => {
     setIsLoadingHistory(true);
     setHistoryInitialTab(initialTab);
@@ -330,6 +331,16 @@ export function CustomersClient({
                       <span>Waiver</span>
                     </button>
 
+                    {/* ACTION 1.7: Treatment Charting & Clinical EMR */}
+                    <button
+                      onClick={() => handleOpenHistory(c.id, "charts")}
+                      className="px-2.5 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 font-semibold text-[11px] flex items-center gap-1 transition-colors border border-teal-200/60"
+                      title="Clinical Treatment Chart & EMR"
+                    >
+                      <Stethoscope size={13} className="text-teal-700" />
+                      <span>Chart</span>
+                    </button>
+
                     {/* ACTION 2: View Complete History */}
                     <button
                       onClick={() => handleOpenHistory(c.id, "timeline")}
@@ -424,6 +435,14 @@ export function CustomersClient({
                 >
                   <ShieldCheck size={12} />
                   Waiver
+                </button>
+                {/* 1.7 Clinical Chart */}
+                <button
+                  onClick={() => handleOpenHistory(c.id, "charts")}
+                  className="px-2 py-1 bg-teal-50 border border-teal-200 text-teal-800 rounded font-semibold text-[11px] flex items-center gap-1"
+                >
+                  <Stethoscope size={12} />
+                  Chart
                 </button>
                 {/* 2. View History */}
                 <button

@@ -18,6 +18,7 @@ import type {
   ClientAppointmentItem,
   CustomerPhotoRecord,
   CustomerWaiverRecord,
+  ClinicalChartRecord,
   CompleteClientFile,
 } from "./types";
 import {
@@ -371,6 +372,22 @@ export async function getCompleteClientFile(
       customerWaivers = [];
     }
 
+    // 8.7 Fetch Clinical Treatment Charts (EMR)
+    let customerCharts: ClinicalChartRecord[] = [];
+    try {
+      const { data: chartData, error: chartErr } = await supabase
+        .from("clinical_treatment_charts")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("chart_date", { ascending: false });
+
+      if (!chartErr && chartData) {
+        customerCharts = chartData as ClinicalChartRecord[];
+      }
+    } catch {
+      customerCharts = [];
+    }
+
     // 9. Build Consolidated File
     const completeFile = buildCompleteClientFile({
       client: clientProfile,
@@ -381,6 +398,7 @@ export async function getCompleteClientFile(
       posTransactions,
       photos: customerPhotos,
       waivers: customerWaivers,
+      charts: customerCharts,
       actorName: staff.fullName,
       branchScope,
       date_range: filters?.fromDate || filters?.toDate ? { from: filters.fromDate, to: filters.toDate } : undefined,
@@ -1137,5 +1155,157 @@ export async function revokeCustomerWaiver(
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message || "Failed to revoke waiver." };
+  }
+}
+
+/**
+ * 11. SAVE CLINICAL TREATMENT CHART & EMR SESSION NOTES
+ * Records needle parameters, energy/laser settings, serums, skin reactions,
+ * and practitioner endorsement notes for the next aesthetician.
+ */
+export async function saveClinicalChart(data: {
+  customer_id: string;
+  treatment_name: string;
+  session_number?: number;
+  total_sessions_planned?: number;
+  chart_date?: string;
+  appointment_id?: string | null;
+  package_id?: string | null;
+  needle_parameters?: {
+    depth_mm?: number | string | null;
+    gauge?: string | null;
+    technique?: string | null;
+  };
+  energy_parameters?: {
+    machine_name?: string | null;
+    intensity_level?: string | null;
+    energy_joules?: number | string | null;
+    pulse_duration_ms?: number | string | null;
+    spot_size_mm?: number | string | null;
+    pass_count?: number | null;
+  };
+  products_used?: {
+    serum_brand?: string | null;
+    peel_solution?: string | null;
+    application_time_minutes?: number | null;
+    topical_anesthetic_used?: boolean;
+    calming_mask?: string | null;
+  };
+  skin_reaction?: {
+    erythema?: "none" | "mild" | "moderate" | "intense";
+    edema?: "none" | "mild" | "moderate";
+    pinpoint_bleeding?: boolean;
+    frosting?: boolean;
+    pain_scale?: number;
+    client_tolerance?: "excellent" | "good" | "sensitive" | "poor";
+  };
+  clinical_notes?: string;
+  endorsement_notes?: string;
+  homecare_advice?: string;
+  next_recommended_date?: string;
+}): Promise<{
+  success: boolean;
+  chart?: ClinicalChartRecord;
+  error?: string;
+}> {
+  const staff = await requireStaff();
+  const supabase = createAdminClient();
+
+  if (!data.customer_id) {
+    return { success: false, error: "Missing customer identifier." };
+  }
+  if (!data.treatment_name?.trim()) {
+    return { success: false, error: "Treatment / procedure name is required." };
+  }
+
+  try {
+    const { data: chart, error: insertErr } = await supabase
+      .from("clinical_treatment_charts")
+      .insert({
+        customer_id: data.customer_id,
+        treatment_name: data.treatment_name.trim(),
+        session_number: data.session_number || 1,
+        total_sessions_planned: data.total_sessions_planned || 6,
+        chart_date: data.chart_date || new Date().toISOString().slice(0, 10),
+        appointment_id: data.appointment_id || null,
+        package_id: data.package_id || null,
+        branch_id: staff.branchId || null,
+        performed_by_id: staff.id,
+        performed_by_name: staff.fullName,
+        performed_by_role: staff.role === "nurse" ? "Registered Nurse" : staff.role === "doctor" ? "Attending Physician" : "Clinical Aesthetician",
+        needle_parameters: data.needle_parameters || {},
+        energy_parameters: data.energy_parameters || {},
+        products_used: data.products_used || {},
+        skin_reaction: data.skin_reaction || {},
+        clinical_notes: data.clinical_notes || null,
+        endorsement_notes: data.endorsement_notes || null,
+        homecare_advice: data.homecare_advice || null,
+        next_recommended_date: data.next_recommended_date || null,
+      })
+      .select("*")
+      .single();
+
+    if (insertErr) {
+      console.error("Clinical chart insert error:", insertErr);
+      return { success: false, error: `Failed to record treatment chart: ${insertErr.message}` };
+    }
+
+    // Log to audit trail
+    await supabase.from("client_audit_logs").insert({
+      action: "TREATMENT_CHARTED",
+      customer_id: data.customer_id,
+      actor_id: staff.id,
+      export_type: "CHART_ENTRY",
+      branch_id: staff.branchId || null,
+      metadata: {
+        chart_id: chart.id,
+        treatment_name: data.treatment_name,
+        session_number: data.session_number || 1,
+        performed_by: staff.fullName,
+      },
+    });
+
+    revalidatePath("/admin/customers");
+    return { success: true, chart: chart as ClinicalChartRecord };
+  } catch (err: any) {
+    console.error("Exception in saveClinicalChart:", err);
+    return { success: false, error: err.message || "Failed to record clinical chart." };
+  }
+}
+
+/**
+ * 12. DELETE CLINICAL TREATMENT CHART
+ */
+export async function deleteClinicalChart(
+  chartId: string,
+  customerId: string
+): Promise<{ success: boolean; error?: string }> {
+  const staff = await requireStaff();
+  const supabase = createAdminClient();
+
+  try {
+    const { error: delErr } = await supabase
+      .from("clinical_treatment_charts")
+      .delete()
+      .eq("id", chartId);
+
+    if (delErr) return { success: false, error: delErr.message };
+
+    await supabase.from("client_audit_logs").insert({
+      action: "TREATMENT_CHART_DELETED",
+      customer_id: customerId,
+      actor_id: staff.id,
+      export_type: "CHART_DELETE",
+      branch_id: staff.branchId || null,
+      metadata: {
+        chart_id: chartId,
+        actor: staff.fullName,
+      },
+    });
+
+    revalidatePath("/admin/customers");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to delete clinical chart." };
   }
 }
