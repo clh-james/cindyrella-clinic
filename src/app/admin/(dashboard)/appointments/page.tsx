@@ -4,6 +4,7 @@ import { SendReminderButton } from "@/components/admin/SendReminderButton";
 import { ExportAppointmentsCSV } from "@/components/admin/ExportAppointmentsCSV";
 import { AppointmentUsedItemsButton } from "@/components/admin/AppointmentUsedItemsButton";
 import { AppointmentHandlerSelect } from "@/components/admin/AppointmentHandlerSelect";
+import { AppointmentClassificationSelect } from "@/components/admin/AppointmentClassificationSelect";
 
 const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
 
@@ -20,7 +21,7 @@ export default async function AppointmentsPage() {
     supabase
       .from("appointments")
       .select(
-        "id, reference_number, appointment_date, appointment_time, status, amount_due, payment_method, notes, treatment_id, treatments(id, name), branches(name), customers(first_name, last_name, phone)"
+        "id, reference_number, appointment_date, appointment_time, status, amount_due, payment_method, notes, client_classification, treatment_id, treatments(id, name), branches(name), customers(first_name, last_name, phone)"
       )
       .order("appointment_date", { ascending: false })
       .limit(100),
@@ -103,25 +104,11 @@ export default async function AppointmentsPage() {
                         const m = a.notes.match(/\[Classification:([^\]]+)\]/i);
                         if (m) c = m[1];
                       }
-                      const norm = (c || "walk-in").toLowerCase();
-                      if (norm === "booked") {
-                        return (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-indigo-50 text-indigo-700 border-indigo-200">
-                            Booked
-                          </span>
-                        );
-                      }
-                      if (norm.includes("boost")) {
-                        return (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-purple-50 text-purple-700 border-purple-200">
-                            Boosting Main
-                          </span>
-                        );
-                      }
                       return (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-sky-50 text-sky-700 border-sky-200">
-                          Walk-in
-                        </span>
+                        <AppointmentClassificationSelect
+                          appointmentId={a.id}
+                          initialClassification={c}
+                        />
                       );
                     })()}
                   </div>
@@ -241,25 +228,11 @@ export default async function AppointmentsPage() {
                           const m = a.notes.match(/\[Classification:([^\]]+)\]/i);
                           if (m) c = m[1];
                         }
-                        const norm = (c || "walk-in").toLowerCase();
-                        if (norm === "booked") {
-                          return (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-indigo-50 text-indigo-700 border-indigo-200">
-                              Booked
-                            </span>
-                          );
-                        }
-                        if (norm.includes("boost")) {
-                          return (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-purple-50 text-purple-700 border-purple-200">
-                              Boosting Main
-                            </span>
-                          );
-                        }
                         return (
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-sky-50 text-sky-700 border-sky-200">
-                            Walk-in
-                          </span>
+                          <AppointmentClassificationSelect
+                            appointmentId={a.id}
+                            initialClassification={c}
+                          />
                         );
                       })()}
                     </div>

@@ -285,6 +285,65 @@ export async function updateAppointmentStatus(
   return { error: null };
 }
 
+export async function updateAppointmentClassification(
+  appointmentId: string,
+  classification: "walk-in" | "booked" | "boosting_from_main" | "boosting from main"
+) {
+  const staff = await requireStaff();
+  const supabase = createAdminClient();
+
+  // 1. Fetch current appointment
+  const { data: currentAppt } = await supabase
+    .from("appointments")
+    .select("id, reference_number, notes, customer_id")
+    .eq("id", appointmentId)
+    .single();
+
+  if (!currentAppt) return { error: "Appointment not found." };
+
+  // 2. Format notes with updated [Classification:...]
+  let updatedNotes = currentAppt.notes || "";
+  const normClass = classification.toLowerCase();
+  if (updatedNotes.includes("[Classification:")) {
+    updatedNotes = updatedNotes.replace(/\[Classification:[^\]]+\]/gi, `[Classification:${normClass}]`);
+  } else {
+    updatedNotes = updatedNotes ? `${updatedNotes}\n[Classification:${normClass}]` : `[Classification:${normClass}]`;
+  }
+
+  // 3. Update appointments table
+  const { error } = await supabase
+    .from("appointments")
+    .update({
+      client_classification: normClass,
+      notes: updatedNotes,
+    })
+    .eq("id", appointmentId);
+
+  if (error) return { error: error.message };
+
+  // 4. Update matching pos_sales record if exists
+  if (currentAppt.reference_number) {
+    await supabase
+      .from("pos_sales")
+      .update({ client_classification: normClass })
+      .eq("reference_number", currentAppt.reference_number);
+  }
+
+  // 5. Update customer's client_classification if customer_id exists
+  if (currentAppt.customer_id) {
+    await supabase
+      .from("customers")
+      .update({ client_classification: normClass })
+      .eq("id", currentAppt.customer_id);
+  }
+
+  revalidatePath("/admin/appointments");
+  revalidatePath("/admin/pos");
+  revalidatePath("/admin/transactions");
+  revalidatePath("/admin/customers");
+  return { success: true };
+}
+
 export interface HandlerAssignment {
   staffId: string;
   role: "primary" | "assistant";
