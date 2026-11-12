@@ -1054,6 +1054,7 @@ export async function saveCustomerWaiver(payload: {
         branch_id: staff.branchId || null,
         treatment_name: payload.treatment_name || "General Clinical Treatment",
         form_type: payload.form_type || "general_treatment",
+        waiver_mode: "digital",
         medical_history: payload.medical_history,
         consent_acknowledgements: payload.consent_acknowledgements,
         signature_data_url: payload.signature_data_url,
@@ -1116,6 +1117,135 @@ export async function saveCustomerWaiver(payload: {
   } catch (err: any) {
     console.error("Exception in saveCustomerWaiver:", err);
     return { success: false, error: err.message || "Failed to process consent waiver." };
+  }
+}
+
+/**
+ * 9B. UPLOAD PHYSICAL PAPER WAIVER PHOTO
+ * Uploads a picture of the signed paper waiver form, archives it,
+ * and allows high-resolution download anytime.
+ */
+export async function uploadPaperWaiver(formData: FormData): Promise<{
+  success: boolean;
+  waiver?: CustomerWaiverRecord;
+  error?: string;
+}> {
+  const staff = await requireStaff();
+  const supabase = createAdminClient();
+
+  const customerId = formData.get("customer_id") as string;
+  const treatmentName = (formData.get("treatment_name") as string) || "General Clinical Treatment";
+  const signerFullName = (formData.get("signer_full_name") as string) || "Patient";
+  const signedAt = (formData.get("signed_at") as string) || new Date().toISOString().slice(0, 10);
+  const notes = (formData.get("notes") as string) || null;
+  const allergies = (formData.get("allergies") as string) || null;
+  const medicalConditionsStr = (formData.get("medical_conditions") as string) || null;
+  const file = formData.get("file") as File | null;
+
+  if (!customerId) {
+    return { success: false, error: "Missing customer identifier." };
+  }
+  if (!file || file.size === 0) {
+    return { success: false, error: "Please select or capture a photo of the signed paper waiver." };
+  }
+
+  try {
+    // 1. Upload paper waiver photo to Supabase Storage
+    const ext = file.name.split(".").pop() || "jpg";
+    const safeName = `paper-waiver-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${ext}`;
+    const storagePath = `waivers/${customerId}/${safeName}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    let photoUrl = "";
+    const { error: uploadErr } = await supabase.storage
+      .from("gallery")
+      .upload(storagePath, buffer, {
+        contentType: file.type || "image/jpeg",
+        upsert: true,
+      });
+
+    if (!uploadErr) {
+      const { data: urlData } = supabase.storage
+        .from("gallery")
+        .getPublicUrl(storagePath);
+      photoUrl = urlData.publicUrl;
+    } else {
+      // Fallback: convert to base64 data url if bucket is unavailable
+      const base64Str = buffer.toString("base64");
+      photoUrl = `data:${file.type || "image/jpeg"};base64,${base64Str}`;
+    }
+
+    const conditionsArray = medicalConditionsStr
+      ? medicalConditionsStr.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    // 2. Insert into customer_waivers table
+    const { data: waiver, error: insertErr } = await supabase
+      .from("customer_waivers")
+      .insert({
+        customer_id: customerId,
+        branch_id: staff.branchId || null,
+        treatment_name: treatmentName.trim(),
+        form_type: "physical_paper_waiver",
+        waiver_mode: "paper_upload",
+        paper_document_url: photoUrl,
+        signature_data_url: photoUrl,
+        signer_full_name: signerFullName.trim(),
+        signed_at: new Date(signedAt).toISOString(),
+        staff_witness_id: staff.id,
+        staff_witness_name: staff.fullName,
+        notes: notes ? notes.trim() : "Physical signed paper waiver on file",
+        status: "signed",
+        medical_history: {
+          allergies: allergies || undefined,
+          medical_conditions: conditionsArray,
+        },
+        consent_acknowledgements: {
+          risks_acknowledged: true,
+          aftercare_commitment: true,
+          truthful_information: true,
+          photo_consent: "clinical_records_only",
+        },
+      })
+      .select("*")
+      .single();
+
+    if (insertErr) {
+      console.error("Paper waiver database insert error:", insertErr);
+      return { success: false, error: `Failed to save paper waiver: ${insertErr.message}` };
+    }
+
+    // 3. Update customer allergies/conditions if provided
+    if (allergies || conditionsArray.length > 0) {
+      const custUpdate: Record<string, any> = {};
+      if (allergies) custUpdate.allergies = allergies;
+      if (conditionsArray.length > 0) custUpdate.medical_conditions = conditionsArray.join(", ");
+      await supabase.from("customers").update(custUpdate).eq("id", customerId);
+    }
+
+    // 4. Audit log
+    await supabase.from("client_audit_logs").insert({
+      action: "PAPER_WAIVER_UPLOADED",
+      customer_id: customerId,
+      actor_id: staff.id,
+      export_type: "WAIVER_UPLOAD",
+      branch_id: staff.branchId || null,
+      metadata: {
+        waiver_id: waiver.id,
+        treatment_name: treatmentName,
+        signer: signerFullName,
+        witness: staff.fullName,
+        paper_document_url: photoUrl,
+      },
+    });
+
+    revalidatePath("/admin/customers");
+    return { success: true, waiver: waiver as CustomerWaiverRecord };
+  } catch (err: any) {
+    console.error("Exception in uploadPaperWaiver:", err);
+    return { success: false, error: err.message || "Failed to upload paper waiver photo." };
   }
 }
 

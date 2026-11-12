@@ -376,6 +376,9 @@ export interface CustomerWaiverRecord {
   branch_id?: string | null;
   treatment_name: string;
   form_type: string;
+  waiver_mode?: "digital" | "paper_upload";
+  paper_document_url?: string | null;
+  notes?: string | null;
   medical_history: MedicalHistoryIntake;
   consent_acknowledgements: ConsentAcknowledgements;
   signature_data_url: string;
