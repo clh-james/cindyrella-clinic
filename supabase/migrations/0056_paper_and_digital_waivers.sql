@@ -14,3 +14,4 @@ ALTER TABLE customer_waivers ALTER COLUMN signature_data_url DROP NOT NULL;
 
 -- 3. Add index on waiver_mode
 CREATE INDEX IF NOT EXISTS idx_customer_waivers_waiver_mode ON customer_waivers(waiver_mode);
+
