@@ -13,6 +13,7 @@ export type AttendanceStatus =
   | "on_approved_leave"
   | "rest_day"
   | "incomplete"
+  | "half_day"
   | "pending_correction";
 
 export type CorrectionStatus =

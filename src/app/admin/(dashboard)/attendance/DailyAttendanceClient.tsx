@@ -41,6 +41,7 @@ import {
 import {
   reviewAttendanceCorrection,
   createOrUpdateEmployeeSchedule,
+  markAttendanceAsHalfDay,
 } from "./actions";
 import {
   exportDailyAttendanceExcel,
@@ -87,6 +88,15 @@ export function DailyAttendanceClient({ initialData }: DailyAttendanceClientProp
   const [gracePeriod, setGracePeriod] = useState(15);
   const [breakMinutes, setBreakMinutes] = useState(60);
   const [savingSchedule, setSavingSchedule] = useState(false);
+
+  // Half Day Shift Modal State
+  const [halfDayRecord, setHalfDayRecord] = useState<DailyAttendanceRecord | null>(null);
+  const [halfDayType, setHalfDayType] = useState<"afternoon" | "morning" | "custom">("afternoon");
+  const [customStartTime, setCustomStartTime] = useState("13:00");
+  const [customEndTime, setCustomEndTime] = useState("18:00");
+  const [waiveLate, setWaiveLate] = useState(true);
+  const [halfDayNotes, setHalfDayNotes] = useState("");
+  const [savingHalfDay, setSavingHalfDay] = useState(false);
 
   const { records, kpis, discrepancies, branches, staffList, isSuperAdmin } = data;
 
@@ -223,10 +233,68 @@ export function DailyAttendanceClient({ initialData }: DailyAttendanceClientProp
     }
   };
 
+  const handleSaveHalfDay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!halfDayRecord) return;
+    setSavingHalfDay(true);
+    try {
+      const res = await markAttendanceAsHalfDay({
+        recordId: halfDayRecord.id,
+        halfDayType,
+        customStartTime,
+        customEndTime,
+        waiveLate,
+        notes: halfDayNotes,
+      });
+
+      if (!res.success) {
+        toast.error(res.error || "Failed to set half day.");
+      } else {
+        toast.success(
+          `Marked as ${
+            halfDayType === "afternoon" ? "Afternoon" : halfDayType === "morning" ? "Morning" : "Custom"
+          } Half-Day!`
+        );
+        setData((prev) => ({
+          ...prev,
+          records: prev.records.map((r) =>
+            r.id === halfDayRecord.id
+              ? {
+                  ...r,
+                  attendance_status: "half_day" as AttendanceStatus,
+                  late_minutes: waiveLate ? 0 : r.late_minutes,
+                  shift_name:
+                    halfDayType === "morning"
+                      ? "Morning Half-Day Shift"
+                      : halfDayType === "custom"
+                      ? "Custom Half-Day Shift"
+                      : "Afternoon Half-Day Shift",
+                  scheduled_shift:
+                    halfDayType === "morning"
+                      ? "10:00 - 15:00"
+                      : halfDayType === "custom"
+                      ? `${customStartTime} - ${customEndTime}`
+                      : "14:00 - 20:00",
+                  notes: halfDayNotes ? `${r.notes || ""}\n${halfDayNotes}` : r.notes,
+                }
+              : r
+          ),
+        }));
+        setHalfDayRecord(null);
+      }
+    } catch {
+      toast.error("Error setting half day attendance.");
+    } finally {
+      setSavingHalfDay(false);
+    }
+  };
+
   const getStatusBadge = (st: AttendanceStatus) => {
     switch (st) {
       case "present":
         return <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[11px] font-semibold">Present</span>;
+      case "half_day":
+        return <span className="px-2.5 py-0.5 bg-cyan-100 text-cyan-800 border border-cyan-200 rounded-full text-[11px] font-semibold">Half Day</span>;
       case "late":
         return <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[11px] font-semibold">Late</span>;
       case "on_break":
@@ -494,6 +562,21 @@ export function DailyAttendanceClient({ initialData }: DailyAttendanceClientProp
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
+                        type="button"
+                        onClick={() => {
+                          setHalfDayRecord(r);
+                          const isAfternoon = r.time_in ? new Date(r.time_in).getHours() >= 12 : true;
+                          setHalfDayType(isAfternoon ? "afternoon" : "morning");
+                          setWaiveLate(true);
+                          setHalfDayNotes("");
+                        }}
+                        className="px-2 py-1 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 font-semibold text-[11px] transition-colors"
+                        title="Mark as Approved Half-Day Shift"
+                      >
+                        Half Day
+                      </button>
+
+                      <button
                         onClick={() => {
                           setSelectedRecord(r);
                           setIsDetailsModalOpen(true);
@@ -564,9 +647,24 @@ export function DailyAttendanceClient({ initialData }: DailyAttendanceClientProp
             </div>
 
             <div className="flex items-center justify-between text-xs pt-1 border-t border-line/60">
-              <span className="text-ink-soft">
-                {r.late_minutes > 0 ? `Late: ${r.late_minutes}m` : "On Time"}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-ink-soft">
+                  {r.late_minutes > 0 ? `Late: ${r.late_minutes}m` : "On Time"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHalfDayRecord(r);
+                    const isAfternoon = r.time_in ? new Date(r.time_in).getHours() >= 12 : true;
+                    setHalfDayType(isAfternoon ? "afternoon" : "morning");
+                    setWaiveLate(true);
+                    setHalfDayNotes("");
+                  }}
+                  className="px-2 py-0.5 rounded-md border border-cyan-200 bg-cyan-50 text-cyan-800 font-semibold text-[10px]"
+                >
+                  Half Day
+                </button>
+              </div>
               <button
                 onClick={() => {
                   setSelectedRecord(r);
@@ -901,6 +999,175 @@ export function DailyAttendanceClient({ initialData }: DailyAttendanceClientProp
                   className="px-4 py-2 rounded-xl bg-royal text-white font-semibold hover:bg-royal/90 shadow-sm disabled:opacity-50"
                 >
                   {savingSchedule ? "Saving..." : "Save Schedule"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Half Day Shift Adjustment Modal */}
+      {halfDayRecord && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 border border-line shadow-xl space-y-4 animate-in fade-in">
+            <div className="flex items-center justify-between pb-2 border-b border-line">
+              <div>
+                <h3 className="font-serif font-bold text-base text-ink">Approved Half-Day Duty</h3>
+                <p className="text-xs text-ink-soft">
+                  Employee: <strong className="text-ink">{halfDayRecord.employee_name}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setHalfDayRecord(null)}
+                className="text-ink-soft hover:text-ink p-1 rounded-lg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveHalfDay} className="space-y-4 text-xs">
+              <div className="p-3 bg-cyan-50/70 border border-cyan-200 rounded-2xl text-cyan-900 space-y-1">
+                <p className="font-semibold">Shift & Late Penalty Adjustment</p>
+                <p className="text-[11px] text-cyan-800">
+                  Changing to an approved half-day shift recalculates their scheduled duty hours and automatically waives late deductions so payroll computation remains 100% fair.
+                </p>
+                {halfDayRecord.time_in && (
+                  <p className="text-[11px] font-mono mt-1 pt-1 border-t border-cyan-200/60">
+                    Actual Time In: <strong>{new Date(halfDayRecord.time_in).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}</strong>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="font-semibold text-ink block mb-1">Select Half-Day Shift</label>
+                <div className="grid grid-cols-1 gap-2">
+                  <label
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                      halfDayType === "afternoon"
+                        ? "bg-cyan-50 border-cyan-400 text-cyan-950 font-medium"
+                        : "bg-white border-line text-ink hover:bg-pale/50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="halfDayType"
+                      value="afternoon"
+                      checked={halfDayType === "afternoon"}
+                      onChange={() => setHalfDayType("afternoon")}
+                      className="mt-0.5 accent-cyan-600"
+                    />
+                    <div>
+                      <div className="font-bold">Afternoon Shift (2:00 PM - 8:00 PM)</div>
+                      <div className="text-[11px] text-ink-soft">Ideal for staff reporting in between 1:00 PM - 2:00 PM. Scheduled: 14:00 - 20:00 (6 hrs duty).</div>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                      halfDayType === "morning"
+                        ? "bg-cyan-50 border-cyan-400 text-cyan-950 font-medium"
+                        : "bg-white border-line text-ink hover:bg-pale/50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="halfDayType"
+                      value="morning"
+                      checked={halfDayType === "morning"}
+                      onChange={() => setHalfDayType("morning")}
+                      className="mt-0.5 accent-cyan-600"
+                    />
+                    <div>
+                      <div className="font-bold">Morning Shift (10:00 AM - 3:00 PM)</div>
+                      <div className="text-[11px] text-ink-soft">For opening duty half-days. Scheduled: 10:00 - 15:00 (5 hrs duty).</div>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                      halfDayType === "custom"
+                        ? "bg-cyan-50 border-cyan-400 text-cyan-950 font-medium"
+                        : "bg-white border-line text-ink hover:bg-pale/50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="halfDayType"
+                      value="custom"
+                      checked={halfDayType === "custom"}
+                      onChange={() => setHalfDayType("custom")}
+                      className="mt-0.5 accent-cyan-600"
+                    />
+                    <div>
+                      <div className="font-bold">Custom Hours</div>
+                      <div className="text-[11px] text-ink-soft">Set custom start and end duty time.</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {halfDayType === "custom" && (
+                <div className="grid grid-cols-2 gap-3 p-3 bg-pale/50 rounded-xl border border-line">
+                  <div>
+                    <label className="font-semibold text-ink block mb-1">Start Time</label>
+                    <input
+                      type="time"
+                      value={customStartTime}
+                      onChange={(e) => setCustomStartTime(e.target.value)}
+                      className="w-full p-2 rounded-lg border border-line bg-white text-ink font-mono focus:border-royal outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-ink block mb-1">End Time</label>
+                    <input
+                      type="time"
+                      value={customEndTime}
+                      onChange={(e) => setCustomEndTime(e.target.value)}
+                      className="w-full p-2 rounded-lg border border-line bg-white text-ink font-mono focus:border-royal outline-none"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-ink select-none">
+                  <input
+                    type="checkbox"
+                    checked={waiveLate}
+                    onChange={(e) => setWaiveLate(e.target.checked)}
+                    className="w-4 h-4 rounded border-line text-royal focus:ring-royal/30 accent-royal"
+                  />
+                  <span>Waive late minutes penalty (Late = 0 min)</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="font-semibold text-ink block mb-1">Notes / Reason (Optional)</label>
+                <textarea
+                  value={halfDayNotes}
+                  onChange={(e) => setHalfDayNotes(e.target.value)}
+                  placeholder="e.g. Approved half-day duty by manager..."
+                  rows={2}
+                  className="w-full p-2.5 rounded-xl border border-line bg-white text-ink focus:outline-none focus:border-royal"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-line">
+                <button
+                  type="button"
+                  onClick={() => setHalfDayRecord(null)}
+                  className="px-4 py-2 rounded-xl border border-line text-ink-soft hover:bg-pale font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingHalfDay}
+                  className="px-4 py-2 rounded-xl bg-cyan-700 text-white font-semibold hover:bg-cyan-800 shadow-sm disabled:opacity-50"
+                >
+                  {savingHalfDay ? "Updating..." : "Save Half-Day Duty"}
                 </button>
               </div>
             </form>

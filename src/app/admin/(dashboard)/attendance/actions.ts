@@ -1193,3 +1193,110 @@ export async function getPayrollAttendanceSummaries(params: {
   return summaries;
 }
 
+export async function markAttendanceAsHalfDay(params: {
+  recordId: string;
+  halfDayType: "afternoon" | "morning" | "custom";
+  customStartTime?: string;
+  customEndTime?: string;
+  waiveLate?: boolean;
+  notes?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const staff = await requireStaff();
+  if (staff.role !== "super_admin" && staff.role !== "admin" && staff.role !== "manager") {
+    return { success: false, error: "Forbidden: Only management can adjust attendance shifts." };
+  }
+
+  const supabase = createAdminClient();
+
+  // 1. Fetch record
+  const { data: record, error: fetchErr } = await supabase
+    .from("attendance_records")
+    .select("*")
+    .eq("id", params.recordId)
+    .single();
+
+  if (fetchErr || !record) {
+    return { success: false, error: "Attendance record not found." };
+  }
+
+  let shiftName = "Afternoon Half-Day Shift";
+  let startTime = "14:00:00";
+  let endTime = "20:00:00";
+
+  if (params.halfDayType === "morning") {
+    shiftName = "Morning Half-Day Shift";
+    startTime = "10:00:00";
+    endTime = "15:00:00";
+  } else if (params.halfDayType === "custom") {
+    shiftName = "Custom Half-Day Shift";
+    startTime = params.customStartTime ? `${params.customStartTime}:00` : "13:00:00";
+    endTime = params.customEndTime ? `${params.customEndTime}:00` : "18:00:00";
+  }
+
+  // Calculate late minutes based on new half-day schedule
+  let lateMinutes = 0;
+  if (!params.waiveLate && record.time_in) {
+    const timeInDate = new Date(record.time_in);
+    const [sHour, sMin] = startTime.split(":").map(Number);
+    const schedDate = new Date(timeInDate);
+    schedDate.setHours(sHour, sMin, 0, 0);
+
+    const diffMs = timeInDate.getTime() - schedDate.getTime();
+    if (diffMs > 15 * 60 * 1000) {
+      lateMinutes = Math.floor(diffMs / (60 * 1000));
+    }
+  }
+
+  // Calculate hours worked if timed out
+  let hoursWorked = record.hours_worked || 0;
+  if (record.time_in && record.time_out) {
+    const diffMs = new Date(record.time_out).getTime() - new Date(record.time_in).getTime();
+    const breakMs = (record.break_minutes || 0) * 60 * 1000;
+    hoursWorked = Math.max(0, Math.round(((diffMs - breakMs) / (3600 * 1000)) * 100) / 100);
+  } else if (record.time_in && !record.time_out) {
+    // Standard half day is ~5 hours
+    hoursWorked = 5.0;
+  }
+
+  const existingNotes = record.notes || "";
+  const newNoteTag = `[Approved ${shiftName} by ${staff.fullName}${params.notes ? `: ${params.notes}` : ""}]`;
+  const updatedNotes = existingNotes ? `${existingNotes}\n${newNoteTag}` : newNoteTag;
+
+  const { error: updateErr } = await supabase
+    .from("attendance_records")
+    .update({
+      shift_name: shiftName,
+      scheduled_start_time: startTime,
+      scheduled_end_time: endTime,
+      late_minutes: lateMinutes,
+      undertime_minutes: 0,
+      hours_worked: hoursWorked,
+      attendance_status: "half_day",
+      notes: updatedNotes,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.recordId);
+
+  if (updateErr) {
+    return { success: false, error: updateErr.message };
+  }
+
+  // Log audit event
+  try {
+    await supabase.from("attendance_audit_events").insert({
+      attendance_record_id: params.recordId,
+      employee_id: record.employee_id,
+      branch_id: record.branch_id,
+      actor_id: staff.id,
+      event_type: "ATTENDANCE_HALF_DAY_APPROVED",
+      notes: `Adjusted to ${shiftName}. Late minutes set to ${lateMinutes}.`,
+    });
+  } catch {
+    // Non-blocking
+  }
+
+  revalidatePath("/admin/attendance");
+  revalidatePath("/admin/payroll");
+  return { success: true };
+}
+
