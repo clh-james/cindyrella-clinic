@@ -451,6 +451,13 @@ export function compilePayrollAttendanceSummary(
       totalLateMinutes += Number(r.late_minutes || 0);
       totalUndertimeMinutes += Number(r.undertime_minutes || 0);
       approvedOvertimeHours += Number(r.approved_overtime_minutes || 0) / 60;
+    } else if (r.attendance_status === "half_day" || (r as unknown as { status?: string }).status === "half_day") {
+      // Half-day counts as 0.5 day worked for accurate wage calculation
+      daysWorked += 0.5;
+      totalHoursWorked += Number(r.hours_worked || 0);
+      totalLateMinutes += Number(r.late_minutes || 0);
+      totalUndertimeMinutes += Number(r.undertime_minutes || 0);
+      approvedOvertimeHours += Number(r.approved_overtime_minutes || 0) / 60;
     } else if (r.attendance_status === "on_approved_leave") {
       approvedLeaveDays++;
     } else if (r.attendance_status === "rest_day") {

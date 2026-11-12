@@ -58,14 +58,25 @@ export function computeEmployeePayrollItem(
   const holidayPay = 0;
 
   attendance.forEach((att) => {
-    if (att.status === "present") {
+    const st = ((att as unknown as { attendance_status?: string }).attendance_status || att.status) as string;
+    if (st === "present" || st === "timed_out" || st === "late") {
       daysPresent++;
       totalHoursWorked += Number(att.hours_worked || 0);
       totalLateMinutes += Number(att.late_minutes || 0);
       totalUndertimeMinutes += Number(att.undertime_minutes || 0);
-    } else if (att.status === "absent") {
+    } else if (st === "half_day") {
+      // Half-day duty: automatically counts as 0.5 day worked (kalahati ng arawang sahod)
+      daysPresent += 0.5;
+      if (comp.salary_type === "monthly") {
+        // For monthly salaried staff, deduct 0.5 day (half-day absence) from base monthly salary
+        daysAbsent += 0.5;
+      }
+      totalHoursWorked += Number(att.hours_worked || 0);
+      totalLateMinutes += Number(att.late_minutes || 0);
+      totalUndertimeMinutes += Number(att.undertime_minutes || 0);
+    } else if (st === "absent") {
       daysAbsent++;
-    } else if (att.status === "on_leave") {
+    } else if (st === "on_leave") {
       daysOnLeave++;
       if (att.is_approved_leave) {
         // Paid approved leave counts as paid hours

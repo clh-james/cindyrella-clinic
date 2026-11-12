@@ -39,7 +39,8 @@ export type AttendanceStatus =
   | "absent"
   | "on_leave"
   | "rest_day"
-  | "holiday";
+  | "holiday"
+  | "half_day";
 
 export type LeaveType =
   | "vacation"

@@ -319,6 +319,103 @@ console.log("\nTEST GROUP 7: Daily and Hourly Paid Calculations");
 }
 
 // ------------------------------------------------------------------------------
+// Test 7B: Approved Half-Day Duty Calculation (Automatic 50% Daily Wage)
+// ------------------------------------------------------------------------------
+console.log("\nTEST GROUP 7B: Half-Day Attendance Calculation (Automatic 50% Daily Rate)");
+{
+  const chindieComp: EmployeeCompensation = {
+    id: "comp-chindie",
+    employee_id: "emp-chindie",
+    branch_id: "branch-dvo",
+    position: "Senior Aesthetician",
+    employment_status: "active",
+    employment_type: "regular",
+    salary_type: "daily",
+    basic_salary: 15000,
+    daily_rate: 500.0,
+    hourly_rate: 50.0,
+    payroll_frequency: "semi_monthly",
+    effective_date: "2026-01-01",
+    is_current: true,
+    allowances: [],
+    commission_eligible: true,
+    overtime_eligible: true,
+    sss_enabled: true,
+    philhealth_enabled: true,
+    pagibig_enabled: true,
+    pagibig_custom_amount: 200,
+    tax_exempt: true,
+    is_minimum_wage_earner: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  // Scenario: 1 full day present + 1 half day duty
+  const attWithHalfDay: AttendanceRecord[] = [
+    {
+      id: "a-full",
+      employee_id: "emp-chindie",
+      branch_id: "branch-dvo",
+      work_date: "2026-11-11",
+      time_in: null,
+      time_out: null,
+      hours_worked: 10,
+      late_minutes: 0,
+      undertime_minutes: 0,
+      status: "present",
+      leave_type: null,
+      is_approved_leave: false,
+      overtime_hours: 0,
+      overtime_type: "regular_workday",
+      overtime_status: "none",
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: "a-half",
+      employee_id: "emp-chindie",
+      branch_id: "branch-dvo",
+      work_date: "2026-11-12",
+      time_in: null,
+      time_out: null,
+      hours_worked: 6.07,
+      late_minutes: 0,
+      undertime_minutes: 0,
+      status: "present",
+      leave_type: null,
+      is_approved_leave: false,
+      overtime_hours: 0,
+      overtime_type: "regular_workday",
+      overtime_status: "none",
+      created_at: new Date().toISOString(),
+      ...({ attendance_status: "half_day" } as any),
+    },
+  ];
+
+  const item = computeEmployeePayrollItem(chindieComp, attWithHalfDay, [], {
+    payrollRunId: "run-half",
+    runNumber: "PR-202611-SM1",
+    periodStart: "2026-11-01",
+    periodEnd: "2026-11-15",
+    frequency: "semi_monthly",
+  });
+
+  // 1.5 days worked: 1 full day (₱500) + 1 half day (₱250) = ₱750
+  assert(item.days_worked === 1.5, `Days worked is 1.5 days (Got: ${item.days_worked})`);
+  assert(item.basic_pay === 750.0, `Basic pay is exactly ₱750.00 (Got: ${item.basic_pay})`);
+
+  // Scenario 2: Half-day only (₱250 = exactly half of ₱500 daily rate)
+  const itemHalfOnly = computeEmployeePayrollItem(chindieComp, [attWithHalfDay[1]], [], {
+    payrollRunId: "run-half-only",
+    runNumber: "PR-202611-SM1",
+    periodStart: "2026-11-01",
+    periodEnd: "2026-11-15",
+    frequency: "semi_monthly",
+  });
+  assert(itemHalfOnly.days_worked === 0.5, "Half-day only counts as 0.5 days worked");
+  assert(itemHalfOnly.basic_pay === 250.0, "Half-day basic pay is exactly ₱250.00 (half of ₱500 daily rate)");
+}
+
+// ------------------------------------------------------------------------------
 // Test 8: 13th-Month Pay Calculation (P.D. 851)
 // ------------------------------------------------------------------------------
 console.log("\nTEST GROUP 8: 13th-Month Pay Calculation (P.D. 851)");

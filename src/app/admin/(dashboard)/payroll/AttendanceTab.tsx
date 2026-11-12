@@ -212,6 +212,8 @@ export function AttendanceTab({
                         className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
                           a.status === "present"
                             ? "bg-emerald-50 text-emerald-700"
+                            : a.status === "half_day"
+                            ? "bg-cyan-50 text-cyan-800 border border-cyan-200"
                             : a.status === "on_leave"
                             ? "bg-blue-50 text-blue-700"
                             : a.status === "absent"
