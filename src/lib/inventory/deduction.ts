@@ -92,10 +92,10 @@ export async function deductAppointmentInventory(
   const supabase = getAdminClient();
 
   try {
-    // 1. Fetch appointment details
+    // 1. Fetch appointment details including notes
     const { data: appointment, error: apptErr } = await supabase
       .from("appointments")
-      .select("id, reference_number, treatment_id, branch_id, treatments(id, name)")
+      .select("id, reference_number, treatment_id, branch_id, notes, treatments(id, name)")
       .eq("id", appointmentId)
       .single();
 
@@ -110,68 +110,60 @@ export async function deductAppointmentInventory(
 
     const refNumber = appointment.reference_number;
     const treatment = appointment.treatments as unknown as { id: string; name: string } | null;
-    const treatmentName = treatment?.name || "Clinic Treatment";
+    const defaultTreatmentName = treatment?.name || "Clinic Treatment";
 
-    // 2. Guard against duplicate deductions (Idempotency)
+    // 2. Fetch existing movements for this referenceNumber to prevent duplicate deductions per item
     const { data: existingMovements } = await supabase
       .from("inventory_movements")
-      .select("id")
+      .select("id, item_id")
       .eq("reference_id", refNumber)
-      .eq("movement_type", "stock_out")
-      .limit(1);
+      .eq("movement_type", "stock_out");
 
-    if (existingMovements && existingMovements.length > 0) {
-      return {
-        success: true,
-        message: `Inventory was already deducted for appointment #${refNumber}.`,
-        count: 0,
-        deductedItems: [],
-        referenceNumber: refNumber,
-      };
+    const alreadyDeductedItemIds = new Set((existingMovements || []).map((m) => m.item_id));
+
+    // 3. Parse all cart items from appointment.notes (e.g. multi-treatment or add-on items like PENILE MEDICATION SET)
+    let cartItems: Array<{ id: string; name: string; quantity: number }> = [];
+    if (appointment.notes && appointment.notes.trim().startsWith("[")) {
+      try {
+        const firstLine = appointment.notes.trim().split("\n")[0];
+        const parsed = JSON.parse(firstLine);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          cartItems = parsed.map((p) => ({
+            id: p.id,
+            name: p.name || "",
+            quantity: Math.max(1, Number(p.quantity) || 1),
+          }));
+        }
+      } catch {
+        // Fallback below
+      }
     }
 
-    // 3. Fetch materials / recipe for this treatment
-    const { data: materials, error: matErr } = await supabase
-      .from("treatment_materials")
-      .select("item_id, quantity_required, inventory_items(id, name, unit, current_stock, low_stock_threshold)")
-      .eq("treatment_id", appointment.treatment_id);
-
-    if (matErr) {
-      return {
-        success: false,
-        error: `Failed to fetch treatment recipe: ${matErr.message}`,
-        count: 0,
-        deductedItems: [],
-      };
-    }
-
-    if (!materials || materials.length === 0) {
-      return {
-        success: true,
-        message: `No consumable recipe mapped for treatment "${treatmentName}".`,
-        count: 0,
-        deductedItems: [],
-        referenceNumber: refNumber,
-      };
+    // Fallback if notes did not contain JSON array
+    if (cartItems.length === 0 && appointment.treatment_id) {
+      cartItems = [
+        {
+          id: appointment.treatment_id,
+          name: defaultTreatmentName,
+          quantity: 1,
+        },
+      ];
     }
 
     const deductedItems: DeductedItemSummary[] = [];
 
-    // 4. Deduct each required item from stock
-    for (const mat of materials) {
-      const item = mat.inventory_items as unknown as {
-        id: string;
-        name: string;
-        unit: string;
-        current_stock: number;
-        low_stock_threshold?: number;
-      } | null;
+    // Helper to perform deduction of a specific inventory item
+    const performItemDeduction = async (
+      item: { id: string; name: string; unit: string; current_stock: number; low_stock_threshold?: number },
+      qtyToDeduct: number,
+      reasonTitle: string
+    ) => {
+      if (alreadyDeductedItemIds.has(item.id)) {
+        return; // Already deducted previously for this appointment
+      }
 
-      if (!item) continue;
-
-      const qtyRequired = Number(mat.quantity_required) || 1;
       const prevStock = Number(item.current_stock) || 0;
-      const newStock = Math.max(0, prevStock - qtyRequired);
+      const newStock = Math.max(0, prevStock - qtyToDeduct);
 
       // Decrement global inventory_items stock
       await supabase
@@ -194,7 +186,7 @@ export async function deductAppointmentInventory(
 
           if (branchBalance) {
             const branchPrev = Number(branchBalance.quantity) || 0;
-            const branchNew = Math.max(0, branchPrev - qtyRequired);
+            const branchNew = Math.max(0, branchPrev - qtyToDeduct);
             await supabase
               .from("inventory_stock_balances")
               .update({
@@ -229,12 +221,12 @@ export async function deductAppointmentInventory(
           reference_number: movementRef,
           item_id: item.id,
           movement_type: "stock_out",
-          quantity: qtyRequired,
+          quantity: qtyToDeduct,
           unit: item.unit || "pcs",
           source_branch_id: appointment.branch_id || null,
           previous_quantity: prevStock,
           new_quantity: newStock,
-          reason: `Treatment Completed: ${treatmentName}`,
+          reason: `Treatment Completed: ${reasonTitle}`,
           notes: `Automated deduction for appointment #${refNumber}`,
           reference_id: refNumber,
           performed_by: performedByUserId || null,
@@ -247,8 +239,8 @@ export async function deductAppointmentInventory(
       try {
         await supabase.from("inventory_logs").insert({
           item_id: item.id,
-          change_amount: -qtyRequired,
-          reason: `Treatment Completed: ${treatmentName} (${refNumber})`,
+          change_amount: -qtyToDeduct,
+          reason: `Treatment Completed: ${reasonTitle} (${refNumber})`,
           created_by: performedByUserId || null,
         });
       } catch {
@@ -258,19 +250,74 @@ export async function deductAppointmentInventory(
       // Check low stock and alert
       await checkAndAlertLowStock(supabase, item, newStock, appointment.branch_id);
 
+      alreadyDeductedItemIds.add(item.id);
       deductedItems.push({
         itemId: item.id,
         itemName: item.name,
-        quantity: qtyRequired,
+        quantity: qtyToDeduct,
         unit: item.unit,
         previousStock: prevStock,
         newStock: newStock,
       });
+    };
+
+    // 4. Iterate each cart item and deduct its materials or direct inventory item
+    for (const cartItem of cartItems) {
+      // A. Check if cartItem has treatment_materials recipe
+      const { data: materials } = await supabase
+        .from("treatment_materials")
+        .select("item_id, quantity_required, inventory_items(id, name, unit, current_stock, low_stock_threshold)")
+        .eq("treatment_id", cartItem.id);
+
+      if (materials && materials.length > 0) {
+        for (const mat of materials) {
+          const invItem = mat.inventory_items as unknown as {
+            id: string;
+            name: string;
+            unit: string;
+            current_stock: number;
+            low_stock_threshold?: number;
+          } | null;
+
+          if (!invItem) continue;
+
+          const qtyToDeduct = (Number(mat.quantity_required) || 1) * cartItem.quantity;
+          await performItemDeduction(invItem, qtyToDeduct, cartItem.name || defaultTreatmentName);
+        }
+      } else {
+        // B. If no treatment recipe, check if cartItem directly matches an inventory item (e.g. PENILE MEDICATION SET or retail item)
+        let directItem: { id: string; name: string; unit: string; current_stock: number; low_stock_threshold?: number } | null = null;
+        
+        // Try match by id
+        const { data: byId } = await supabase
+          .from("inventory_items")
+          .select("id, name, unit, current_stock, low_stock_threshold")
+          .eq("id", cartItem.id)
+          .maybeSingle();
+
+        if (byId) {
+          directItem = byId;
+        } else if (cartItem.name) {
+          // Try match by name
+          const { data: byName } = await supabase
+            .from("inventory_items")
+            .select("id, name, unit, current_stock, low_stock_threshold")
+            .ilike("name", cartItem.name.trim())
+            .maybeSingle();
+          if (byName) {
+            directItem = byName;
+          }
+        }
+
+        if (directItem) {
+          await performItemDeduction(directItem, cartItem.quantity, cartItem.name);
+        }
+      }
     }
 
     return {
       success: true,
-      message: `Successfully deducted ${deductedItems.length} used items for ${treatmentName}.`,
+      message: `Successfully processed inventory deductions (${deductedItems.length} items updated) for #${refNumber}.`,
       count: deductedItems.length,
       deductedItems,
       referenceNumber: refNumber,
