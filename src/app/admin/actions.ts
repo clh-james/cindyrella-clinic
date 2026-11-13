@@ -435,9 +435,18 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
     }
   }
 
+  // Helper to check if item is medication / product with zero commission
+  const isMedicationItem = (name: string) => {
+    const lower = name.toLowerCase();
+    return lower.includes("medication") || lower.includes("med set");
+  };
+
   // Helper to get commission rate based on service name & classification
   const getCommissionRate = (name: string, config?: { commission_rate?: number; rates_by_classification?: Record<string, number> }) => {
     const lower = name.toLowerCase();
+    if (isMedicationItem(lower)) {
+      return 0; // Exclude medication set from commission
+    }
     if (config?.rates_by_classification) {
       if (isBoostingMain && config.rates_by_classification["boosting_from_main"] !== undefined) {
         return Number(config.rates_by_classification["boosting_from_main"]);
@@ -475,28 +484,55 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
   let totalCommAmount = 0;
   let commRate = 10;
   let itemName = treatment?.name || "Clinic Service";
+  let commissionableBase = baseAmount;
 
   if (cartItems.length > 0) {
-    const rawTotal = cartItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
-    const ratio = rawTotal > 0 ? baseAmount / rawTotal : 1;
+    // Separate medication items (0% commission) from clinical procedures
+    const medicationItems = cartItems.filter((i) => isMedicationItem(i.name));
+    const procedureItems = cartItems.filter((i) => !isMedicationItem(i.name));
+
+    const medTotal = medicationItems.reduce(
+      (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1),
+      0
+    );
+
+    // Procedure base is total amount minus medication set (e.g. 71k - 1k = 70k)
+    commissionableBase = Math.max(0, baseAmount - medTotal);
+
+    const procedureRawTotal = procedureItems.reduce(
+      (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1),
+      0
+    );
+
+    const ratio = procedureRawTotal > 0 ? commissionableBase / procedureRawTotal : 1;
     let computedSum = 0;
 
-    for (const item of cartItems) {
+    for (const item of procedureItems) {
       const itemConfig = item.id ? quotasMap[item.id] : undefined;
       const itemRate = getCommissionRate(item.name, itemConfig);
       const itemVal = (Number(item.price) || 0) * (Number(item.quantity) || 1) * ratio;
       computedSum += itemVal * (itemRate / 100);
+      commRate = itemRate; // Primary procedure rate
     }
 
     totalCommAmount = Math.round(computedSum * 100) / 100;
-    commRate = baseAmount > 0 ? Math.round((totalCommAmount / baseAmount) * 1000) / 10 : 10;
-    itemName = cartItems.map((i) => i.name).join(", ");
+    if (procedureItems.length > 0) {
+      itemName = procedureItems.map((i) => i.name).join(", ");
+    } else {
+      itemName = cartItems.map((i) => i.name).join(", ");
+    }
   } else {
-    commRate = getCommissionRate(itemName, treatmentConfig);
-    const isPercentage = (treatmentConfig.commission_type || "percentage") === "percentage";
-    totalCommAmount = isPercentage
-      ? Math.round(baseAmount * (commRate / 100) * 100) / 100
-      : Math.round(commRate * 100) / 100;
+    if (isMedicationItem(itemName)) {
+      commRate = 0;
+      totalCommAmount = 0;
+      commissionableBase = 0;
+    } else {
+      commRate = getCommissionRate(itemName, treatmentConfig);
+      const isPercentage = (treatmentConfig.commission_type || "percentage") === "percentage";
+      totalCommAmount = isPercentage
+        ? Math.round(baseAmount * (commRate / 100) * 100) / 100
+        : Math.round(commRate * 100) / 100;
+    }
   }
 
   if (totalCommAmount <= 0) return;
@@ -533,7 +569,7 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
 
     const roleLabel = h.role === "primary" ? "Primary/Lead" : "Assistant";
     const classLabel = isBoostingMain ? "Boosting Main" : (clientClass || "Standard");
-    const notes = `Auto-computed for ${staffName} (${roleLabel}: ${Math.round((rawPercent / totalPercent) * 100)}% split on ${itemName} @ ${commRate}% [${classLabel}])`;
+    const notes = `Auto-computed for ${staffName} (${roleLabel}: ${Math.round((rawPercent / totalPercent) * 100)}% split on ${itemName} @ ${commRate}% on ₱${commissionableBase.toLocaleString()} base [${classLabel}, excl. med set])`;
 
     await adminClient.from("commission_records").insert({
       employee_id: h.staffId,
@@ -542,7 +578,7 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
       source_id: appt.id,
       reference_number: appt.reference_number,
       item_name: itemName,
-      base_amount: baseAmount,
+      base_amount: commissionableBase,
       commission_rate: commRate,
       is_percentage: true,
       commission_amount: individualComm,

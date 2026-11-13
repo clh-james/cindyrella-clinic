@@ -356,7 +356,7 @@ export function MyCommissionsClient({ initialData }: MyCommissionsClientProps) {
                               <span>+{formatPHP(commAmt)}</span>
                               {commRate ? (
                                 <span className="text-[10px] text-rose-600 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
-                                  {commRate}% rate
+                                  {commRate}% rate{appt.commissionable_base && Number(appt.commissionable_base) !== Number(appt.amount_due) ? ` (₱${Number(appt.commissionable_base).toLocaleString()} base)` : ""}
                                 </span>
                               ) : null}
                             </div>

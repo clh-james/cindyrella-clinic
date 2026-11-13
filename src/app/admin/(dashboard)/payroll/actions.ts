@@ -814,22 +814,37 @@ export async function getMyDailyCommissions(targetDate?: string) {
     const enrichedTodayAppts = rawTodayAppts.map((appt: any) => {
       const commRec = commByApptId.get(appt.id) || commByRef.get(appt.reference_number);
 
-      // Extract all item names from cart in notes if present
+      // Extract all item names and calculate medication deductions (e.g. Penile Medication Set)
       let treatmentDisplayName = appt.treatments?.name || "Clinic Treatment";
+      let medTotal = 0;
+      let nonMedNames: string[] = [];
+
       if (appt.notes) {
         try {
           const firstLine = appt.notes.split("\n")[0].trim();
           if (firstLine.startsWith("[") && firstLine.endsWith("]")) {
             const items = JSON.parse(firstLine);
             if (Array.isArray(items) && items.length > 0) {
-              const names = items.map((i: any) => i.name).filter(Boolean);
-              if (names.length > 0) treatmentDisplayName = names.join(", ");
+              items.forEach((item: any) => {
+                const name = (item.name || "").trim();
+                const lower = name.toLowerCase();
+                if (lower.includes("medication") || lower.includes("med set")) {
+                  medTotal += (Number(item.price) || 0) * (Number(item.quantity) || 1);
+                } else if (name) {
+                  nonMedNames.push(name);
+                }
+              });
+              if (nonMedNames.length > 0) {
+                treatmentDisplayName = nonMedNames.join(", ");
+              }
             }
           }
         } catch {
           // keep default
         }
       }
+
+      const commissionableBase = Math.max(0, Number(appt.amount_due || 0) - medTotal);
 
       // Determine client classification
       let clientClass = appt.client_classification;
@@ -870,12 +885,14 @@ export async function getMyDailyCommissions(targetDate?: string) {
 
       const commissionAmount = commRec
         ? Number(commRec.commission_amount)
-        : Number(appt.commission_amount) || Math.round(Number(appt.amount_due || 0) * (commissionRate / 100) * 100) / 100;
+        : Number(appt.commission_amount) || Math.round(commissionableBase * (commissionRate / 100) * 100) / 100;
 
       return {
         ...appt,
         treatment_display_name: treatmentDisplayName,
         client_classification: clientClass || "walk-in",
+        commissionable_base: commRec?.base_amount ? Number(commRec.base_amount) : commissionableBase,
+        medication_deducted: medTotal,
         commission_amount: commissionAmount,
         commission_rate: commissionRate,
         commission_status: commRec?.status || appt.commission_status || "approved",
