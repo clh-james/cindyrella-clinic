@@ -119,8 +119,12 @@ export function MyCommissionsClient({ initialData }: MyCommissionsClientProps) {
               <span className="bg-white/10 backdrop-blur-xs border border-white/20 text-rose-200 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1.5">
                 <Coins size={14} className="text-rose-300" /> My Daily Earnings
               </span>
-              <span className="text-xs text-rose-200/80 font-medium">
-                {data.staff.role === "aesthetician" ? "Clinical Aesthetician" : data.staff.role.toUpperCase()}
+              <span className="text-xs text-rose-200/90 font-medium">
+                {data.staff.role === "aesthetician" || data.staff.fullName?.toLowerCase().includes("cloisa")
+                  ? (data.staff.role === "super_admin" || data.staff.role === "admin"
+                      ? "Clinical Aesthetician & Admin"
+                      : "Clinical Aesthetician")
+                  : data.staff.role.toUpperCase()}
               </span>
             </div>
 
@@ -311,7 +315,15 @@ export function MyCommissionsClient({ initialData }: MyCommissionsClientProps) {
                   <tbody className="divide-y divide-slate-100">
                     {/* Appointments */}
                     {data.todayAppointments.map((appt: any) => {
-                      const commAmt = Number(appt.commission_amount || (Number(appt.amount_due || 0) * 0.1));
+                      const commAmt = Number(appt.commission_amount || 0);
+                      const commRate = appt.commission_rate;
+                      const treatmentTitle = appt.treatment_display_name || appt.treatments?.name || "Clinic Treatment";
+                      const clientClass = appt.client_classification;
+                      const isBoosting =
+                        clientClass === "boosting from main" ||
+                        clientClass === "boosting_from_main" ||
+                        clientClass?.toLowerCase()?.includes("boosting");
+
                       return (
                         <tr key={appt.id} className="hover:bg-slate-50/60 transition-colors">
                           <td className="py-3 px-4 font-mono">
@@ -325,13 +337,29 @@ export function MyCommissionsClient({ initialData }: MyCommissionsClientProps) {
                             <span className="text-[10px] text-slate-400">{appt.customers?.phone}</span>
                           </td>
                           <td className="py-3 px-3 font-medium text-slate-700">
-                            {appt.treatments?.name || "Clinic Treatment"}
+                            <span className="block font-medium text-slate-800">{treatmentTitle}</span>
+                            {clientClass ? (
+                              <span className={`inline-block mt-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded border ${
+                                isBoosting 
+                                  ? "bg-purple-50 text-purple-700 border-purple-200" 
+                                  : "bg-blue-50 text-blue-700 border-blue-200"
+                              }`}>
+                                {isBoosting ? "Boosting Main" : clientClass}
+                              </span>
+                            ) : null}
                           </td>
                           <td className="py-3 px-3 text-right font-mono text-slate-600">
                             {formatPHP(appt.amount_due || appt.treatments?.session_price || 0)}
                           </td>
                           <td className="py-3 px-3 text-right font-mono font-bold text-rose-700 text-sm">
-                            +{formatPHP(commAmt)}
+                            <div className="flex flex-col items-end">
+                              <span>+{formatPHP(commAmt)}</span>
+                              {commRate ? (
+                                <span className="text-[10px] text-rose-600 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                                  {commRate}% rate
+                                </span>
+                              ) : null}
+                            </div>
                           </td>
                           <td className="py-3 px-3 text-center">
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-800 border border-emerald-200">

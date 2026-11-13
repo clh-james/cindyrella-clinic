@@ -789,13 +789,98 @@ export async function getMyDailyCommissions(targetDate?: string) {
     const allMonthComms = monthComms || [];
     const todayComms = allMonthComms.filter((c) => c.date_earned === today);
 
-    // 2. Fetch appointments handled by this staff member today
-    const { data: todayAppts } = await supabase
+    // 2. Fetch appointments for today
+    const { data: allTodayAppts } = await supabase
       .from("appointments")
-      .select("id, reference_number, appointment_date, appointment_time, status, amount_due, commission_amount, commission_status, treatments(name, session_price), customers(first_name, last_name, phone)")
-      .eq("handled_by", staff.id)
+      .select("id, reference_number, appointment_date, appointment_time, status, amount_due, commission_amount, commission_status, notes, client_classification, handled_by, treatments(name, session_price), customers(first_name, last_name, phone)")
       .eq("appointment_date", today)
       .order("appointment_time", { ascending: true });
+
+    // Filter appointments belonging to this staff member (either by handled_by or notes)
+    const rawTodayAppts = (allTodayAppts || []).filter((a: any) => {
+      if (a.handled_by === staff.id) return true;
+      if (a.notes && a.notes.includes(staff.id)) return true;
+      return false;
+    });
+
+    // Map appointments to their official commission records
+    const commByApptId = new Map<string, any>();
+    const commByRef = new Map<string, any>();
+    todayComms.forEach((c) => {
+      if (c.source_id) commByApptId.set(c.source_id, c);
+      if (c.reference_number) commByRef.set(c.reference_number, c);
+    });
+
+    const enrichedTodayAppts = rawTodayAppts.map((appt: any) => {
+      const commRec = commByApptId.get(appt.id) || commByRef.get(appt.reference_number);
+
+      // Extract all item names from cart in notes if present
+      let treatmentDisplayName = appt.treatments?.name || "Clinic Treatment";
+      if (appt.notes) {
+        try {
+          const firstLine = appt.notes.split("\n")[0].trim();
+          if (firstLine.startsWith("[") && firstLine.endsWith("]")) {
+            const items = JSON.parse(firstLine);
+            if (Array.isArray(items) && items.length > 0) {
+              const names = items.map((i: any) => i.name).filter(Boolean);
+              if (names.length > 0) treatmentDisplayName = names.join(", ");
+            }
+          }
+        } catch {
+          // keep default
+        }
+      }
+
+      // Determine client classification
+      let clientClass = appt.client_classification;
+      if (!clientClass && appt.notes) {
+        const m = appt.notes.match(/\[Classification:([^\]]+)\]/i);
+        if (m) clientClass = m[1];
+      }
+      const isBoosting =
+        clientClass === "boosting_from_main" ||
+        clientClass === "boosting from main" ||
+        clientClass?.toLowerCase().includes("boosting");
+
+      // Default rate fallback based on treatment type
+      const lowerName = treatmentDisplayName.toLowerCase();
+      let defaultRate = 10;
+      if (lowerName.includes("penile")) {
+        defaultRate = isBoosting ? 15.6 : 32.5;
+      } else if (lowerName.includes("microshading") || lowerName.includes("brows")) {
+        defaultRate = 50;
+      } else if (lowerName.includes("butt") || lowerName.includes("breast") || lowerName.includes("body filler")) {
+        defaultRate = 40;
+      } else if (
+        lowerName.includes("hiko") ||
+        lowerName.includes("botox") ||
+        lowerName.includes("jawtox") ||
+        lowerName.includes("alartox") ||
+        lowerName.includes("chin") ||
+        lowerName.includes("lips") ||
+        lowerName.includes("barbie arms") ||
+        lowerName.includes("forehead")
+      ) {
+        defaultRate = 20;
+      }
+
+      const commissionRate = commRec?.commission_rate !== undefined
+        ? Number(commRec.commission_rate)
+        : defaultRate;
+
+      const commissionAmount = commRec
+        ? Number(commRec.commission_amount)
+        : Number(appt.commission_amount) || Math.round(Number(appt.amount_due || 0) * (commissionRate / 100) * 100) / 100;
+
+      return {
+        ...appt,
+        treatment_display_name: treatmentDisplayName,
+        client_classification: clientClass || "walk-in",
+        commission_amount: commissionAmount,
+        commission_rate: commissionRate,
+        commission_status: commRec?.status || appt.commission_status || "approved",
+      };
+    });
 
     // 3. Fetch package redemptions performed by this staff member today
     const { data: todayRedemptions } = await supabase
@@ -806,28 +891,41 @@ export async function getMyDailyCommissions(targetDate?: string) {
       .lte("redeemed_at", `${today}T23:59:59.999Z`);
 
     // 4. Calculate KPI metrics
-    const todayCommissionTotal = todayComms
-      .filter((c) => c.status === "approved" || c.status === "paid")
-      .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
+    const apptCommissionTotal = enrichedTodayAppts
+      .filter((a) => a.commission_status === "approved" || a.commission_status === "paid")
+      .reduce((sum, a) => sum + Number(a.commission_amount || 0), 0);
+
+    // Add package redemptions to today's earnings (standard ₱250 per session)
+    const redemptionCommissionTotal = (todayRedemptions || []).length * 250;
+
+    const todayCommissionTotal = Math.max(
+      todayComms
+        .filter((c) => c.status === "approved" || c.status === "paid")
+        .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) + redemptionCommissionTotal,
+      apptCommissionTotal + redemptionCommissionTotal
+    );
 
     const todayPendingCommission = todayComms
       .filter((c) => c.status === "pending")
       .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
 
-    const monthCommissionTotal = allMonthComms
-      .filter((c) => c.status === "approved" || c.status === "paid")
-      .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0);
+    const monthCommissionTotal = Math.max(
+      allMonthComms
+        .filter((c) => c.status === "approved" || c.status === "paid")
+        .reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) + redemptionCommissionTotal,
+      todayCommissionTotal
+    );
 
     // Unique clients served today
     const clientSet = new Set<string>();
-    (todayAppts || []).forEach((a: any) => {
+    enrichedTodayAppts.forEach((a: any) => {
       if (a.customers) clientSet.add(`${a.customers.first_name} ${a.customers.last_name}`);
     });
     (todayRedemptions || []).forEach((r: any) => {
       const cust = r.customer_packages?.customers;
       if (cust) clientSet.add(`${cust.first_name} ${cust.last_name}`);
     });
-    const clientsServedToday = Math.max(clientSet.size, (todayAppts || []).length, todayComms.length);
+    const clientsServedToday = Math.max(clientSet.size, enrichedTodayAppts.length, todayComms.length);
 
     return {
       success: true,
@@ -843,11 +941,11 @@ export async function getMyDailyCommissions(targetDate?: string) {
           todayPendingCommission,
           monthCommissionTotal,
           clientsServedToday,
-          totalSessionsToday: (todayAppts || []).length + (todayRedemptions || []).length,
+          totalSessionsToday: enrichedTodayAppts.length + (todayRedemptions || []).length,
         },
         todayCommissions: todayComms,
         monthCommissions: allMonthComms,
-        todayAppointments: todayAppts || [],
+        todayAppointments: enrichedTodayAppts,
         todayRedemptions: todayRedemptions || [],
       },
     };

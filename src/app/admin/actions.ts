@@ -409,7 +409,6 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
 
   // 3. Compute total commission pool
   const treatment = appt.treatments as unknown as { name: string; session_price: number } | null;
-  const itemName = treatment?.name || "Clinic Service";
   const baseAmount = Number(appt.amount_due || treatment?.session_price || 0);
 
   // Determine client classification: walk-in, booked, or boosting_from_main
@@ -423,26 +422,82 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
     clientClass === "boosting from main" ||
     clientClass?.toLowerCase().includes("boosting");
 
-  // Determine commission rate (with support for client source tiers)
-  let commRate = Number(treatmentConfig.commission_rate ?? 10);
-  const isPercentage = (treatmentConfig.commission_type || "percentage") === "percentage";
-  const lowerName = itemName.toLowerCase();
-
-  const ratesByClass = treatmentConfig.rates_by_classification;
-  if (ratesByClass) {
-    if (isBoostingMain && ratesByClass["boosting_from_main"] !== undefined) {
-      commRate = Number(ratesByClass["boosting_from_main"]);
-    } else if (ratesByClass["walk-in"] !== undefined) {
-      commRate = Number(ratesByClass["walk-in"]);
+  // Parse cart items from notes if present
+  let cartItems: Array<{ id?: string; name: string; price: number; quantity?: number }> = [];
+  if (appt.notes) {
+    try {
+      const firstLine = appt.notes.split("\n")[0].trim();
+      if (firstLine.startsWith("[") && firstLine.endsWith("]")) {
+        cartItems = JSON.parse(firstLine);
+      }
+    } catch {
+      cartItems = [];
     }
-  } else if (lowerName.includes("penile")) {
-    // Penile enhancement: 32.5% for walk-in or booked clients; 15.6% for Boosting Main
-    commRate = isBoostingMain ? 15.6 : 32.5;
   }
 
-  const totalCommAmount = isPercentage
-    ? Math.round(baseAmount * (commRate / 100) * 100) / 100
-    : Math.round(commRate * 100) / 100;
+  // Helper to get commission rate based on service name & classification
+  const getCommissionRate = (name: string, config?: { commission_rate?: number; rates_by_classification?: Record<string, number> }) => {
+    const lower = name.toLowerCase();
+    if (config?.rates_by_classification) {
+      if (isBoostingMain && config.rates_by_classification["boosting_from_main"] !== undefined) {
+        return Number(config.rates_by_classification["boosting_from_main"]);
+      }
+      if (config.rates_by_classification["walk-in"] !== undefined) {
+        return Number(config.rates_by_classification["walk-in"]);
+      }
+    }
+    if (lower.includes("penile")) {
+      return isBoostingMain ? 15.6 : 32.5;
+    }
+    if (lower.includes("microshading") || lower.includes("brows") || lower.includes("eyebrow")) {
+      return 50;
+    }
+    if (lower.includes("butt") || lower.includes("breast") || lower.includes("body filler") || lower.includes("augmentation")) {
+      return 40;
+    }
+    if (
+      lower.includes("hiko") ||
+      lower.includes("botox") ||
+      lower.includes("jawtox") ||
+      lower.includes("alartox") ||
+      lower.includes("crowsfeet") ||
+      lower.includes("chin") ||
+      lower.includes("lips") ||
+      lower.includes("lip filler") ||
+      lower.includes("barbie arms") ||
+      lower.includes("forehead")
+    ) {
+      return 20;
+    }
+    return Number(config?.commission_rate ?? 10);
+  };
+
+  let totalCommAmount = 0;
+  let commRate = 10;
+  let itemName = treatment?.name || "Clinic Service";
+
+  if (cartItems.length > 0) {
+    const rawTotal = cartItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
+    const ratio = rawTotal > 0 ? baseAmount / rawTotal : 1;
+    let computedSum = 0;
+
+    for (const item of cartItems) {
+      const itemConfig = item.id ? quotasMap[item.id] : undefined;
+      const itemRate = getCommissionRate(item.name, itemConfig);
+      const itemVal = (Number(item.price) || 0) * (Number(item.quantity) || 1) * ratio;
+      computedSum += itemVal * (itemRate / 100);
+    }
+
+    totalCommAmount = Math.round(computedSum * 100) / 100;
+    commRate = baseAmount > 0 ? Math.round((totalCommAmount / baseAmount) * 1000) / 10 : 10;
+    itemName = cartItems.map((i) => i.name).join(", ");
+  } else {
+    commRate = getCommissionRate(itemName, treatmentConfig);
+    const isPercentage = (treatmentConfig.commission_type || "percentage") === "percentage";
+    totalCommAmount = isPercentage
+      ? Math.round(baseAmount * (commRate / 100) * 100) / 100
+      : Math.round(commRate * 100) / 100;
+  }
 
   if (totalCommAmount <= 0) return;
 
@@ -489,7 +544,7 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
       item_name: itemName,
       base_amount: baseAmount,
       commission_rate: commRate,
-      is_percentage: isPercentage,
+      is_percentage: true,
       commission_amount: individualComm,
       split_ratio: ratio,
       date_earned: appt.appointment_date || new Date().toISOString().slice(0, 10),
@@ -497,6 +552,17 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
       notes,
     });
   }
+
+  // Synchronize appointments table commission_amount and status
+  const primaryHandler = handlers.find((h) => h.role === "primary") || handlers[0];
+  await adminClient
+    .from("appointments")
+    .update({
+      commission_amount: totalCommAmount,
+      commission_status: "approved",
+      ...(primaryHandler?.staffId && { handled_by: primaryHandler.staffId }),
+    })
+    .eq("id", appt.id);
 
   revalidatePath("/admin/payroll");
 }
