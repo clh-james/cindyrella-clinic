@@ -262,12 +262,13 @@ export async function autoComputeAllCommissions() {
       commission_rate?: number;
       commission_type?: "percentage" | "fixed";
       quota_target?: number;
+      rates_by_classification?: Record<string, number>;
     }>;
 
     // 2. Fetch completed appointments
     const { data: appointments, error: apptErr } = await supabase
       .from("appointments")
-      .select("id, reference_number, treatment_id, branch_id, amount_due, appointment_date, status, notes, treatments(name, session_price)")
+      .select("id, reference_number, treatment_id, branch_id, amount_due, appointment_date, status, notes, client_classification, treatments(name, session_price)")
       .eq("status", "completed");
 
     if (apptErr) throw apptErr;
@@ -300,8 +301,31 @@ export async function autoComputeAllCommissions() {
       const itemName = treatment?.name || "Clinic Service";
       const baseAmount = Number(appt.amount_due || treatment?.session_price || 0);
 
-      const commRate = Number(treatmentConfig.commission_rate ?? 10);
+      // Determine client classification: walk-in, booked, or boosting_from_main
+      let clientClass = (appt as unknown as { client_classification?: string }).client_classification;
+      if (!clientClass && appt.notes) {
+        const classMatch = appt.notes.match(/\[Classification:([^\]]+)\]/i);
+        if (classMatch) clientClass = classMatch[1];
+      }
+      const isBoostingMain =
+        clientClass === "boosting_from_main" ||
+        clientClass === "boosting from main" ||
+        clientClass?.toLowerCase().includes("boosting");
+
+      let commRate = Number(treatmentConfig.commission_rate ?? 10);
       const isPercentage = (treatmentConfig.commission_type || "percentage") === "percentage";
+      const lowerName = itemName.toLowerCase();
+
+      const ratesByClass = treatmentConfig.rates_by_classification;
+      if (ratesByClass) {
+        if (isBoostingMain && ratesByClass["boosting_from_main"] !== undefined) {
+          commRate = Number(ratesByClass["boosting_from_main"]);
+        } else if (ratesByClass["walk-in"] !== undefined) {
+          commRate = Number(ratesByClass["walk-in"]);
+        }
+      } else if (lowerName.includes("penile")) {
+        commRate = isBoostingMain ? 15.6 : 32.5;
+      }
 
       const commAmount = isPercentage
         ? Math.round(baseAmount * (commRate / 100) * 100) / 100
@@ -318,6 +342,7 @@ export async function autoComputeAllCommissions() {
         .maybeSingle();
 
       const staffName = staffMap[handlerId] || "Therapist";
+      const classLabel = isBoostingMain ? "Boosting Main" : (clientClass || "Standard");
 
       const commPayload = {
         employee_id: handlerId,
@@ -333,7 +358,7 @@ export async function autoComputeAllCommissions() {
         split_ratio: 1.0,
         date_earned: appt.appointment_date || new Date().toISOString().slice(0, 10),
         status: "approved",
-        notes: `Auto-computed for ${staffName} (Handled service: ${itemName})`,
+        notes: `Auto-computed for ${staffName} (Handled: ${itemName} @ ${commRate}% [${classLabel}])`,
       };
 
       if (existingComm) {

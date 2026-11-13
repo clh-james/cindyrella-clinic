@@ -355,7 +355,7 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
 
   const { data: appt } = await adminClient
     .from("appointments")
-    .select("id, reference_number, branch_id, treatment_id, amount_due, appointment_date, notes, treatments(name, session_price)")
+    .select("id, reference_number, branch_id, treatment_id, amount_due, appointment_date, notes, client_classification, treatments(name, session_price)")
     .eq("id", appointmentId)
     .single();
 
@@ -397,6 +397,7 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
     handled_by?: string | null;
     commission_rate?: number;
     commission_type?: "percentage" | "fixed";
+    rates_by_classification?: Record<string, number>;
   }>;
 
   const treatmentConfig = quotasMap[appt.treatment_id] || {};
@@ -411,8 +412,33 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
   const itemName = treatment?.name || "Clinic Service";
   const baseAmount = Number(appt.amount_due || treatment?.session_price || 0);
 
-  const commRate = Number(treatmentConfig.commission_rate ?? 10);
+  // Determine client classification: walk-in, booked, or boosting_from_main
+  let clientClass = (appt as unknown as { client_classification?: string }).client_classification;
+  if (!clientClass && appt.notes) {
+    const classMatch = appt.notes.match(/\[Classification:([^\]]+)\]/i);
+    if (classMatch) clientClass = classMatch[1];
+  }
+  const isBoostingMain =
+    clientClass === "boosting_from_main" ||
+    clientClass === "boosting from main" ||
+    clientClass?.toLowerCase().includes("boosting");
+
+  // Determine commission rate (with support for client source tiers)
+  let commRate = Number(treatmentConfig.commission_rate ?? 10);
   const isPercentage = (treatmentConfig.commission_type || "percentage") === "percentage";
+  const lowerName = itemName.toLowerCase();
+
+  const ratesByClass = treatmentConfig.rates_by_classification;
+  if (ratesByClass) {
+    if (isBoostingMain && ratesByClass["boosting_from_main"] !== undefined) {
+      commRate = Number(ratesByClass["boosting_from_main"]);
+    } else if (ratesByClass["walk-in"] !== undefined) {
+      commRate = Number(ratesByClass["walk-in"]);
+    }
+  } else if (lowerName.includes("penile")) {
+    // Penile enhancement: 32.5% for walk-in or booked clients; 15.6% for Boosting Main
+    commRate = isBoostingMain ? 15.6 : 32.5;
+  }
 
   const totalCommAmount = isPercentage
     ? Math.round(baseAmount * (commRate / 100) * 100) / 100
@@ -451,7 +477,8 @@ export async function autoCreditAppointmentCommission(appointmentId: string) {
     const staffName = staffNameMap.get(h.staffId) || "Therapist";
 
     const roleLabel = h.role === "primary" ? "Primary/Lead" : "Assistant";
-    const notes = `Auto-computed for ${staffName} (${roleLabel}: ${Math.round((rawPercent / totalPercent) * 100)}% split on ${itemName})`;
+    const classLabel = isBoostingMain ? "Boosting Main" : (clientClass || "Standard");
+    const notes = `Auto-computed for ${staffName} (${roleLabel}: ${Math.round((rawPercent / totalPercent) * 100)}% split on ${itemName} @ ${commRate}% [${classLabel}])`;
 
     await adminClient.from("commission_records").insert({
       employee_id: h.staffId,
