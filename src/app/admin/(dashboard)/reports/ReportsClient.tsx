@@ -2,15 +2,34 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useTransition } from "react";
 import { 
   BarChart3, TrendingUp, CalendarDays, WalletCards, BriefcaseMedical, UserRoundCog,
-  CreditCard, Banknote, Smartphone, Scale, ArrowRight, FileSpreadsheet
+  CreditCard, Banknote, Smartphone, Scale, ArrowRight, FileSpreadsheet, Calendar
 } from "lucide-react";
 
 const peso = (n: number) => `₱${n.toLocaleString("en-PH")}`;
 
-export function ReportsClient({ appointments, sales, staff }: { appointments: any[], sales: any[], staff: any[] }) {
+interface ReportsClientProps {
+  appointments: any[];
+  sales: any[];
+  staff: any[];
+  selectedMonth?: number;
+  selectedYear?: number;
+  monthName?: string;
+}
+
+export function ReportsClient({ 
+  appointments, 
+  sales, 
+  staff,
+  selectedMonth = new Date().getMonth() + 1,
+  selectedYear = new Date().getFullYear(),
+  monthName = "Current Month",
+}: ReportsClientProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   
   const stats = useMemo(() => {
     // 1. Revenue
@@ -52,13 +71,34 @@ export function ReportsClient({ appointments, sales, staff }: { appointments: an
     });
     const topTreatments = [...treatments.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-    // 5. Staff Performance (Retail Sales only for MVP)
-    const staffSales = new Map<string, { total: number, count: number }>();
+    // 5. Staff Performance (Services & Treatments handled + Retail Sales)
+    const staffSales = new Map<string, { total: number, count: number, servicesTotal: number, retailTotal: number }>();
+    
+    // Add appointments handled by staff
+    appointments
+      .filter(a => a.payment_status === "paid" && a.status !== "cancelled" && a.handled_by)
+      .forEach(a => {
+        const staffId = a.handled_by;
+        const current = staffSales.get(staffId) || { total: 0, count: 0, servicesTotal: 0, retailTotal: 0 };
+        staffSales.set(staffId, {
+          total: current.total + (a.amount_due || 0),
+          count: current.count + 1,
+          servicesTotal: current.servicesTotal + (a.amount_due || 0),
+          retailTotal: current.retailTotal,
+        });
+      });
+
+    // Add retail sales
     sales.forEach(s => {
       const staffId = s.created_by;
       if (staffId) {
-        const current = staffSales.get(staffId) || { total: 0, count: 0 };
-        staffSales.set(staffId, { total: current.total + s.total_amount, count: current.count + 1 });
+        const current = staffSales.get(staffId) || { total: 0, count: 0, servicesTotal: 0, retailTotal: 0 };
+        staffSales.set(staffId, {
+          total: current.total + (s.total_amount || 0),
+          count: current.count + 1,
+          servicesTotal: current.servicesTotal,
+          retailTotal: current.retailTotal + (s.total_amount || 0),
+        });
       }
     });
     
@@ -66,9 +106,11 @@ export function ReportsClient({ appointments, sales, staff }: { appointments: an
       const staffMember = staff.find(st => st.id === id);
       return {
         name: staffMember?.full_name || "Unknown Staff",
-        role: staffMember?.roles?.name || "N/A",
+        role: staffMember?.roles?.name || "Aesthetician",
         total: data.total,
-        count: data.count
+        count: data.count,
+        servicesTotal: data.servicesTotal,
+        retailTotal: data.retailTotal,
       };
     }).sort((a, b) => b.total - a.total);
 
@@ -86,27 +128,82 @@ export function ReportsClient({ appointments, sales, staff }: { appointments: an
     };
   }, [appointments, sales, staff]);
 
+  const monthOptions = [
+    { value: 1, label: "January" },
+    { value: 2, label: "February" },
+    { value: 3, label: "March" },
+    { value: 4, label: "April" },
+    { value: 5, label: "May" },
+    { value: 6, label: "June" },
+    { value: 7, label: "July" },
+    { value: 8, label: "August" },
+    { value: 9, label: "September" },
+    { value: 10, label: "October" },
+    { value: 11, label: "November" },
+    { value: 12, label: "December" },
+  ];
+
+  const handleMonthChange = (newMonth: number) => {
+    startTransition(() => {
+      router.push(`/admin/reports?month=${newMonth}&year=${selectedYear}`);
+    });
+  };
+
+  const handleYearChange = (newYear: number) => {
+    startTransition(() => {
+      router.push(`/admin/reports?month=${selectedMonth}&year=${newYear}`);
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-serif text-2xl font-bold text-ink">Reports Dashboard</h1>
-          <p className="text-sm text-ink-soft mt-1">Summary for the current month.</p>
+          <p className="text-sm text-ink-soft mt-1">
+            Financial & operational performance summary for <strong className="text-ink">{monthName} {selectedYear}</strong>.
+          </p>
         </div>
+
+        {/* Date Filters & Quick Links */}
         <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center bg-white border border-line rounded-xl p-1 shadow-2xs">
+            <Calendar size={14} className="text-ink-soft ml-2 mr-1" />
+            <select
+              value={selectedMonth}
+              onChange={(e) => handleMonthChange(Number(e.target.value))}
+              disabled={isPending}
+              className="text-xs font-semibold text-ink bg-transparent py-1.5 px-2 focus:outline-none cursor-pointer"
+            >
+              {monthOptions.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+            <select
+              value={selectedYear}
+              onChange={(e) => handleYearChange(Number(e.target.value))}
+              disabled={isPending}
+              className="text-xs font-semibold text-ink bg-transparent py-1.5 px-2 border-l border-line focus:outline-none cursor-pointer"
+            >
+              <option value={2025}>2025</option>
+              <option value={2026}>2026</option>
+              <option value={2027}>2027</option>
+            </select>
+          </div>
+
           <Link
-            href="/admin/reports/sales"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold hover:shadow-md transition-all shadow-sm"
+            href={`/admin/reports/sales?month=${selectedMonth}&year=${selectedYear}`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-2xs"
           >
-            <FileSpreadsheet size={16} /> Detailed Monthly Sales Report
-            <ArrowRight size={14} />
+            <FileSpreadsheet size={15} /> Detailed Sales
+            <ArrowRight size={13} />
           </Link>
           <Link
             href="/admin/reports/financials"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-royal to-indigo-700 text-white rounded-xl text-xs font-bold hover:shadow-md transition-all shadow-sm"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-royal to-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-2xs"
           >
-            <Scale size={16} /> Income Statement & Balance Sheet
-            <ArrowRight size={14} />
+            <Scale size={15} /> P&L & Balance Sheet
+            <ArrowRight size={13} />
           </Link>
         </div>
       </div>
@@ -252,27 +349,37 @@ export function ReportsClient({ appointments, sales, staff }: { appointments: an
       {/* Staff Performance Table */}
       <div className="bg-white rounded-2xl border border-line shadow-sm overflow-hidden">
         <div className="p-4 sm:p-6 border-b border-line flex items-center justify-between">
-          <h2 className="text-sm font-bold text-ink flex items-center gap-2">
-            <UserRoundCog size={16} className="text-royal" /> Staff Retail Sales Performance
-          </h2>
-          <span className="text-xs text-ink-soft">{stats.staffPerformance.length} staff</span>
+          <div>
+            <h2 className="text-sm font-bold text-ink flex items-center gap-2">
+              <UserRoundCog size={16} className="text-royal" /> Staff Performance (Services & Retail)
+            </h2>
+            <p className="text-xs text-ink-soft mt-0.5">
+              Service treatments serviced and product sales attributed per aesthetician/staff.
+            </p>
+          </div>
+          <span className="text-xs font-semibold text-royal bg-royal/10 px-2.5 py-1 rounded-full">
+            {stats.staffPerformance.length} Active Performers
+          </span>
         </div>
 
         {/* Mobile View (< lg) */}
         <div className="p-3 sm:p-4 space-y-2.5 lg:hidden">
           {stats.staffPerformance.length === 0 ? (
             <div className="py-8 text-center text-xs text-ink-soft">
-              No retail sales recorded by staff this month.
+              No services or sales recorded by staff this month.
             </div>
           ) : (
-            stats.staffPerformance.map((staff, idx) => (
-              <div key={idx} className="bg-pale/30 border border-line rounded-xl p-3 flex items-center justify-between gap-3 text-xs">
-                <div>
-                  <span className="font-bold text-ink text-sm block">{staff.name}</span>
-                  <span className="text-[11px] text-ink-soft capitalize">{staff.role} • {staff.count} sales</span>
+            stats.staffPerformance.map((st, idx) => (
+              <div key={idx} className="bg-pale/30 border border-line rounded-xl p-3 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-ink text-sm">{st.name}</span>
+                  <span className="font-mono font-bold text-ink text-sm sm:text-base">
+                    {peso(st.total)}
+                  </span>
                 </div>
-                <div className="font-mono font-bold text-ink text-sm sm:text-base shrink-0">
-                  {peso(staff.total)}
+                <div className="flex items-center justify-between text-[11px] text-ink-soft">
+                  <span className="capitalize">{st.role} &bull; {st.count} client sessions</span>
+                  <span>Services: {peso(st.servicesTotal)}</span>
                 </div>
               </div>
             ))
@@ -286,22 +393,41 @@ export function ReportsClient({ appointments, sales, staff }: { appointments: an
               <tr>
                 <th className="px-6 py-4">Staff Member</th>
                 <th className="px-6 py-4">Role</th>
-                <th className="px-6 py-4">Sales Count</th>
+                <th className="px-6 py-4 text-center">Sessions / Sales</th>
+                <th className="px-6 py-4 text-right">Service Revenue</th>
                 <th className="px-6 py-4 text-right">Total Generated</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {stats.staffPerformance.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-ink-soft">No retail sales recorded by staff this month.</td>
+                  <td colSpan={5} className="px-6 py-8 text-center text-ink-soft">
+                    No services or sales recorded by staff this month.
+                  </td>
                 </tr>
               ) : (
-                stats.staffPerformance.map((staff, idx) => (
+                stats.staffPerformance.map((st, idx) => (
                   <tr key={idx} className="hover:bg-pale/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-ink">{staff.name}</td>
-                    <td className="px-6 py-4 text-ink-soft capitalize">{staff.role}</td>
-                    <td className="px-6 py-4 text-ink-soft">{staff.count}</td>
-                    <td className="px-6 py-4 text-right font-bold text-ink">{peso(staff.total)}</td>
+                    <td className="px-6 py-4 font-medium text-ink flex items-center gap-2">
+                      <div className="h-7 w-7 rounded-full bg-royal/10 text-royal flex items-center justify-center font-bold text-xs shrink-0">
+                        {st.name.slice(0, 1)}
+                      </div>
+                      <span>{st.name}</span>
+                    </td>
+                    <td className="px-6 py-4 text-ink-soft capitalize">
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-pale border border-line text-ink">
+                        {st.role}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center font-semibold text-ink">
+                      {st.count}
+                    </td>
+                    <td className="px-6 py-4 text-right font-mono text-ink-soft">
+                      {peso(st.servicesTotal)}
+                    </td>
+                    <td className="px-6 py-4 text-right font-mono font-bold text-emerald-700">
+                      {peso(st.total)}
+                    </td>
                   </tr>
                 ))
               )}
