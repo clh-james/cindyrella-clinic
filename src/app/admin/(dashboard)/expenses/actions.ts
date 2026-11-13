@@ -3,7 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaff } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { ExpenseFormData, ExpensePaymentMethod } from "./types";
+import { ExpenseFormData, ExpensePaymentMethod, PettyCashTransaction } from "./types";
 
 function generateExpenseNumber(): string {
   const now = new Date();
@@ -976,8 +976,11 @@ export async function replenishPettyCash(
 
     const now = new Date().toISOString();
 
+    const prevBal = fund ? Number(fund.current_balance) : 0;
+    let newBal = addAmount;
+
     if (fund) {
-      const newBal = Number(fund.current_balance) + addAmount;
+      newBal = prevBal + addAmount;
       await supabase
         .from("petty_cash_funds")
         .update({
@@ -1000,7 +1003,13 @@ export async function replenishPettyCash(
       resource_type: "petty_cash_funds",
       user_id: staff.id,
       branch_id: branchId,
-      metadata: { amount: addAmount, notes: notes || null },
+      metadata: {
+        amount: addAmount,
+        previous_balance: prevBal,
+        new_balance: newBal,
+        notes: notes || null,
+        staff_name: staff.fullName,
+      },
     });
 
     revalidatePath("/admin/expenses");
@@ -1073,6 +1082,7 @@ export async function adjustPettyCash(
         new_balance: bal,
         target_float: updateData.target_float ?? fund?.target_float ?? 5000,
         notes: notes || null,
+        staff_name: staff.fullName,
       },
     });
 
@@ -1081,6 +1091,205 @@ export async function adjustPettyCash(
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to adjust petty cash";
     return { success: false, error: message };
+  }
+}
+
+// 10.2 GET PETTY CASH TRANSACTION & REPLENISHMENT HISTORY
+export async function getPettyCashHistory(branchId?: string): Promise<{
+  success: boolean;
+  transactions: PettyCashTransaction[];
+  error?: string;
+}> {
+  await requireStaff();
+  const supabase = createAdminClient();
+
+  try {
+    // 1. Fetch Staff map
+    const { data: staffList } = await supabase
+      .from("staff")
+      .select("id, full_name");
+    const staffMap = new Map<string, string>();
+    (staffList || []).forEach((s) => {
+      if (s.id && s.full_name) staffMap.set(s.id, s.full_name);
+    });
+
+    // 2. Fetch Branch map
+    const { data: branchList } = await supabase
+      .from("branches")
+      .select("id, name");
+    const branchMap = new Map<string, string>();
+    (branchList || []).forEach((b) => {
+      if (b.id && b.name) branchMap.set(b.id, b.name);
+    });
+
+    // 3. Fetch Disbursements from expenses
+    let expQuery = supabase
+      .from("expenses")
+      .select(`
+        id,
+        expense_number,
+        title,
+        description,
+        vendor_or_payee,
+        total_amount,
+        expense_date,
+        payment_method,
+        payment_status,
+        payment_date,
+        is_petty_cash,
+        branch_id,
+        receipt_url,
+        reference_number,
+        created_at,
+        requested_by,
+        category:expense_categories(id, name, color)
+      `)
+      .or("payment_method.eq.petty_cash,is_petty_cash.eq.true");
+
+    if (branchId && branchId !== "all") {
+      expQuery = expQuery.eq("branch_id", branchId);
+    }
+
+    const { data: expRows, error: expErr } = await expQuery;
+    if (expErr) throw expErr;
+
+    // 4. Fetch Replenishments and Adjustments from audit_logs
+    let auditQuery = supabase
+      .from("audit_logs")
+      .select("id, action, resource_type, user_id, branch_id, metadata, created_at")
+      .in("action", ["PETTY_CASH_REPLENISHED", "PETTY_CASH_ADJUSTED", "PETTY_CASH_INITIALIZED"]);
+
+    if (branchId && branchId !== "all") {
+      auditQuery = auditQuery.eq("branch_id", branchId);
+    }
+
+    const { data: auditRows, error: auditErr } = await auditQuery;
+    if (auditErr) throw auditErr;
+
+    const transactions: PettyCashTransaction[] = [];
+
+    // Map Disbursements
+    (expRows || []).forEach((e) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cat = Array.isArray(e.category) ? e.category[0] : (e.category as any);
+      const bId = e.branch_id || "";
+      const bName = branchMap.get(bId) || "Branch";
+      const staffName = staffMap.get(e.requested_by || "") || "Clinic Staff";
+
+      transactions.push({
+        id: e.id,
+        type: "disbursement",
+        date: e.expense_date || e.created_at,
+        amount: Number(e.total_amount || 0),
+        voucher_number: e.expense_number,
+        title: e.title || "Petty Cash Disbursement",
+        description: e.description,
+        payee: e.vendor_or_payee,
+        category_name: cat?.name || "Petty Cash Expense",
+        category_color: cat?.color || "#10B981",
+        branch_id: bId,
+        branch_name: bName,
+        staff_name: staffName,
+        receipt_url: e.receipt_url,
+        status: e.payment_status || "paid",
+        notes: e.reference_number ? `Ref: ${e.reference_number}` : null,
+      });
+    });
+
+    // Map Replenishments & Adjustments
+    (auditRows || []).forEach((l) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const meta = (l.metadata || {}) as Record<string, any>;
+      const bId = l.branch_id || "";
+      const bName = branchMap.get(bId) || "Branch";
+      const staffName = meta.staff_name || staffMap.get(l.user_id || "") || "Administrator";
+
+      if (l.action === "PETTY_CASH_REPLENISHED") {
+        const amt = Number(meta.amount || 0);
+        transactions.push({
+          id: l.id,
+          type: "replenishment",
+          date: l.created_at,
+          amount: amt,
+          voucher_number: meta.reference_number || "REPLENISHMENT",
+          title: "Float Replenishment",
+          description: meta.notes || "Emergency petty cash float replenishment",
+          payee: "Drawer Float",
+          category_name: "Fund Replenishment",
+          category_color: "#059669",
+          branch_id: bId,
+          branch_name: bName,
+          staff_name: staffName,
+          status: "completed",
+          previous_balance: meta.previous_balance !== undefined ? Number(meta.previous_balance) : null,
+          new_balance: meta.new_balance !== undefined ? Number(meta.new_balance) : null,
+          notes: meta.notes || null,
+        });
+      } else if (l.action === "PETTY_CASH_ADJUSTED") {
+        const newBal = Number(meta.new_balance || 0);
+        const prevBal = meta.previous_balance !== undefined ? Number(meta.previous_balance) : null;
+        transactions.push({
+          id: l.id,
+          type: "adjustment",
+          date: l.created_at,
+          amount: newBal,
+          voucher_number: "ADJUST",
+          title: "Float Balance Calibration",
+          description: meta.notes || `Balance manually adjusted to ₱${newBal.toLocaleString()}`,
+          payee: "Drawer Audit Count",
+          category_name: "Float Adjustment",
+          category_color: "#D97706",
+          branch_id: bId,
+          branch_name: bName,
+          staff_name: staffName,
+          status: "completed",
+          previous_balance: prevBal,
+          new_balance: newBal,
+          notes: meta.notes || null,
+        });
+      }
+    });
+
+    // 5. Initial baseline fallback if funds exist but no replenishment audit yet
+    const { data: fundList } = await supabase
+      .from("petty_cash_funds")
+      .select("id, branch_id, current_balance, target_float, last_replenished_at");
+
+    (fundList || []).forEach((f) => {
+      if (branchId && branchId !== "all" && f.branch_id !== branchId) return;
+      const hasReplenish = transactions.some(
+        (t) => t.branch_id === f.branch_id && t.type === "replenishment"
+      );
+      if (!hasReplenish && f.last_replenished_at) {
+        transactions.push({
+          id: `initial-${f.id}`,
+          type: "replenishment",
+          date: f.last_replenished_at,
+          amount: Number(f.target_float || f.current_balance || 5000),
+          voucher_number: "INITIAL-FLOAT",
+          title: "Starting Float Baseline",
+          description: "Initial petty cash drawer float established",
+          payee: "Drawer Float",
+          category_name: "Starting Baseline",
+          category_color: "#059669",
+          branch_id: f.branch_id,
+          branch_name: branchMap.get(f.branch_id) || "Branch",
+          staff_name: "System Setup",
+          status: "completed",
+          previous_balance: 0,
+          new_balance: Number(f.current_balance || 5000),
+          notes: "Initial cash drawer float",
+        });
+      }
+    });
+
+    // Sort descending by date
+    transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return { success: true, transactions };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to load petty cash history";
+    return { success: false, transactions: [], error: message };
   }
 }
 

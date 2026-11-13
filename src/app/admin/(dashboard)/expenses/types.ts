@@ -147,6 +147,29 @@ export interface PettyCashFund {
   updated_at?: string;
 }
 
+export type PettyCashTransactionType = "replenishment" | "disbursement" | "adjustment";
+
+export interface PettyCashTransaction {
+  id: string;
+  type: PettyCashTransactionType;
+  date: string;
+  amount: number;
+  voucher_number: string;
+  title: string;
+  description?: string | null;
+  payee?: string | null;
+  category_name?: string | null;
+  category_color?: string | null;
+  branch_id: string;
+  branch_name: string;
+  staff_name: string;
+  receipt_url?: string | null;
+  status?: string;
+  previous_balance?: number | null;
+  new_balance?: number | null;
+  notes?: string | null;
+}
+
 export interface CashierShiftSummary {
   id: string;
   cashier_id: string;
