@@ -817,7 +817,7 @@ export async function getMyDailyCommissions(targetDate?: string) {
       // Extract all item names and calculate medication deductions (e.g. Penile Medication Set)
       let treatmentDisplayName = appt.treatments?.name || "Clinic Treatment";
       let medTotal = 0;
-      let nonMedNames: string[] = [];
+      const nonMedNames: string[] = [];
 
       if (appt.notes) {
         try {
