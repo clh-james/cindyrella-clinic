@@ -52,8 +52,8 @@ export default async function PackagesPage() {
 
       templates = treatments
         .map((t) => {
-          const isPenileEnhancement = t.name.toLowerCase().includes("penile enhancement") && !t.name.toLowerCase().includes("medication");
-          const presetOptions = isPenileEnhancement
+          const isPenileTreatment = t.name.toLowerCase().includes("penile") && !t.name.toLowerCase().includes("medication");
+          const presetOptions = isPenileTreatment
             ? [
                 {
                   label: "2 Sessions Package",

@@ -9,7 +9,7 @@ import {
   Loader2, Search, X, CheckCircle2,
   Trash2, AlertTriangle, Package as PackageIcon,
   BriefcaseMedical, User, History, ReceiptText, Printer, Bluetooth, Scale,
-  UserCheck, Users
+  UserCheck, Users, Sparkles
 } from "lucide-react";
 import { processPOSWalkin, processPOSRetail, getRecentTransactions } from "./actions";
 import { setAppointmentHandler, setAppointmentHandlers, type HandlerAssignment } from "@/app/admin/actions";
@@ -915,21 +915,31 @@ export function POSClient({
         <div className="flex-1 flex flex-col min-w-0 bg-[#f4f7f9]">
           
           {/* Mode Selector */}
-          <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 sm:pb-4 shrink-0">
-            <div className="flex p-1 bg-white border border-line rounded-xl w-full max-w-sm mx-auto shadow-sm">
+          <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 sm:pb-4 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex p-1 bg-white border border-line rounded-xl w-full sm:w-auto shadow-sm">
               <button 
                 onClick={() => { setMode("walkin"); setSelectedCategory("All"); }}
-                className={`flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${mode === "walkin" ? "bg-royal text-white shadow-md" : "text-ink-soft hover:bg-pale"}`}
+                className={`px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${mode === "walkin" ? "bg-royal text-white shadow-md" : "text-ink-soft hover:bg-pale"}`}
               >
                 Treatments
               </button>
               <button 
                 onClick={() => { setMode("retail"); setSelectedCategory("All"); }}
-                className={`flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${mode === "retail" ? "bg-royal text-white shadow-md" : "text-ink-soft hover:bg-pale"}`}
+                className={`px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${mode === "retail" ? "bg-royal text-white shadow-md" : "text-ink-soft hover:bg-pale"}`}
               >
                 Retail Sales
               </button>
             </div>
+
+            <Link
+              href="/admin/packages"
+              target="_blank"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-amber-500/10 to-amber-600/10 text-amber-900 border border-amber-300 rounded-xl text-xs font-semibold hover:bg-amber-100/60 transition-all shadow-2xs"
+              title="Sell package or redeem prepaid sessions credits"
+            >
+              <Sparkles size={14} className="text-amber-600" />
+              Sell / Redeem Packages &rarr;
+            </Link>
           </div>
 
           {/* Search & Filters */}
